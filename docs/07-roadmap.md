@@ -16,7 +16,7 @@ Sie dient als praktischer Entwicklungsplan und verbindet die bisherigen Dokument
 * `03-architecture.md`
 * `04-data-model.md`
 * `05-data-sources-and-import-strategy.md`
-* `06-ai-coach.md`
+* `06-ai-coach-concept.md`
 
 Das Ziel ist, jederzeit klar zu wissen:
 
@@ -101,7 +101,7 @@ docs/02-feature-scope.md
 docs/03-architecture.md
 docs/04-data-model.md
 docs/05-data-sources-and-import-strategy.md
-docs/06-ai-coach.md
+docs/06-ai-coach-concept.md
 docs/07-roadmap.md
 ```
 
