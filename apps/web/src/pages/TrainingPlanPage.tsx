@@ -1,3 +1,4 @@
+import { DashboardWidget, WorkoutCard } from '../components';
 import { PageShell } from '../layout/PageShell';
 import {
   getCurrentTrainingPlan,
@@ -27,6 +28,21 @@ export function TrainingPlanPage({ navigate }: PageComponentProps) {
           Open first mock workout
         </button>
       }
-    />
+    >
+      <DashboardWidget title={trainingPlan.title} eyebrow="Active plan">
+        {trainingPlan.description ? (
+          <p className="prototype-copy">{trainingPlan.description}</p>
+        ) : null}
+        <div className="list-stack" aria-label="Prototype training plan">
+          {plannedWorkouts.map((workout) => (
+            <WorkoutCard
+              key={workout.id}
+              workout={workout}
+              onOpen={(workoutId) => navigate(`/workouts/${workoutId}`)}
+            />
+          ))}
+        </div>
+      </DashboardWidget>
+    </PageShell>
   );
 }

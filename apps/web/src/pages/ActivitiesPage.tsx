@@ -1,8 +1,17 @@
+import {
+  ActivityCard,
+  ActivitySummaryStats,
+  DashboardWidget,
+} from '../components';
 import { PageShell } from '../layout/PageShell';
-import { getRecentActivities } from '../mock/prototypeData.helpers';
+import {
+  getActivities,
+  getRecentActivities,
+} from '../mock/prototypeData.helpers';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 export function ActivitiesPage({ navigate }: PageComponentProps) {
+  const activities = getActivities();
   const recentActivities = getRecentActivities(3);
 
   return (
@@ -25,6 +34,20 @@ export function ActivitiesPage({ navigate }: PageComponentProps) {
           Open first mock activity
         </button>
       }
-    />
+    >
+      <DashboardWidget title="Activity summary" eyebrow="Mock history">
+        <ActivitySummaryStats activities={activities} />
+      </DashboardWidget>
+
+      <div className="list-stack" aria-label="Prototype activity list">
+        {activities.slice(0, 6).map((activity) => (
+          <ActivityCard
+            key={activity.id}
+            activity={activity}
+            onOpen={(activityId) => navigate(`/activities/${activityId}`)}
+          />
+        ))}
+      </div>
+    </PageShell>
   );
 }
