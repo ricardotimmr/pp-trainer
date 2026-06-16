@@ -1,9 +1,11 @@
-import { PlaceholderPage } from './PlaceholderPage';
+import { PageShell } from '../layout/PageShell';
 
 export function NotFoundPage() {
   return (
-    <PlaceholderPage title="Page not found" eyebrow="Prototype route">
-      <p>The requested prototype route does not exist.</p>
-    </PlaceholderPage>
+    <PageShell
+      title="Page not found"
+      eyebrow="Prototype route"
+      description="The requested prototype route does not exist."
+    />
   );
 }

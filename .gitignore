@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 docs/local/
+docs/precision-pacers-mockup_4.html
 
 # Editor directories and files
 .vscode/*
