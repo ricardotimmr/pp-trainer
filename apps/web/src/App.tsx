@@ -1,34 +1,42 @@
-import { useState } from 'react';
-import reactLogo from './assets/react.svg';
-import viteLogo from '/vite.svg';
 import './App.css';
+import { navigationRoutes } from './routes/routeConfig';
+import { usePrototypeRouter } from './routes/usePrototypeRouter';
 
 function App() {
-  const [count, setCount] = useState(0);
+  const { pathname, routeMatch, navigate } = usePrototypeRouter();
+  const Page = routeMatch.route.component;
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank" rel="noreferrer">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank" rel="noreferrer">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <div className="prototype-shell">
+      <header className="prototype-shell__header">
+        <div>
+          <p className="prototype-shell__label">pp-trainer</p>
+          <p className="prototype-shell__phase">Phase 2 frontend prototype</p>
+        </div>
+        <nav className="prototype-shell__nav" aria-label="Prototype screens">
+          {navigationRoutes.map((route) => {
+            const isActive =
+              route.path === '/'
+                ? pathname === route.path
+                : pathname.startsWith(route.path);
+
+            return (
+              <button
+                key={route.id}
+                type="button"
+                className={isActive ? 'is-active' : undefined}
+                onClick={() => navigate(route.path)}
+              >
+                {route.label}
+              </button>
+            );
+          })}
+        </nav>
+      </header>
+      <main>
+        <Page params={routeMatch.params} navigate={navigate} />
+      </main>
+    </div>
   );
 }
 
