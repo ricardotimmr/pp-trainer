@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 
+import { AppFooter } from './AppFooter';
 import { navigationRoutes } from '../routes/routeConfig';
 
 type AppShellProps = {
@@ -25,7 +26,7 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
             className="app-shell__brand"
             onClick={() => openRoute('/')}
           >
-            <span className="app-shell__brand-mark">pp</span>
+            <span className="app-shell__brand-mark">PP</span>
             <span>
               <span className="app-shell__brand-name">pp-trainer</span>
               <span className="app-shell__brand-subtitle">
@@ -81,6 +82,7 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
       </header>
 
       <main className="app-shell__main">{children}</main>
+      <AppFooter navigate={openRoute} />
     </div>
   );
 }

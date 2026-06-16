@@ -4,6 +4,7 @@ type DashboardWidgetProps = {
   title: string;
   eyebrow?: string;
   action?: ReactNode;
+  className?: string;
   children: ReactNode;
 };
 
@@ -11,10 +12,15 @@ export function DashboardWidget({
   title,
   eyebrow,
   action,
+  className,
   children,
 }: DashboardWidgetProps) {
   return (
-    <section className="dashboard-widget">
+    <section
+      className={
+        className ? `dashboard-widget ${className}` : 'dashboard-widget'
+      }
+    >
       <header className="dashboard-widget__header">
         <div>
           {eyebrow ? (
