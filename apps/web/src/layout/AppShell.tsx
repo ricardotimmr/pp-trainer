@@ -27,7 +27,9 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
 
   return (
     <div className="app-shell">
-      <header className={`app-shell__header${isScrolled ? ' is-scrolled' : ''}`}>
+      <header
+        className={`app-shell__header${isScrolled ? ' is-scrolled' : ''}`}
+      >
         <div className="app-shell__header-inner">
           <button
             type="button"

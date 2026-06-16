@@ -11,8 +11,8 @@
     sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #111827;
-  background-color: #f3f0e8;
+  color: #161418;
+  background-color: #fbfbf8;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -22,11 +22,11 @@
 
 a {
   font-weight: 500;
-  color: #ff1b91;
+  color: #eb0f7a;
   text-decoration: inherit;
 }
 a:hover {
-  color: #b9005f;
+  color: #b80c61;
 }
 
 body {
@@ -56,6 +56,6 @@ button {
 
 button:focus,
 button:focus-visible {
-  outline: 3px solid rgba(255, 27, 145, 0.22);
+  outline: 3px solid rgba(235, 15, 122, 0.24);
   outline-offset: 2px;
 }

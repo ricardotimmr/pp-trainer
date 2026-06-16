@@ -76,8 +76,7 @@ export function AppFooter({ navigate }: AppFooterProps) {
         <div className="foot__cell">
           <h5>Info</h5>
           <div className="foot__meta">
-            Personal training hub for one athlete —
-            source-agnostic.
+            Personal training hub for one athlete — source-agnostic.
           </div>
           <div className="foot__sub foot__meta">
             © 2026 Precision Pacers

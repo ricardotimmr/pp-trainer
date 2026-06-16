@@ -6,33 +6,27 @@
   --font-ui: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Anton', Impact, sans-serif;
   --font-mono: 'Space Mono', ui-monospace, monospace;
-  --color-paper: #f3f0e8;
-  --color-surface: #fbfaf5;
-  --color-surface-strong: #fffdf7;
-  --color-ink: #111111;
-  --color-text: #2f2f2f;
-  --color-muted: #6f695f;
-  --color-faint: #9a9387;
-  --color-line: #ded6c7;
-  --color-line-strong: #c7bdab;
-  --color-accent: #ff1b91;
-  --color-accent-dark: #b9005f;
-  --color-accent-soft: #fde6f2;
-  --shadow-soft: 0 10px 28px rgba(46, 38, 27, 0.045);
+  --color-paper: #fbfbf8;
+  --color-surface: #ffffff;
+  --color-surface-strong: #ffffff;
+  --color-ink: #161418;
+  --color-text: #2c2a2e;
+  --color-muted: #8c8a90;
+  --color-faint: #8c8a90;
+  --color-line: #e2e0dc;
+  --color-line-strong: #c9c7c2;
+  --color-accent: #eb0f7a;
+  --color-accent-dark: #b80c61;
+  --color-accent-soft: rgba(235, 15, 122, 0.1);
+  --shadow-soft: 0 10px 28px rgba(22, 20, 24, 0.045);
   --shell-max-width: 1500px;
   --content-max-width: 1440px;
-  --header-height: 80px;
+  --header-height: 68px;
 }
 
 .app-shell {
   min-height: 100vh;
-  background:
-    radial-gradient(
-      circle at 0 0,
-      rgba(255, 255, 255, 0.78),
-      transparent 34rem
-    ),
-    var(--color-paper);
+  background: var(--color-paper);
   color: var(--color-ink);
 }
 
@@ -52,9 +46,9 @@
   min-height: var(--header-height);
   max-width: var(--content-max-width);
   margin: 0 auto;
-  padding: 0 52px;
-  background: rgba(243, 240, 232, 0.94);
-  backdrop-filter: blur(16px);
+  padding: 0 44px;
+  background: transparent;
+  backdrop-filter: none;
   border-bottom: 1.5px dashed var(--color-accent);
   border-radius: 0;
   transition:
@@ -68,7 +62,7 @@
 
 .app-shell__brand {
   position: absolute;
-  left: 52px;
+  left: 0;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
@@ -81,7 +75,7 @@
 }
 
 .app-shell__brand::after {
-  content: "";
+  content: '';
   position: absolute;
   left: 0;
   right: 0;
@@ -103,7 +97,7 @@
 }
 
 .app-shell__brand img {
-  height: 38px;
+  height: 52px;
   width: auto;
   display: block;
 }
@@ -120,19 +114,31 @@
   border-radius: 7px;
   background: transparent;
   color: var(--color-accent);
-  padding: 10px 16px;
-  font-family: "Hanken Grotesk", sans-serif;
+  padding: 8px 16px;
+  font-family: 'Hanken Grotesk', sans-serif;
   font-size: 16.5px;
   font-weight: 400;
   letter-spacing: 0.005em;
   opacity: 0.82;
   white-space: nowrap;
   cursor: pointer;
-  transition: opacity 0.15s, color 0.4s ease;
+  transition:
+    opacity 0.15s,
+    color 0.4s ease;
+}
+
+.app-shell__brand:focus,
+.app-shell__brand:focus-visible,
+.app-shell__nav button:focus,
+.app-shell__nav button:focus-visible,
+.app-shell__menu-button:focus,
+.app-shell__menu-button:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .app-shell__nav button::before {
-  content: "";
+  content: '';
   position: absolute;
   left: 16px;
   right: 16px;
@@ -163,7 +169,7 @@
 }
 
 .app-shell__nav button.is-active::after {
-  content: "";
+  content: '';
   position: absolute;
   left: 16px;
   right: 16px;
@@ -182,7 +188,7 @@
   border-color: transparent;
   border-radius: 10px;
   box-shadow: 0 4px 28px rgba(0, 0, 0, 0.24);
-  min-height: 60px;
+  min-height: 56px;
   padding: 0 28px;
 }
 
@@ -190,38 +196,42 @@
   left: 28px;
 }
 
+.app-shell__header.is-scrolled .app-shell__brand img {
+  height: 42px;
+}
+
 .app-shell__header.is-scrolled .app-shell__brand::after {
   background-image: repeating-linear-gradient(
     to right,
-    rgba(245, 240, 232, 0.72) 0,
-    rgba(245, 240, 232, 0.72) 4px,
+    rgba(251, 251, 248, 0.72) 0,
+    rgba(251, 251, 248, 0.72) 4px,
     transparent 4px,
     transparent 9px
   );
 }
 
 .app-shell__header.is-scrolled .app-shell__nav button {
-  color: #f5f0e8;
+  color: #fbfbf8;
 }
 
 .app-shell__header.is-scrolled .app-shell__nav button::before {
   background-image: repeating-linear-gradient(
     to right,
-    rgba(245, 240, 232, 0.72) 0,
-    rgba(245, 240, 232, 0.72) 4px,
+    rgba(251, 251, 248, 0.72) 0,
+    rgba(251, 251, 248, 0.72) 4px,
     transparent 4px,
     transparent 9px
   );
 }
 
 .app-shell__header.is-scrolled .app-shell__nav button.is-active::after {
-  background: #f5f0e8;
+  background: #fbfbf8;
 }
 
 .app-shell__header.is-scrolled .app-shell__menu-button {
   right: 28px;
-  border-color: rgba(245, 240, 232, 0.38);
-  color: #f5f0e8;
+  border-color: rgba(251, 251, 248, 0.38);
+  color: #fbfbf8;
 }
 
 .app-shell__menu-button {
@@ -239,7 +249,10 @@
   padding: 0;
   cursor: pointer;
   place-items: center;
-  transition: right 0.4s ease, border-color 0.4s ease, color 0.4s ease;
+  transition:
+    right 0.4s ease,
+    border-color 0.4s ease,
+    color 0.4s ease;
 }
 
 .app-shell__menu-icon {
@@ -424,7 +437,7 @@
 }
 
 .dashboard-metric.is-accent {
-  border-color: rgba(255, 27, 145, 0.42);
+  border-color: rgba(235, 15, 122, 0.42);
   background: var(--color-accent-soft);
   color: var(--color-accent-dark);
 }
@@ -692,6 +705,8 @@
 .foot__logo img {
   height: 30px;
   width: auto;
+  filter: invert(17%) sepia(99%) saturate(4520%) hue-rotate(318deg)
+    brightness(91%) contrast(100%);
 }
 
 .foot__logo svg {
@@ -701,7 +716,7 @@
 }
 
 .foot__motto {
-  font-family: "Anton", sans-serif;
+  font-family: 'Anton', sans-serif;
   text-transform: uppercase;
   color: var(--color-accent);
   line-height: 0.9;
@@ -711,7 +726,7 @@
 }
 
 .foot__cell h5 {
-  font-family: "Hanken Grotesk", sans-serif;
+  font-family: 'Hanken Grotesk', sans-serif;
   font-weight: 700;
   font-size: 15px;
   color: var(--color-accent);
@@ -722,7 +737,7 @@
 .foot__cell button {
   display: block;
   padding: 6px 0;
-  font-family: "Hanken Grotesk", sans-serif;
+  font-family: 'Hanken Grotesk', sans-serif;
   font-weight: 500;
   font-size: 14px;
   color: var(--color-accent);
@@ -740,7 +755,7 @@
 }
 
 .foot__meta {
-  font-family: "Hanken Grotesk", sans-serif;
+  font-family: 'Hanken Grotesk', sans-serif;
   font-size: 13px;
   color: var(--color-accent);
   line-height: 1.8;
@@ -852,8 +867,8 @@
 .badge--intensity-threshold,
 .badge--intensity-vo2max,
 .badge--intensity-race {
-  border-color: rgba(255, 27, 145, 0.38);
-  background: rgba(255, 27, 145, 0.1);
+  border-color: rgba(235, 15, 122, 0.38);
+  background: rgba(235, 15, 122, 0.1);
   color: var(--color-accent-dark);
 }
 
@@ -1117,13 +1132,13 @@
 }
 
 .state--loading .state__marker {
-  background: rgba(255, 27, 145, 0.08);
+  background: rgba(235, 15, 122, 0.08);
 }
 
 .state__marker--loading span {
   width: 18px;
   height: 18px;
-  border: 3px solid rgba(255, 27, 145, 0.18);
+  border: 3px solid rgba(235, 15, 122, 0.18);
   border-top-color: var(--color-accent);
   border-radius: 999px;
   animation: state-spinner 0.9s linear infinite;
@@ -1164,9 +1179,9 @@
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    rgba(17, 17, 17, 0.08),
+    rgba(22, 20, 24, 0.08),
     rgba(255, 255, 255, 0.75),
-    rgba(17, 17, 17, 0.08)
+    rgba(22, 20, 24, 0.08)
   );
   background-size: 220% 100%;
   animation: state-skeleton 1.35s ease-in-out infinite;
@@ -1246,7 +1261,7 @@
 
   .app-shell__header.is-scrolled .app-shell__nav {
     background: rgba(20, 14, 8, 0.97);
-    border-color: rgba(245, 240, 232, 0.15);
+    border-color: rgba(251, 251, 248, 0.15);
   }
 
   .app-shell__header.is-scrolled .app-shell__nav button::before {
