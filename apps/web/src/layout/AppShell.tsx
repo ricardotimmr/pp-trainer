@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 
 import { AppFooter } from './AppFooter';
 import { navigationRoutes } from '../routes/routeConfig';
+import navLogo from '../assets/big-p-pink.png';
 
 type AppShellProps = {
   pathname: string;
@@ -11,6 +12,13 @@ type AppShellProps = {
 
 export function AppShell({ pathname, navigate, children }: AppShellProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setIsScrolled(window.scrollY > 64);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const openRoute = (path: string) => {
     setIsMenuOpen(false);
@@ -19,20 +27,15 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
 
   return (
     <div className="app-shell">
-      <header className="app-shell__header">
+      <header className={`app-shell__header${isScrolled ? ' is-scrolled' : ''}`}>
         <div className="app-shell__header-inner">
           <button
             type="button"
             className="app-shell__brand"
             onClick={() => openRoute('/')}
+            aria-label="Precision Pacers — Home"
           >
-            <span className="app-shell__brand-mark">PP</span>
-            <span>
-              <span className="app-shell__brand-name">pp-trainer</span>
-              <span className="app-shell__brand-subtitle">
-                Phase 2 prototype
-              </span>
-            </span>
+            <img src={navLogo} alt="Precision Pacers" />
           </button>
 
           <button
@@ -40,6 +43,7 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
             className="app-shell__menu-button"
             aria-expanded={isMenuOpen}
             aria-controls="primary-navigation"
+            aria-label="Menu"
             onClick={() => setIsMenuOpen((current) => !current)}
           >
             <span className="app-shell__menu-icon" aria-hidden="true">
@@ -47,7 +51,6 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
               <span />
               <span />
             </span>
-            <span className="app-shell__menu-label">Menu</span>
           </button>
 
           <nav

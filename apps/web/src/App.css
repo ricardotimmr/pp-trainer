@@ -21,7 +21,7 @@
   --shadow-soft: 0 10px 28px rgba(46, 38, 27, 0.045);
   --shell-max-width: 1500px;
   --content-max-width: 1440px;
-  --header-height: 66px;
+  --header-height: 80px;
 }
 
 .app-shell {
@@ -40,111 +40,206 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  border-bottom: 1.5px dashed var(--color-accent);
-  background: rgba(250, 248, 242, 0.94);
-  backdrop-filter: blur(14px);
+  padding: 0 24px;
+  transition: padding 0.4s ease;
 }
 
 .app-shell__header-inner {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   min-height: var(--header-height);
-  max-width: var(--shell-max-width);
+  max-width: var(--content-max-width);
   margin: 0 auto;
   padding: 0 52px;
-  gap: 20px;
+  background: rgba(243, 240, 232, 0.94);
+  backdrop-filter: blur(16px);
+  border-bottom: 1.5px dashed var(--color-accent);
+  border-radius: 0;
+  transition:
+    background 0.4s ease,
+    border-color 0.4s ease,
+    border-radius 0.4s ease,
+    box-shadow 0.4s ease,
+    min-height 0.4s ease,
+    padding 0.4s ease;
 }
 
 .app-shell__brand {
-  display: inline-flex;
+  position: absolute;
+  left: 52px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 0;
   border: 0;
   background: transparent;
-  color: var(--color-accent);
-  padding: 0;
-  text-align: left;
+  padding: 0 0 6px;
+  cursor: pointer;
+  transition: left 0.4s ease;
 }
 
-.app-shell__brand:hover {
-  color: var(--color-accent-dark);
+.app-shell__brand::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1.5px;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--color-accent) 0,
+    var(--color-accent) 4px,
+    transparent 4px,
+    transparent 9px
+  );
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.38s ease;
 }
 
-.app-shell__brand-mark {
+.app-shell__brand:hover::after {
+  clip-path: inset(0 0% 0 0);
+}
+
+.app-shell__brand img {
+  height: 38px;
+  width: auto;
   display: block;
-  flex: 0 0 auto;
-  color: var(--color-accent);
-  font-family: var(--font-display);
-  font-size: 2rem;
-  font-style: italic;
-  font-weight: 400;
-  letter-spacing: 0;
-  line-height: 0.9;
-  text-transform: uppercase;
-}
-
-.app-shell__brand-name,
-.app-shell__brand-subtitle {
-  display: block;
-}
-
-.app-shell__brand-name {
-  color: var(--color-accent);
-  font-size: 1rem;
-  font-weight: 800;
-  line-height: 1.05;
-}
-
-.app-shell__brand-subtitle {
-  margin-top: 3px;
-  color: var(--color-accent);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: uppercase;
 }
 
 .app-shell__nav {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 6px;
 }
 
 .app-shell__nav button {
-  min-height: 38px;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  position: relative;
+  border: 0;
+  border-radius: 7px;
   background: transparent;
   color: var(--color-accent);
-  padding: 0 15px;
-  font-size: 0.95rem;
-  font-weight: 500;
+  padding: 10px 16px;
+  font-family: "Hanken Grotesk", sans-serif;
+  font-size: 16.5px;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  opacity: 0.82;
   white-space: nowrap;
+  cursor: pointer;
+  transition: opacity 0.15s, color 0.4s ease;
 }
 
-.app-shell__nav button:hover,
+.app-shell__nav button::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 3px;
+  height: 1.5px;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--color-accent) 0,
+    var(--color-accent) 4px,
+    transparent 4px,
+    transparent 9px
+  );
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.38s ease;
+}
+
+.app-shell__nav button:hover {
+  opacity: 1;
+}
+
+.app-shell__nav button:not(.is-active):hover::before {
+  clip-path: inset(0 0% 0 0);
+}
+
 .app-shell__nav button.is-active {
+  opacity: 1;
+  font-weight: 600;
+}
+
+.app-shell__nav button.is-active::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 3px;
+  height: 2px;
+  background: var(--color-accent);
+  border-radius: 2px;
+}
+
+.app-shell__header.is-scrolled {
+  padding: 10px 24px;
+}
+
+.app-shell__header.is-scrolled .app-shell__header-inner {
+  background: rgba(20, 14, 8, 0.97);
   border-color: transparent;
-  background: transparent;
-  color: var(--color-accent-dark);
-  text-decoration: underline;
-  text-underline-offset: 10px;
+  border-radius: 10px;
+  box-shadow: 0 4px 28px rgba(0, 0, 0, 0.24);
+  min-height: 60px;
+  padding: 0 28px;
+}
+
+.app-shell__header.is-scrolled .app-shell__brand {
+  left: 28px;
+}
+
+.app-shell__header.is-scrolled .app-shell__brand::after {
+  background-image: repeating-linear-gradient(
+    to right,
+    rgba(245, 240, 232, 0.72) 0,
+    rgba(245, 240, 232, 0.72) 4px,
+    transparent 4px,
+    transparent 9px
+  );
+}
+
+.app-shell__header.is-scrolled .app-shell__nav button {
+  color: #f5f0e8;
+}
+
+.app-shell__header.is-scrolled .app-shell__nav button::before {
+  background-image: repeating-linear-gradient(
+    to right,
+    rgba(245, 240, 232, 0.72) 0,
+    rgba(245, 240, 232, 0.72) 4px,
+    transparent 4px,
+    transparent 9px
+  );
+}
+
+.app-shell__header.is-scrolled .app-shell__nav button.is-active::after {
+  background: #f5f0e8;
+}
+
+.app-shell__header.is-scrolled .app-shell__menu-button {
+  right: 28px;
+  border-color: rgba(245, 240, 232, 0.38);
+  color: #f5f0e8;
 }
 
 .app-shell__menu-button {
+  position: absolute;
+  right: 52px;
+  top: 50%;
+  transform: translateY(-50%);
   display: none;
-  align-items: center;
-  gap: 8px;
-  min-height: 38px;
-  border: 1px solid var(--color-line-strong);
-  border-radius: 8px;
-  background: var(--color-surface-strong);
-  color: var(--color-ink);
-  padding: 0 12px;
-  font-weight: 850;
+  width: 38px;
+  height: 38px;
+  border-radius: 7px;
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  place-items: center;
+  transition: right 0.4s ease, border-color 0.4s ease, color 0.4s ease;
 }
 
 .app-shell__menu-icon {
@@ -156,12 +251,7 @@
 .app-shell__menu-icon span {
   display: block;
   height: 2px;
-  border-radius: 999px;
   background: currentColor;
-}
-
-.app-shell__menu-label {
-  font-size: 0.88rem;
 }
 
 .app-shell__main {
@@ -1107,25 +1197,60 @@
 }
 
 @media (max-width: 920px) {
-  .app-shell__header-inner {
-    flex-wrap: wrap;
-    padding: 12px 24px;
+  .app-shell__header {
+    padding: 0 12px;
+  }
+
+  .app-shell__header.is-scrolled {
+    padding: 8px 12px;
+  }
+
+  .app-shell__brand {
+    left: 20px;
+  }
+
+  .app-shell__header.is-scrolled .app-shell__brand {
+    left: 20px;
   }
 
   .app-shell__menu-button {
-    display: inline-flex;
+    right: 20px;
+    display: grid;
+  }
+
+  .app-shell__header.is-scrolled .app-shell__menu-button {
+    right: 20px;
   }
 
   .app-shell__nav {
+    position: fixed;
+    inset: var(--header-height) 0 auto 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
     display: none;
-    width: 100%;
-    justify-content: flex-start;
-    overflow-x: auto;
-    padding-top: 4px;
+    background: var(--color-paper);
+    border-bottom: 1.5px dashed var(--color-accent);
+    z-index: 19;
   }
 
   .app-shell__nav--open {
     display: flex;
+  }
+
+  .app-shell__nav button {
+    padding: 13px 24px;
+    border-radius: 0;
+    text-align: left;
+  }
+
+  .app-shell__header.is-scrolled .app-shell__nav {
+    background: rgba(20, 14, 8, 0.97);
+    border-color: rgba(245, 240, 232, 0.15);
+  }
+
+  .app-shell__header.is-scrolled .app-shell__nav button::before {
+    display: none;
   }
 
   .app-shell__main {
@@ -1183,25 +1308,28 @@
 }
 
 @media (max-width: 560px) {
-  .app-shell__header-inner {
-    padding-inline: 16px;
+  .app-shell__header {
+    padding: 0 8px;
   }
 
-  .app-shell__brand-subtitle {
-    display: none;
+  .app-shell__header.is-scrolled {
+    padding: 6px 8px;
   }
 
-  .app-shell__nav {
-    align-items: stretch;
-    flex-direction: column;
-    overflow: visible;
+  .app-shell__brand {
+    left: 16px;
   }
 
-  .app-shell__nav button {
-    width: 100%;
-    justify-content: flex-start;
-    background: var(--color-surface-strong);
-    text-align: left;
+  .app-shell__header.is-scrolled .app-shell__brand {
+    left: 16px;
+  }
+
+  .app-shell__menu-button {
+    right: 16px;
+  }
+
+  .app-shell__header.is-scrolled .app-shell__menu-button {
+    right: 16px;
   }
 
   .app-shell__main {
