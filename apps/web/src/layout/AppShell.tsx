@@ -26,7 +26,7 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
         currentScrollPosition - lastScrollPosition.current;
       const isPastCompactThreshold = currentScrollPosition > 64;
       const isPastInitialHideDistance =
-        currentScrollPosition - compactStartPosition.current > 220;
+        currentScrollPosition - compactStartPosition.current > 500;
 
       if (isPastCompactThreshold && !wasPastCompactThreshold.current) {
         compactStartPosition.current = currentScrollPosition;
