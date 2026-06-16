@@ -43,6 +43,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
   min-height: var(--header-height);
   max-width: var(--content-max-width);
   margin: 0 auto;
@@ -52,10 +53,7 @@
   border-bottom: 1.5px dashed var(--color-accent);
   border-radius: 0;
   transition:
-    background 0.4s ease,
     border-color 0.4s ease,
-    border-radius 0.4s ease,
-    box-shadow 0.4s ease,
     min-height 0.4s ease,
     padding 0.4s ease;
 }
@@ -71,7 +69,10 @@
   background: transparent;
   padding: 0 0 6px;
   cursor: pointer;
-  transition: left 0.4s ease;
+  transition:
+    left 0.4s ease,
+    opacity 0.26s ease,
+    transform 0.4s ease;
 }
 
 .app-shell__brand::after {
@@ -106,10 +107,27 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  min-height: 44px;
+  padding: 0;
+  background: transparent;
+  border-radius: 10px;
+  box-shadow: 0 4px 28px rgba(0, 0, 0, 0);
+  transition:
+    background-color 0.34s ease,
+    box-shadow 0.34s ease,
+    gap 0.34s ease,
+    padding 0.34s ease;
 }
 
-.app-shell__nav button {
+.app-shell__nav-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-shell__nav-button {
   position: relative;
+  max-width: 180px;
   border: 0;
   border-radius: 7px;
   background: transparent;
@@ -120,24 +138,61 @@
   font-weight: 400;
   letter-spacing: 0.005em;
   opacity: 0.82;
+  overflow: hidden;
   white-space: nowrap;
   cursor: pointer;
   transition:
+    max-width 0.36s ease,
     opacity 0.15s,
-    color 0.4s ease;
+    padding 0.36s ease,
+    color 0.4s ease,
+    transform 0.36s ease;
 }
 
 .app-shell__brand:focus,
 .app-shell__brand:focus-visible,
-.app-shell__nav button:focus,
-.app-shell__nav button:focus-visible,
+.app-shell__compact-brand:focus,
+.app-shell__compact-brand:focus-visible,
+.app-shell__nav-button:focus,
+.app-shell__nav-button:focus-visible,
 .app-shell__menu-button:focus,
 .app-shell__menu-button:focus-visible {
   outline: none;
   box-shadow: none;
 }
 
-.app-shell__nav button::before {
+.app-shell__compact-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 0;
+  height: 44px;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0;
+  pointer-events: none;
+  transform: scale(0.84);
+  visibility: hidden;
+  cursor: pointer;
+  transition:
+    width 0.32s ease 0.08s,
+    margin 0.32s ease 0.08s,
+    opacity 0.12s ease,
+    transform 0.22s ease,
+    visibility 0s linear 0.42s;
+}
+
+.app-shell__compact-brand img {
+  display: block;
+  height: 42px;
+  width: auto;
+  max-width: none;
+}
+
+.app-shell__nav-button::before {
   content: '';
   position: absolute;
   left: 16px;
@@ -155,20 +210,20 @@
   transition: clip-path 0.38s ease;
 }
 
-.app-shell__nav button:hover {
+.app-shell__nav-button:hover {
   opacity: 1;
 }
 
-.app-shell__nav button:not(.is-active):hover::before {
+.app-shell__nav-button:not(.is-active):hover::before {
   clip-path: inset(0 0% 0 0);
 }
 
-.app-shell__nav button.is-active {
+.app-shell__nav-button.is-active {
   opacity: 1;
   font-weight: 600;
 }
 
-.app-shell__nav button.is-active::after {
+.app-shell__nav-button.is-active::after {
   content: '';
   position: absolute;
   left: 16px;
@@ -184,23 +239,22 @@
 }
 
 .app-shell__header.is-scrolled .app-shell__header-inner {
-  background: rgba(20, 14, 8, 0.97);
   border-color: transparent;
-  border-radius: 10px;
-  box-shadow: 0 4px 28px rgba(0, 0, 0, 0.24);
   min-height: 56px;
-  padding: 0 28px;
 }
 
-.app-shell__header.is-scrolled .app-shell__brand {
-  left: 28px;
+.app-shell__header.is-scrolled .app-shell__brand--default {
+  left: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) scale(0.86);
 }
 
-.app-shell__header.is-scrolled .app-shell__brand img {
+.app-shell__header.is-scrolled .app-shell__brand--default img {
   height: 42px;
 }
 
-.app-shell__header.is-scrolled .app-shell__brand::after {
+.app-shell__header.is-scrolled .app-shell__brand--default::after {
   background-image: repeating-linear-gradient(
     to right,
     rgba(251, 251, 248, 0.72) 0,
@@ -210,11 +264,48 @@
   );
 }
 
-.app-shell__header.is-scrolled .app-shell__nav button {
+.app-shell__header.is-scrolled .app-shell__nav {
+  gap: 4px;
+  padding: 6px 12px;
+  background-color: rgba(20, 14, 8, 0.97);
+  box-shadow: 0 4px 28px rgba(0, 0, 0, 0.24);
+}
+
+.app-shell__header.is-scrolled .app-shell__nav-button--home {
+  max-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  visibility: hidden;
+}
+
+.app-shell__header.is-scrolled .app-shell__nav-button--home::before,
+.app-shell__header.is-scrolled .app-shell__nav-button--home::after {
+  display: none;
+}
+
+.app-shell__header.is-scrolled .app-shell__compact-brand {
+  width: 48px;
+  margin: 0 8px;
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+  visibility: visible;
+  transition:
+    width 0.32s ease 0.16s,
+    margin 0.32s ease 0.16s,
+    opacity 0.18s ease 0.36s,
+    transform 0.28s ease 0.28s,
+    visibility 0s linear;
+}
+
+.app-shell__header.is-scrolled .app-shell__nav-button {
   color: #fbfbf8;
 }
 
-.app-shell__header.is-scrolled .app-shell__nav button::before {
+.app-shell__header.is-scrolled .app-shell__nav-button::before {
   background-image: repeating-linear-gradient(
     to right,
     rgba(251, 251, 248, 0.72) 0,
@@ -224,7 +315,7 @@
   );
 }
 
-.app-shell__header.is-scrolled .app-shell__nav button.is-active::after {
+.app-shell__header.is-scrolled .app-shell__nav-button.is-active::after {
   background: #fbfbf8;
 }
 
@@ -1220,12 +1311,25 @@
     padding: 8px 12px;
   }
 
+  .app-shell__header.is-scrolled .app-shell__header-inner {
+    width: 100%;
+    max-width: var(--content-max-width);
+    padding: 0 28px;
+  }
+
   .app-shell__brand {
     left: 20px;
   }
 
-  .app-shell__header.is-scrolled .app-shell__brand {
+  .app-shell__header.is-scrolled .app-shell__brand--default {
     left: 20px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(-50%);
+  }
+
+  .app-shell__compact-brand {
+    display: none;
   }
 
   .app-shell__menu-button {
@@ -1244,27 +1348,48 @@
     align-items: stretch;
     gap: 0;
     display: none;
+    min-height: auto;
+    padding: 0;
     background: var(--color-paper);
     border-bottom: 1.5px dashed var(--color-accent);
+    border-radius: 0;
+    box-shadow: none;
     z-index: 19;
+  }
+
+  .app-shell__nav-group {
+    display: contents;
   }
 
   .app-shell__nav--open {
     display: flex;
   }
 
-  .app-shell__nav button {
+  .app-shell__nav-button {
+    max-width: none;
     padding: 13px 24px;
     border-radius: 0;
     text-align: left;
   }
 
+  .app-shell__header.is-scrolled .app-shell__nav-button--home {
+    max-width: none;
+    padding: 13px 24px;
+    opacity: 0.82;
+    pointer-events: auto;
+    transform: none;
+    visibility: visible;
+  }
+
   .app-shell__header.is-scrolled .app-shell__nav {
     background: rgba(20, 14, 8, 0.97);
     border-color: rgba(251, 251, 248, 0.15);
+    gap: 0;
+    padding: 0;
+    box-shadow: none;
   }
 
-  .app-shell__header.is-scrolled .app-shell__nav button::before {
+  .app-shell__header.is-scrolled .app-shell__nav-button::before {
     display: none;
   }
 

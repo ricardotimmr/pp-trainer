@@ -16,13 +16,47 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 64);
+    onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  const homeRoute = navigationRoutes.find((route) => route.id === 'home');
+  const compactNavigationRoutes = navigationRoutes.filter(
+    (route) => route.id !== 'home',
+  );
+  const compactLeftRoutes = compactNavigationRoutes.slice(0, 3);
+  const compactRightRoutes = compactNavigationRoutes.slice(3);
+
   const openRoute = (path: string) => {
     setIsMenuOpen(false);
     navigate(path);
+  };
+
+  const getIsActive = (path: string) =>
+    path === '/' ? pathname === path : pathname.startsWith(path);
+
+  const renderNavButton = (route: (typeof navigationRoutes)[number]) => {
+    const isActive = getIsActive(route.path);
+    const buttonClasses = [
+      'app-shell__nav-button',
+      route.id === 'home' ? 'app-shell__nav-button--home' : '',
+      isActive ? 'is-active' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    return (
+      <button
+        key={route.id}
+        type="button"
+        className={buttonClasses}
+        aria-current={isActive ? 'page' : undefined}
+        onClick={() => openRoute(route.path)}
+      >
+        {route.label}
+      </button>
+    );
   };
 
   return (
@@ -33,7 +67,7 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
         <div className="app-shell__header-inner">
           <button
             type="button"
-            className="app-shell__brand"
+            className="app-shell__brand app-shell__brand--default"
             onClick={() => openRoute('/')}
             aria-label="Precision Pacers — Home"
           >
@@ -64,24 +98,23 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
             }
             aria-label="Prototype screens"
           >
-            {navigationRoutes.map((route) => {
-              const isActive =
-                route.path === '/'
-                  ? pathname === route.path
-                  : pathname.startsWith(route.path);
-
-              return (
-                <button
-                  key={route.id}
-                  type="button"
-                  className={isActive ? 'is-active' : undefined}
-                  aria-current={isActive ? 'page' : undefined}
-                  onClick={() => openRoute(route.path)}
-                >
-                  {route.label}
-                </button>
-              );
-            })}
+            {homeRoute ? renderNavButton(homeRoute) : null}
+            <span className="app-shell__nav-group">
+              {compactLeftRoutes.map(renderNavButton)}
+            </span>
+            <button
+              type="button"
+              className="app-shell__compact-brand"
+              onClick={() => openRoute('/')}
+              aria-label="Precision Pacers — Home"
+              tabIndex={isScrolled ? undefined : -1}
+              aria-hidden={isScrolled ? undefined : true}
+            >
+              <img src={navLogo} alt="" />
+            </button>
+            <span className="app-shell__nav-group">
+              {compactRightRoutes.map(renderNavButton)}
+            </span>
           </nav>
         </div>
       </header>
