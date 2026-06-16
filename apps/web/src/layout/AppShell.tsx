@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 
 import { AppFooter } from './AppFooter';
 import { navigationRoutes } from '../routes/routeConfig';
@@ -13,13 +13,54 @@ type AppShellProps = {
 export function AppShell({ pathname, navigate, children }: AppShellProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isHeaderHidden, setIsHeaderHidden] = useState(false);
+  const lastScrollPosition = useRef(0);
+  const lastHeaderTogglePosition = useRef(0);
+  const compactStartPosition = useRef(0);
+  const wasPastCompactThreshold = useRef(false);
 
   useEffect(() => {
-    const onScroll = () => setIsScrolled(window.scrollY > 64);
+    const onScroll = () => {
+      const currentScrollPosition = window.scrollY;
+      const scrollDifference =
+        currentScrollPosition - lastScrollPosition.current;
+      const isPastCompactThreshold = currentScrollPosition > 64;
+      const isPastInitialHideDistance =
+        currentScrollPosition - compactStartPosition.current > 220;
+
+      if (isPastCompactThreshold && !wasPastCompactThreshold.current) {
+        compactStartPosition.current = currentScrollPosition;
+        lastHeaderTogglePosition.current = currentScrollPosition;
+      }
+
+      setIsScrolled(isPastCompactThreshold);
+
+      if (!isPastCompactThreshold || isMenuOpen) {
+        setIsHeaderHidden(false);
+        lastHeaderTogglePosition.current = currentScrollPosition;
+      } else if (
+        isPastInitialHideDistance &&
+        scrollDifference > 0 &&
+        currentScrollPosition - lastHeaderTogglePosition.current > 42
+      ) {
+        setIsHeaderHidden(true);
+        lastHeaderTogglePosition.current = currentScrollPosition;
+      } else if (
+        scrollDifference < 0 &&
+        lastHeaderTogglePosition.current - currentScrollPosition > 24
+      ) {
+        setIsHeaderHidden(false);
+        lastHeaderTogglePosition.current = currentScrollPosition;
+      }
+
+      wasPastCompactThreshold.current = isPastCompactThreshold;
+      lastScrollPosition.current = Math.max(currentScrollPosition, 0);
+    };
+
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [isMenuOpen]);
 
   const homeRoute = navigationRoutes.find((route) => route.id === 'home');
   const compactNavigationRoutes = navigationRoutes.filter(
@@ -30,6 +71,7 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
 
   const openRoute = (path: string) => {
     setIsMenuOpen(false);
+    setIsHeaderHidden(false);
     navigate(path);
   };
 
@@ -62,7 +104,13 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
   return (
     <div className="app-shell">
       <header
-        className={`app-shell__header${isScrolled ? ' is-scrolled' : ''}`}
+        className={[
+          'app-shell__header',
+          isScrolled ? 'is-scrolled' : '',
+          isHeaderHidden ? 'is-hidden' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
       >
         <div className="app-shell__header-inner">
           <button

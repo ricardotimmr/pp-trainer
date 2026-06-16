@@ -35,7 +35,11 @@
   top: 0;
   z-index: 20;
   padding: 0 24px;
-  transition: padding 0.4s ease;
+  transform: translateY(0);
+  transition:
+    padding 0.4s ease,
+    transform 0.34s ease;
+  will-change: transform;
 }
 
 .app-shell__header-inner {
@@ -236,6 +240,11 @@
 
 .app-shell__header.is-scrolled {
   padding: 10px 24px;
+}
+
+.app-shell__header.is-scrolled.is-hidden {
+  pointer-events: none;
+  transform: translateY(calc(-100% - 18px));
 }
 
 .app-shell__header.is-scrolled .app-shell__header-inner {
