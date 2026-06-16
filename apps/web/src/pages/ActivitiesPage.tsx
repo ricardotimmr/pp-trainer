@@ -2,6 +2,7 @@ import {
   ActivityCard,
   ActivitySummaryStats,
   DashboardWidget,
+  EmptyState,
 } from '../components';
 import { PageShell } from '../layout/PageShell';
 import {
@@ -35,19 +36,28 @@ export function ActivitiesPage({ navigate }: PageComponentProps) {
         </button>
       }
     >
-      <DashboardWidget title="Activity summary" eyebrow="Mock history">
-        <ActivitySummaryStats activities={activities} />
-      </DashboardWidget>
+      {activities.length === 0 ? (
+        <EmptyState
+          title="No activities yet"
+          description="Imported, synced or mock activities will appear here once they are available."
+        />
+      ) : (
+        <>
+          <DashboardWidget title="Activity summary" eyebrow="Mock history">
+            <ActivitySummaryStats activities={activities} />
+          </DashboardWidget>
 
-      <div className="list-stack" aria-label="Prototype activity list">
-        {activities.slice(0, 6).map((activity) => (
-          <ActivityCard
-            key={activity.id}
-            activity={activity}
-            onOpen={(activityId) => navigate(`/activities/${activityId}`)}
-          />
-        ))}
-      </div>
+          <div className="list-stack" aria-label="Prototype activity list">
+            {activities.slice(0, 6).map((activity) => (
+              <ActivityCard
+                key={activity.id}
+                activity={activity}
+                onOpen={(activityId) => navigate(`/activities/${activityId}`)}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </PageShell>
   );
 }

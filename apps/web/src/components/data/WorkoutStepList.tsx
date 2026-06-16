@@ -1,4 +1,5 @@
 import type { WorkoutStep } from '../../mock/prototypeData.types';
+import { EmptyState } from '../states/EmptyState';
 import {
   formatDistance,
   formatDuration,
@@ -32,7 +33,13 @@ const getStepTarget = (step: WorkoutStep) => {
 
 export function WorkoutStepList({ steps }: WorkoutStepListProps) {
   if (steps.length === 0) {
-    return <p className="empty-inline">No structured workout steps yet.</p>;
+    return (
+      <EmptyState
+        title="No structured steps"
+        description="This planned workout does not define any prototype workout steps yet."
+        variant="inline"
+      />
+    );
   }
 
   return (

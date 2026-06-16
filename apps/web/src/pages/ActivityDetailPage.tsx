@@ -2,19 +2,34 @@ import {
   ActivityCard,
   ActivitySummaryStats,
   DashboardWidget,
+  ErrorState,
   SourceBadge,
   SportBadge,
 } from '../components';
 import { PageShell } from '../layout/PageShell';
 import { getActivityById } from '../mock/prototypeData.helpers';
 import type { PageComponentProps } from '../routes/routeTypes';
-import { NotFoundPage } from './NotFoundPage';
 
 export function ActivityDetailPage({ params }: PageComponentProps) {
   const activity = params.id ? getActivityById(params.id) : undefined;
 
   if (!activity) {
-    return <NotFoundPage />;
+    return (
+      <PageShell
+        title="Activity not found"
+        eyebrow="Activity detail"
+        description="The requested activity does not exist in the current prototype data."
+      >
+        <ErrorState
+          title="Unknown activity"
+          description={
+            <>
+              No mock activity was found for ID <strong>{params.id}</strong>.
+            </>
+          }
+        />
+      </PageShell>
+    );
   }
 
   return (

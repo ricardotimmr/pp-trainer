@@ -1,4 +1,4 @@
-import { DashboardWidget, WorkoutCard } from '../components';
+import { DashboardWidget, EmptyState, WorkoutCard } from '../components';
 import { PageShell } from '../layout/PageShell';
 import {
   getDashboardSummary,
@@ -26,7 +26,15 @@ export function AiCoachPreviewPage({ navigate }: PageComponentProps) {
               onOpen={(workoutId) => navigate(`/workouts/${workoutId}`)}
             />
           </DashboardWidget>
-        ) : null}
+        ) : (
+          <DashboardWidget title="Generated workout example" eyebrow="Preview">
+            <EmptyState
+              title="No generated workout"
+              description="This mock AI output does not point to a planned workout."
+              variant="inline"
+            />
+          </DashboardWidget>
+        )}
       </div>
     </PageShell>
   );

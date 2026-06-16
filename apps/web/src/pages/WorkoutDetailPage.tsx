@@ -1,5 +1,6 @@
 import {
   DashboardWidget,
+  ErrorState,
   IntensityBadge,
   SportBadge,
   WorkoutCard,
@@ -8,13 +9,27 @@ import {
 import { PageShell } from '../layout/PageShell';
 import { getWorkoutById, getWorkoutSteps } from '../mock/prototypeData.helpers';
 import type { PageComponentProps } from '../routes/routeTypes';
-import { NotFoundPage } from './NotFoundPage';
 
 export function WorkoutDetailPage({ params }: PageComponentProps) {
   const workout = params.id ? getWorkoutById(params.id) : undefined;
 
   if (!workout) {
-    return <NotFoundPage />;
+    return (
+      <PageShell
+        title="Workout not found"
+        eyebrow="Workout detail"
+        description="The requested workout does not exist in the current prototype data."
+      >
+        <ErrorState
+          title="Unknown workout"
+          description={
+            <>
+              No mock workout was found for ID <strong>{params.id}</strong>.
+            </>
+          }
+        />
+      </PageShell>
+    );
   }
 
   const steps = getWorkoutSteps(workout.id);

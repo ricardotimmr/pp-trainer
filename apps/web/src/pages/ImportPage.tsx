@@ -1,4 +1,4 @@
-import { DashboardWidget, SourceBadge } from '../components';
+import { DashboardWidget, EmptyState, SourceBadge } from '../components';
 import { PageShell } from '../layout/PageShell';
 
 export function ImportPage() {
@@ -22,6 +22,14 @@ export function ImportPage() {
           This area is only a visual placeholder. File parsing and persistence
           start in later phases.
         </p>
+      </DashboardWidget>
+
+      <DashboardWidget title="Import history" eyebrow="Future state">
+        <EmptyState
+          title="No imports yet"
+          description="Manual upload history will appear here once import processing is implemented in a later phase."
+          variant="inline"
+        />
       </DashboardWidget>
     </PageShell>
   );

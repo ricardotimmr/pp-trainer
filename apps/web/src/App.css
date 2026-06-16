@@ -569,9 +569,119 @@
   justify-content: flex-start;
 }
 
-.empty-inline {
-  margin: 0;
+.state {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-surface-strong);
+  box-shadow: var(--shadow-soft);
+  padding: 18px;
+}
+
+.state--inline {
+  border-style: dashed;
+  background: var(--color-surface);
+  box-shadow: none;
+}
+
+.state__marker {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--color-ink);
+  border-radius: 8px;
+  background: var(--color-surface);
   color: var(--color-muted);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.state--error .state__marker {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+.state--loading .state__marker {
+  background: rgba(255, 27, 145, 0.08);
+}
+
+.state__marker--loading span {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 27, 145, 0.18);
+  border-top-color: var(--color-accent);
+  border-radius: 999px;
+  animation: state-spinner 0.9s linear infinite;
+}
+
+.state__content {
+  min-width: 0;
+}
+
+.state h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.state p {
+  max-width: 640px;
+  margin: 8px 0 0;
+  color: var(--color-muted);
+}
+
+.state__action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.state__skeleton {
+  display: grid;
+  gap: 8px;
+  max-width: 460px;
+  margin-top: 14px;
+}
+
+.state__skeleton span {
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(17, 17, 17, 0.08),
+    rgba(255, 255, 255, 0.75),
+    rgba(17, 17, 17, 0.08)
+  );
+  background-size: 220% 100%;
+  animation: state-skeleton 1.35s ease-in-out infinite;
+}
+
+.state__skeleton span:nth-child(2) {
+  width: 78%;
+}
+
+.state__skeleton span:nth-child(3) {
+  width: 58%;
+}
+
+@keyframes state-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes state-skeleton {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
+  }
 }
 
 @media (max-width: 920px) {
@@ -682,6 +792,10 @@
   }
 
   .metric-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .state {
     grid-template-columns: 1fr;
   }
 }

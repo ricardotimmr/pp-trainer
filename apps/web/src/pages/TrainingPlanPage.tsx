@@ -1,4 +1,4 @@
-import { DashboardWidget, WorkoutCard } from '../components';
+import { DashboardWidget, EmptyState, WorkoutCard } from '../components';
 import { PageShell } from '../layout/PageShell';
 import {
   getCurrentTrainingPlan,
@@ -33,15 +33,23 @@ export function TrainingPlanPage({ navigate }: PageComponentProps) {
         {trainingPlan.description ? (
           <p className="prototype-copy">{trainingPlan.description}</p>
         ) : null}
-        <div className="list-stack" aria-label="Prototype training plan">
-          {plannedWorkouts.map((workout) => (
-            <WorkoutCard
-              key={workout.id}
-              workout={workout}
-              onOpen={(workoutId) => navigate(`/workouts/${workoutId}`)}
-            />
-          ))}
-        </div>
+        {plannedWorkouts.length === 0 ? (
+          <EmptyState
+            title="No planned workouts"
+            description="The active prototype plan does not contain scheduled workouts yet."
+            variant="inline"
+          />
+        ) : (
+          <div className="list-stack" aria-label="Prototype training plan">
+            {plannedWorkouts.map((workout) => (
+              <WorkoutCard
+                key={workout.id}
+                workout={workout}
+                onOpen={(workoutId) => navigate(`/workouts/${workoutId}`)}
+              />
+            ))}
+          </div>
+        )}
       </DashboardWidget>
     </PageShell>
   );
