@@ -2,6 +2,7 @@ import { ActivitiesPage } from '../pages/ActivitiesPage';
 import { ActivityDetailPage } from '../pages/ActivityDetailPage';
 import { AiCoachPreviewPage } from '../pages/AiCoachPreviewPage';
 import { DashboardPage } from '../pages/DashboardPage';
+import { DevUiShowcasePage } from '../pages/DevUiShowcasePage';
 import { HomePage } from '../pages/HomePage';
 import { ImportPage } from '../pages/ImportPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -73,6 +74,14 @@ export const routes: RouteConfig[] = [
     label: 'Import',
     navVisible: true,
     component: ImportPage,
+  },
+  // DEV-ONLY — not linked from navigation
+  {
+    id: 'devUiShowcase',
+    path: '/dev/ui-showcase',
+    label: 'UI Showcase',
+    navVisible: false,
+    component: DevUiShowcasePage,
   },
 ];
 

@@ -10,6 +10,7 @@ export type RouteId =
   | 'aiCoach'
   | 'settings'
   | 'import'
+  | 'devUiShowcase'
   | 'notFound';
 
 export type RouteParams = Record<string, string>;
