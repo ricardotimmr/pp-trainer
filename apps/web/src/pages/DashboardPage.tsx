@@ -180,171 +180,176 @@ export function DashboardPage({ navigate }: PageComponentProps) {
         </section>
 
         <div className="dashboard-layout">
-          <DashboardWidget
-            title="Weekly summary"
-            eyebrow="Training load"
-            className="dashboard-widget--wide"
-          >
-            <div className="dashboard-metric-grid">
-              <div className="dashboard-metric is-accent">
-                <p>Total duration</p>
-                <strong>{formatDuration(week.totalDurationSeconds)}</strong>
-                <span>Across all planned sports</span>
-              </div>
-              <div className="dashboard-metric">
-                <p>Total distance</p>
-                <strong>{formatDistance(week.totalDistanceMeters)}</strong>
-                <span>Bike, run and swim combined</span>
-              </div>
-              <div className="dashboard-metric">
-                <p>Easy</p>
-                <strong>{formatDuration(week.easyDurationSeconds)}</strong>
-                <span>Low intensity work</span>
-              </div>
-              <div className="dashboard-metric">
-                <p>Moderate / hard</p>
-                <strong>
-                  {formatDuration(
-                    (week.moderateDurationSeconds ?? 0) +
-                      (week.hardDurationSeconds ?? 0),
-                  )}
-                </strong>
-                <span>Quality and strength</span>
-              </div>
-            </div>
-          </DashboardWidget>
-
-          <DashboardWidget title="Active goal" eyebrow="Focus">
-            {dashboard.activeGoal ? (
-              <div className="dashboard-goal">
-                <div className="badge-row">
-                  {dashboard.activeGoal.sport ? (
-                    <SportBadge sport={dashboard.activeGoal.sport} />
-                  ) : null}
-                  <span className="badge badge--source">
-                    {dashboard.activeGoal.priority}
-                  </span>
+          {/* Left / main column */}
+          <div className="dashboard-col--main">
+            <DashboardWidget title="Weekly summary" eyebrow="Training load">
+              <div className="dashboard-metric-grid">
+                <div className="dashboard-metric is-accent">
+                  <p>Total duration</p>
+                  <strong>{formatDuration(week.totalDurationSeconds)}</strong>
+                  <span>Across all planned sports</span>
                 </div>
-                <h3>{dashboard.activeGoal.title}</h3>
-                {dashboard.activeGoal.description ? (
-                  <p>{dashboard.activeGoal.description}</p>
-                ) : null}
-                {dashboard.activeGoal.targetDate ? (
-                  <span>
-                    Target: {formatDate(dashboard.activeGoal.targetDate)}
-                  </span>
-                ) : null}
-              </div>
-            ) : (
-              <EmptyState
-                title="No active goal"
-                description="Athlete goals will appear here once configured."
-                variant="inline"
-              />
-            )}
-          </DashboardWidget>
-
-          <DashboardWidget title="Primary sports" eyebrow="Athlete profile">
-            <div className="dashboard-sport-list">
-              {dashboard.athleteProfile.primarySports.map((sport) => (
-                <div key={sport}>
-                  <SportBadge sport={sport} />
-                  <span>{sportLabels[sport]}</span>
+                <div className="dashboard-metric">
+                  <p>Total distance</p>
+                  <strong>{formatDistance(week.totalDistanceMeters)}</strong>
+                  <span>Bike, run and swim combined</span>
                 </div>
-              ))}
-            </div>
-          </DashboardWidget>
-
-          <DashboardWidget
-            title="Upcoming workouts"
-            eyebrow="Next sessions"
-            className="dashboard-widget--wide"
-            action={
-              <button
-                type="button"
-                className="button button--secondary"
-                onClick={() => navigate('/training-plan')}
-              >
-                View plan
-              </button>
-            }
-          >
-            {dashboard.upcomingWorkouts.length > 0 ? (
-              <div className="dashboard-card-grid">
-                {dashboard.upcomingWorkouts.map((workout) => (
-                  <WorkoutCard
-                    key={workout.id}
-                    workout={workout}
-                    onOpen={(workoutId) => navigate(`/workouts/${workoutId}`)}
-                  />
-                ))}
+                <div className="dashboard-metric">
+                  <p>Easy</p>
+                  <strong>{formatDuration(week.easyDurationSeconds)}</strong>
+                  <span>Low intensity work</span>
+                </div>
+                <div className="dashboard-metric">
+                  <p>Moderate / hard</p>
+                  <strong>
+                    {formatDuration(
+                      (week.moderateDurationSeconds ?? 0) +
+                        (week.hardDurationSeconds ?? 0),
+                    )}
+                  </strong>
+                  <span>Quality and strength</span>
+                </div>
               </div>
-            ) : (
-              <EmptyState
-                title="No upcoming workouts"
-                description="Planned workouts will appear here when the active week contains sessions."
-                variant="inline"
-              />
-            )}
-          </DashboardWidget>
+            </DashboardWidget>
 
-          <DashboardWidget
-            title="Recent activities"
-            eyebrow="Training history"
-            className="dashboard-widget--wide"
-            action={
-              <button
-                type="button"
-                className="button button--secondary"
-                onClick={() => navigate('/activities')}
-              >
-                View all
-              </button>
-            }
-          >
-            {dashboard.recentActivities.length > 0 ? (
-              <>
-                <ActivitySummaryStats activities={dashboard.recentActivities} />
-                <div className="list-stack">
-                  {dashboard.recentActivities.slice(0, 3).map((activity) => (
-                    <ActivityCard
-                      key={activity.id}
-                      activity={activity}
-                      onOpen={(activityId) =>
-                        navigate(`/activities/${activityId}`)
-                      }
+            <DashboardWidget
+              title="Upcoming workouts"
+              eyebrow="Next sessions"
+              action={
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={() => navigate('/training-plan')}
+                >
+                  View plan
+                </button>
+              }
+            >
+              {dashboard.upcomingWorkouts.length > 0 ? (
+                <div className="dashboard-card-grid">
+                  {dashboard.upcomingWorkouts.map((workout) => (
+                    <WorkoutCard
+                      key={workout.id}
+                      workout={workout}
+                      onOpen={(workoutId) => navigate(`/workouts/${workoutId}`)}
                     />
                   ))}
                 </div>
-              </>
-            ) : (
-              <EmptyState
-                title="No recent activities"
-                description="Completed training will appear here once activity data exists."
-                variant="inline"
-              />
-            )}
-          </DashboardWidget>
+              ) : (
+                <EmptyState
+                  title="No upcoming workouts"
+                  description="Planned workouts will appear here when the active week contains sessions."
+                  variant="inline"
+                />
+              )}
+            </DashboardWidget>
 
-          <DashboardWidget
-            title="AI coach hint"
-            eyebrow="Static preview"
-            action={
+            <DashboardWidget
+              title="Recent activities"
+              eyebrow="Training history"
+              action={
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={() => navigate('/activities')}
+                >
+                  View all
+                </button>
+              }
+            >
+              {dashboard.recentActivities.length > 0 ? (
+                <>
+                  <ActivitySummaryStats activities={dashboard.recentActivities} />
+                  <div className="list-stack">
+                    {dashboard.recentActivities.slice(0, 3).map((activity) => (
+                      <ActivityCard
+                        key={activity.id}
+                        activity={activity}
+                        onOpen={(activityId) =>
+                          navigate(`/activities/${activityId}`)
+                        }
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <EmptyState
+                  title="No recent activities"
+                  description="Completed training will appear here once activity data exists."
+                  variant="inline"
+                />
+              )}
+            </DashboardWidget>
+          </div>
+
+          {/* Right / side column */}
+          <div className="dashboard-col--side">
+            <div className="side-stack">
+              <section className="open-panel">
+                <header className="open-panel__head">
+                  <p className="open-panel__eyebrow">Focus</p>
+                  <h2 className="open-panel__title">Active goal</h2>
+                </header>
+                {dashboard.activeGoal ? (
+                  <div className="dashboard-goal">
+                    <div className="badge-row">
+                      {dashboard.activeGoal.sport ? (
+                        <SportBadge sport={dashboard.activeGoal.sport} />
+                      ) : null}
+                      <span className="badge badge--source">
+                        {dashboard.activeGoal.priority}
+                      </span>
+                    </div>
+                    <h3>{dashboard.activeGoal.title}</h3>
+                    {dashboard.activeGoal.description ? (
+                      <p>{dashboard.activeGoal.description}</p>
+                    ) : null}
+                    {dashboard.activeGoal.targetDate ? (
+                      <span>
+                        Target: {formatDate(dashboard.activeGoal.targetDate)}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="No active goal"
+                    description="Athlete goals will appear here once configured."
+                    variant="inline"
+                  />
+                )}
+              </section>
+
+              <section className="open-panel open-panel--linked">
+                <header className="open-panel__head">
+                  <p className="open-panel__eyebrow">Athlete profile</p>
+                  <h2 className="open-panel__title">Primary sports</h2>
+                </header>
+                <div className="dashboard-sport-list">
+                  {dashboard.athleteProfile.primarySports.map((sport) => (
+                    <SportBadge key={sport} sport={sport} />
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <div className="coach-block">
+              <p className="coach-block__label">AI Coach · Hint</p>
+              <p className="coach-block__body">{dashboard.aiCoachPreview.summary}</p>
+              {dashboard.aiCoachPreview.rawText ? (
+                <blockquote className="coach-block__quote">
+                  {dashboard.aiCoachPreview.rawText}
+                </blockquote>
+              ) : null}
               <button
                 type="button"
-                className="button button--secondary"
+                className="button button--primary"
                 onClick={() => navigate('/ai-coach')}
               >
-                Open AI coach
+                Open AI coach →
               </button>
-            }
-          >
-            <div className="dashboard-coach">
-              <p>{dashboard.aiCoachPreview.summary}</p>
-              <blockquote>{dashboard.aiCoachPreview.rawText}</blockquote>
-              <span>{dashboard.aiCoachPreview.validationStatus}</span>
             </div>
-          </DashboardWidget>
+
+          </div>
         </div>
       </div>
     </PageShell>
