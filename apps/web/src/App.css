@@ -18,6 +18,7 @@
   --color-accent: #eb0f7a;
   --color-accent-dark: #b80c61;
   --color-accent-soft: rgba(235, 15, 122, 0.1);
+  --color-on-dark: #ffffff;
   --shadow-soft: 0 10px 28px rgba(22, 20, 24, 0.045);
   --shell-max-width: 1500px;
   --content-max-width: 1440px;
@@ -496,11 +497,8 @@
   grid-template-columns: minmax(270px, 0.75fr) minmax(0, 1.25fr);
   gap: 22px;
   align-items: stretch;
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
-  background: var(--color-surface-strong);
-  box-shadow: var(--shadow-soft);
-  padding: 22px 24px;
+  padding: 0 0 32px;
+  border-bottom: 1px solid var(--color-line);
 }
 
 .dashboard-hero__intro {
@@ -524,6 +522,9 @@
   font-weight: 400;
   line-height: 0.9;
   text-transform: uppercase;
+  color: var(--color-accent);
+  display: inline-block;
+  transform: skewX(-12deg);
 }
 
 .dashboard-hero p {
@@ -543,29 +544,102 @@
 
 .dashboard-layout {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: 2fr 1fr;
+  gap: 18px clamp(36px, 5vw, 64px);
+  align-items: start;
+}
+
+.dashboard-col--main {
+  display: flex;
+  flex-direction: column;
   gap: 18px;
 }
 
-.dashboard-layout > .dashboard-widget {
-  grid-column: span 4;
+.dashboard-col--side {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
-.dashboard-layout > .dashboard-widget--wide {
-  grid-column: span 8;
+.side-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.open-panel--linked .open-panel__head {
+  border-top-color: var(--color-line);
+  margin-top: 20px;
+}
+
+.coach-block {
+  background: var(--color-ink);
+  color: var(--color-on-dark);
+  padding: 22px;
+}
+
+.coach-block__label {
+  margin: 0 0 18px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.coach-block__body {
+  margin: 0 0 14px;
+  color: var(--color-on-dark);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.coach-block__quote {
+  margin: 0 0 20px;
+  padding: 0 0 0 14px;
+  border-left: 2px solid var(--color-accent);
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.open-panel {
+  min-width: 0;
+  padding: 0;
+}
+
+.open-panel__head {
+  border-top: 1.5px solid var(--color-ink);
+  padding-top: 12px;
+  margin-bottom: 16px;
+}
+
+.open-panel__eyebrow {
+  margin: 0 0 4px;
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.open-panel__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.15;
 }
 
 .dashboard-metric {
   min-width: 0;
   border: 1px solid var(--color-line);
-  border-radius: 8px;
-  background: var(--color-surface);
   padding: 14px;
 }
 
 .dashboard-metric.is-accent {
   border-color: rgba(235, 15, 122, 0.42);
-  background: var(--color-accent-soft);
   color: var(--color-accent-dark);
 }
 
@@ -600,10 +674,8 @@
   display: grid;
   align-content: center;
   gap: 14px;
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
-  background: var(--color-surface);
-  padding: 18px;
+  padding: 0 0 0 24px;
+  border-left: 1px solid var(--color-line);
 }
 
 .dashboard-week-balance__topline {
@@ -1015,9 +1087,6 @@
 .dashboard-widget {
   min-width: 0;
   border: 1px solid var(--color-line);
-  border-radius: 8px;
-  background: var(--color-surface-strong);
-  box-shadow: var(--shadow-soft);
   padding: 22px;
 }
 
@@ -1064,8 +1133,6 @@
 .metric {
   min-width: 0;
   border: 1px solid var(--color-line);
-  border-radius: 8px;
-  background: var(--color-surface);
   padding: 12px;
 }
 
@@ -1100,9 +1167,9 @@
   min-width: 0;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
+  background: transparent;
   border: 1px solid var(--color-line);
-  border-radius: 8px;
-  background: var(--color-surface);
+  border-radius: 0;
   color: var(--color-ink);
   padding: 16px;
   text-align: left;
@@ -1115,10 +1182,8 @@
 
 .activity-card--button:hover,
 .workout-card--button:hover {
-  border-color: var(--color-line-strong);
-  background: #ffffff;
+  border-color: var(--color-ink);
   transform: translateY(-1px);
-  box-shadow: 0 8px 22px rgba(46, 38, 27, 0.055);
 }
 
 .activity-card__badges,
@@ -1182,8 +1247,6 @@
   grid-template-columns: 34px minmax(0, 1fr);
   gap: 12px;
   border: 1px solid var(--color-line);
-  border-radius: 8px;
-  background: var(--color-surface);
   padding: 14px;
 }
 
