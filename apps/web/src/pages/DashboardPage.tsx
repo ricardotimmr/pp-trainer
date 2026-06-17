@@ -326,9 +326,7 @@ export function DashboardPage({ navigate }: PageComponentProps) {
                 </header>
                 <div className="dashboard-sport-list">
                   {dashboard.athleteProfile.primarySports.map((sport) => (
-                    <div key={sport}>
-                      <SportBadge sport={sport} />
-                    </div>
+                    <SportBadge key={sport} sport={sport} />
                   ))}
                 </div>
               </section>
@@ -350,6 +348,7 @@ export function DashboardPage({ navigate }: PageComponentProps) {
                 Open AI coach →
               </button>
             </div>
+
           </div>
         </div>
       </div>
