@@ -798,22 +798,32 @@
 
 .dashboard-week-balance__segment--cycling,
 .dashboard-week-balance__dot--cycling {
-  background: #df8d17;
+  background: var(--color-sport-cycling);
 }
 
 .dashboard-week-balance__segment--running,
 .dashboard-week-balance__dot--running {
-  background: #f15432;
+  background: var(--color-sport-running);
 }
 
 .dashboard-week-balance__segment--swimming,
 .dashboard-week-balance__dot--swimming {
-  background: #2398b6;
+  background: var(--color-sport-swimming);
 }
 
 .dashboard-week-balance__segment--strength,
 .dashboard-week-balance__dot--strength {
-  background: #7b56df;
+  background: var(--color-sport-strength);
+}
+
+.dashboard-week-balance__segment--mobility,
+.dashboard-week-balance__dot--mobility {
+  background: var(--color-sport-mobility);
+}
+
+.dashboard-week-balance__segment--other,
+.dashboard-week-balance__dot--other {
+  background: var(--color-sport-other);
 }
 
 .dashboard-week-balance__legend {
