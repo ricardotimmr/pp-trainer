@@ -1,6 +1,6 @@
 import blurredRunnerImage from '../assets/home/arnaud-steckle-NUkrKjQXRgE-unsplash.jpg';
 import bikeTimeTrialImage from '../assets/home/diana-rafira-jth6_VDCOIo-unsplash.jpg';
-import homeHeroPicture from '../assets/home/home-hero-picture.png';
+import homeHeroPicture from '../assets/home/home-hero-picture.jpg';
 import trackCloseupImage from '../assets/home/jakub-balon-MP38AUvIilY-unsplash.jpg';
 import swimPackImage from '../assets/home/jon-del-rivero-AjF5fv4-a2U-unsplash.jpg';
 import openWaterImage from '../assets/home/markus-spiske-XcvocqxlQ-A-unsplash.jpg';
