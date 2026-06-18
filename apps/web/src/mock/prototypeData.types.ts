@@ -209,6 +209,79 @@ export type TrainingZone = {
   description?: string;
 };
 
+export type SwimStrokeType =
+  | 'freestyle'
+  | 'backstroke'
+  | 'breaststroke'
+  | 'butterfly'
+  | 'mixed'
+  | 'drill';
+
+export type ActivityLap = {
+  lapNumber: number;
+  distanceMeters: number;
+  durationSeconds: number;
+  averageHeartRateBpm?: number;
+  maxHeartRateBpm?: number;
+  averagePaceSecPerKm?: number;
+  averageSpeedKmh?: number;
+  averagePowerWatts?: number;
+  averageCadence?: number;
+  elevationGainMeters?: number;
+};
+
+export type ActivitySwimLap = {
+  lapNumber: number;
+  distanceMeters: number;
+  durationSeconds: number;
+  strokeType?: SwimStrokeType;
+  strokeCount?: number;
+  swolfScore?: number;
+  averagePaceSecPer100m?: number;
+  averageHeartRateBpm?: number;
+};
+
+export type ActivityTimeSeriesSample = {
+  offsetSeconds: number;
+  heartRateBpm?: number;
+  powerWatts?: number;
+  paceSecPerKm?: number;
+  speedKmh?: number;
+  cadenceRpm?: number;
+  elevationMeters?: number;
+};
+
+export type TimeInZone = {
+  zoneNumber: number;
+  zoneName: string;
+  durationSeconds: number;
+  percentage: number;
+};
+
+export type RacePrediction = {
+  sport: SportType;
+  distanceLabel: string;
+  distanceMeters: number;
+  predictedDurationSeconds: number;
+  predictedPaceSecPerKm?: number;
+  predictedSpeedKmh?: number;
+  estimatedAt: string;
+};
+
+export type PerformanceStats = {
+  athleteProfileId: string;
+  vo2maxEstimate?: number;
+  vo2maxEstimatedAt?: string;
+  runningThresholdPaceSecPerKm?: number;
+  runningThresholdEstimatedAt?: string;
+  cyclingFtpWatts?: number;
+  cyclingFtpEstimatedAt?: string;
+  swimmingThresholdPaceSecPer100m?: number;
+  swimmingThresholdEstimatedAt?: string;
+  racePredictions?: RacePrediction[];
+  updatedAt: string;
+};
+
 export type Activity = {
   id: string;
   athleteProfileId: string;
@@ -239,6 +312,16 @@ export type Activity = {
   calories?: number;
   perceivedExertion?: number;
   notes?: string;
+  laps?: ActivityLap[];
+  swimLaps?: ActivitySwimLap[];
+  timeSeries?: ActivityTimeSeriesSample[];
+  timeInHrZones?: TimeInZone[];
+  intensityFactor?: number;
+  trainingStressScore?: number;
+  poolLengthMeters?: number;
+  dominantStrokeType?: SwimStrokeType;
+  totalStrokeCount?: number;
+  avgSwolfScore?: number;
   createdAt: string;
   updatedAt: string;
 };

@@ -129,9 +129,9 @@ Die ersten drei Optionen werden für den MVP und die erste Projektphase am höch
 Aktuelle Priorisierung:
 
 ```txt
-1. Manueller FIT-/GPX-/TCX-Upload
-2. Offizielle Garmin APIs
-3. python-garminconnect
+1. python-garminconnect (bestätigter privater Sync-Weg)
+2. Manueller FIT-/GPX-/TCX-Upload (Ergänzung und Fallback)
+3. Offizielle Garmin APIs (langfristiges Ziel)
 4. Garmin Connect Export
 5. Strava API
 6. Aggregator API
@@ -328,7 +328,7 @@ Die offizielle Garmin API wird als primäre Zielintegration betrachtet, aber ers
 
 ### Priorität
 
-Hoch für Prototyping, mittel für langfristige Nutzung.
+Sehr hoch. Bestätigter primärer privater Sync-Weg für MVP und Phase 2.
 
 ### Beschreibung
 
@@ -338,11 +338,13 @@ Sie kann für private Prototypen interessant sein, wenn offizieller API-Zugriff 
 
 ### Vorteile
 
-* wahrscheinlich schneller nutzbar als die offizielle API
-* interessant für privaten Single-User-Prototyp
-* kann viele Garmin-Connect-Daten zugänglich machen
-* hilfreich zum Testen mit echten eigenen Daten
-* gute Zwischenlösung, falls offizieller API-Zugriff lange dauert
+* bestätigt funktionsfähig für privaten Single-User-Betrieb
+* liefert alle Aktivitätsdaten inklusive Zeitreihen, Splits, Kadenz, HR-Charts
+* liefert Körperdaten: HRV, Body Battery, Ruhepuls, Schlaf, Stress
+* liefert sportartspezifische Leistungswerte: VO2 max, Laktatschwelle, FTP-Schätzungen
+* ermöglicht vollständige Aktivitätsdetailseiten mit Charts und Zonenverteilung
+* deutlich schneller verfügbar als offizielle API-Freigabe
+* kein OAuth-Freigabeprozess erforderlich
 
 ### Einschränkungen und Risiken
 
@@ -403,7 +405,25 @@ Langfristige Eignung: niedrig bis mittel
 
 ### Entscheidung
 
-`python-garminconnect` wird als möglicher privater Fallback-Adapter betrachtet, aber nicht als stabile Hauptintegration geplant.
+`python-garminconnect` wird als primärer privater Datenimport-Weg für MVP und Phase 2 genutzt. Die Library ist für den Single-User-Prototypen bestätigt verfügbar und liefert die benötigte Datenbreite für vollständige Aktivitätsdetailseiten, Körperdaten und sportartspezifische Leistungsmetriken.
+
+Technische Einbindung als separater Python Worker mit JSON-Export an das Backend:
+
+```txt
+python-garminconnect
+        ↓
+Python Import Script
+        ↓
+JSON Export
+        ↓
+Import Endpoint im Node.js Backend
+        ↓
+Normalisierung
+        ↓
+PostgreSQL
+```
+
+Langfristig durch die offizielle Garmin API ersetzt, sobald Zugriff und Bedingungen geklärt sind.
 
 ---
 
@@ -692,11 +712,11 @@ Sie können später erneut bewertet werden, falls eine mobile App oder Companion
 Für den MVP ergibt sich folgende Reihenfolge:
 
 ```txt
-1. Manueller FIT-/GPX-/TCX-Upload
+1. python-garminconnect als primärer privater Sync-Weg
 2. Manueller JSON-/CSV-/Mock-Datenimport für Entwicklung und Tests
-3. Offizielle Garmin APIs parallel klären
-4. python-garminconnect als privater Fallback prüfen
-5. Garmin Connect Export als Ergänzung prüfen
+3. Manueller FIT-/GPX-/TCX-Upload als Ergänzung und Fallback
+4. Offizielle Garmin APIs parallel klären
+5. Garmin Connect Export als weitere Ergänzung
 6. Strava API später optional prüfen
 7. Aggregator API später optional prüfen
 ```
@@ -974,14 +994,15 @@ Die App sollte in folgender Reihenfolge entwickelt werden:
 ```txt
 1. Internes Datenmodell und Import-Pipeline konzipieren
 2. Mock-Daten und manuelle JSON-Daten für UI und AI-Coach nutzen
-3. Manuellen FIT-/GPX-/TCX-Upload als MVP-Importfunktion vorbereiten
-4. Aktivitäten normalisieren und in PostgreSQL speichern
-5. Dashboard und Aktivitätsdetailseiten auf Basis interner Daten bauen
-6. Athlete Context aus internen Daten generieren
-7. AI-Coach mit Athlete Context verbinden
-8. Offizielle Garmin API parallel weiter klären
-9. Falls möglich: Garmin Official Adapter implementieren
-10. Falls nicht möglich: python-garminconnect oder Garmin Export als Fallback nutzen
+3. python-garminconnect Python Worker aufsetzen und echte Daten importieren
+4. Aktivitäten mit vollen Zeitreihendaten normalisieren und in PostgreSQL speichern
+5. Aktivitätsdetailseiten mit Charts, Splits und Zonenverteilung bauen
+6. Dashboard auf Basis interner Daten bauen
+7. Performance-Stats-Page für sportartspezifische Kennzahlen aufbauen
+8. Athlete Context aus internen Daten generieren
+9. AI-Coach mit Athlete Context verbinden
+10. Manuellen FIT-/GPX-/TCX-Upload als zusätzlichen Importweg ergänzen
+11. Offizielle Garmin API parallel weiter klären und bei Verfügbarkeit ablösen
 ```
 
 ---

@@ -251,27 +251,29 @@ MVP
 
 ### Beschreibung
 
-Einzelne Aktivitäten können geöffnet und genauer betrachtet werden.
+Einzelne Aktivitäten können geöffnet und detailliert analysiert werden. Da `python-garminconnect` reiche Zeitreihendaten, Splits und Gesundheitsmetriken liefert, wird diese Seite als vollständige Analyseansicht gebaut.
 
 ### Enthalten
 
-* Basisdaten der Aktivität
-* sportartspezifische Metriken
-* Quelle
-* einfache Zusammenfassung
-* robuste Anzeige bei fehlenden Daten
+* Basisdaten: Sportart, Datum, Dauer, Distanz, Quelle
+* Zeitreihencharts: Herzfrequenz, Kadenz, Pace/Geschwindigkeit, Elevation, Leistung
+* Splits und Laps: km-Splits mit Pace, HR und Kadenz pro Abschnitt
+* Zonenverteilung: Time in HR Zones als visuelle Darstellung
+* Erweiterte Metriken: Max HR, Kalorien, Normalized Power, Training Stress Score falls verfügbar
+* Radfahren: NP, IF, Power Zones Distribution
+* Laufen: Pace-Splits, Kadenz, Ground Contact Time falls verfügbar
+* Schwimmen: Bahnen, SWOLF, Strokecount, Stroke Type
+* robuste Anzeige bei fehlenden Metriken
 
 ### Nicht enthalten
 
-* vollständige GPS-Kartenansicht
-* detaillierte Zeitreihencharts
-* Intervallanalyse
-* Rundenanalyse
-* Segmentvergleich
+* interaktive GPS-Kartenansicht
+* Segmentvergleich mit anderen Aktivitäten
+* Bestleistungen im historischen Vergleich
 
 ### Begründung
 
-Die Detailseite validiert, ob importierte und normalisierte Daten korrekt genutzt werden können.
+Mit `python-garminconnect` als primärem Sync-Weg sind Zeitreihendaten, Splits und Zonenverteilung verfügbar. Diese Seite ist eine der wichtigsten Darstellungsflächen der App und soll das volle Potenzial der verfügbaren Daten zeigen.
 
 ---
 
@@ -524,7 +526,43 @@ Der Wochenplan ist der zentrale Beweis für den Nutzen des AI-Coaches.
 
 ---
 
-## 5.14 AI-generierte Einzeleinheit
+## 5.14 Performance Stats Page
+
+### Scope
+
+MVP
+
+### Beschreibung
+
+Eine eigene Seite zeigt sportartspezifische Leistungskennzahlen aus importierten Garmin-Daten.
+
+Route: `/performance`
+
+### Enthalten
+
+* VO2 max (Garmin-Schätzung)
+* Threshold HR pro Sportart
+* Threshold Pace für Laufen und Schwimmen
+* FTP für Radfahren
+* Trainingszonen visuell dargestellt (nicht nur als Tabelle in Settings)
+* Race Predictors: Laufen 5K / 10K / Halbmarathon / Marathon
+* Race Predictors: Radfahren 40km TT
+* letzte gemessene Werte mit Datum und Datenquelle
+* Darstellung gegliedert nach Sportart: Laufen / Roadbike / Schwimmen
+
+### Nicht enthalten
+
+* historische Entwicklung der Leistungswerte über Zeit (Post-MVP)
+* automatische Zonenkalibrierung
+* medizinische Interpretation
+
+### Begründung
+
+`python-garminconnect` liefert VO2 max, Laktatschwellen-Schätzungen und Race Predictors direkt. Diese Seite macht die Leistungsdaten sichtbar und schafft eine wichtige Grundlage für den Athlete Context und den AI-Coach.
+
+---
+
+## 5.15 AI-generierte Einzeleinheit
 
 ### Scope
 
@@ -672,19 +710,19 @@ Relevant für historische Daten, aber für den ersten MVP reicht ein einfacherer
 
 ---
 
-## 6.6 python-garminconnect Fallback
+## 6.6 python-garminconnect Integration
 
 ### Scope
 
-Post-MVP
+MVP
 
 ### Beschreibung
 
-Eine inoffizielle Garmin-Importlösung kann als privater Fallback geprüft werden.
+`python-garminconnect` wird als primärer privater Sync-Weg für echte Garmin-Daten genutzt. Liefert Zeitreihendaten, Splits, Körperdaten und sportartspezifische Leistungsmetriken.
 
-### Grund für Post-MVP
+### Grund für MVP
 
-Nützlich für echte Daten, aber rechtlich und technisch weniger stabil. Deshalb nicht als MVP-Grundlage.
+Bestätigt verfügbar und funktionsfähig für Single-User-Betrieb. Schaltet die vollständige Aktivitätsdetailseite und die Performance-Stats-Page frei. Kein Warten auf API-Freigabe erforderlich.
 
 ---
 
@@ -994,6 +1032,8 @@ Nicht enthalten im MVP:
 | AI-generierte Einzeleinheit | Ja               |
 | Athlete Context             | Ja               |
 | Plan speichern              | Ja               |
+| python-garminconnect Sync   | Ja               |
+| Performance Stats Page      | Ja               |
 
 ## 9.2 Post-MVP
 
@@ -1004,7 +1044,7 @@ Nicht enthalten im MVP:
 | AI-Wochenanalyse              | Post-MVP |
 | Importhistorie                | Post-MVP |
 | Garmin Export Import          | Post-MVP |
-| python-garminconnect Fallback | Post-MVP |
+| python-garminconnect Fallback | MVP (hochgestuft) |
 | Detailliertere Deduplizierung | Post-MVP |
 
 ## 9.3 Endprodukt
