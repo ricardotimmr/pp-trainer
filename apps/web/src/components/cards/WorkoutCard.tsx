@@ -1,6 +1,7 @@
 import type { PlannedWorkout } from '../../mock/prototypeData.types';
 import { IntensityBadge } from '../badges/IntensityBadge';
 import { SportBadge } from '../badges/SportBadge';
+import { WorkoutStatusBadge } from '../badges/WorkoutStatusBadge';
 import {
   formatDate,
   formatDistance,
@@ -10,15 +11,18 @@ import {
 type WorkoutCardProps = {
   workout: PlannedWorkout;
   onOpen?: (workoutId: string) => void;
+  showDate?: boolean;
 };
 
-export function WorkoutCard({ workout, onOpen }: WorkoutCardProps) {
+export function WorkoutCard({ workout, onOpen, showDate = true }: WorkoutCardProps) {
+  const showIntensity = workout.sport !== 'strength' && workout.sport !== 'mobility';
+
   const content = (
     <>
       <div className="workout-card__topline">
         <SportBadge sport={workout.sport} />
-        <IntensityBadge intensity={workout.intensity} />
-        <span className="workout-card__status">{workout.status}</span>
+        {showIntensity && <IntensityBadge intensity={workout.intensity} />}
+        <WorkoutStatusBadge status={workout.status} />
       </div>
       <h3>{workout.title}</h3>
       <p>
@@ -27,12 +31,14 @@ export function WorkoutCard({ workout, onOpen }: WorkoutCardProps) {
           'Planned prototype workout'}
       </p>
       <dl className="workout-card__metrics">
-        <div>
-          <dt>Date</dt>
-          <dd>
-            {formatDate(workout.scheduledStartTime ?? workout.scheduledDate)}
-          </dd>
-        </div>
+        {showDate && (
+          <div>
+            <dt>Date</dt>
+            <dd>
+              {formatDate(workout.scheduledStartTime ?? workout.scheduledDate)}
+            </dd>
+          </div>
+        )}
         <div>
           <dt>Duration</dt>
           <dd>{formatDuration(workout.plannedDurationSeconds)}</dd>

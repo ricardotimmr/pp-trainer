@@ -1,13 +1,13 @@
-import {
-  DashboardWidget,
-  ErrorState,
-  IntensityBadge,
-  SportBadge,
-  WorkoutCard,
-  WorkoutStepList,
-} from '../components';
+import { ErrorState, IntensityBadge, SportBadge, WorkoutStepList } from '../components';
+import { WorkoutStatusBadge } from '../components/badges/WorkoutStatusBadge';
+import { stepTypeLabels } from '../components/data/WorkoutStepList';
 import { PageShell } from '../layout/PageShell';
 import { getWorkoutById, getWorkoutSteps } from '../mock/prototypeData.helpers';
+import {
+  formatDate,
+  formatDistance,
+  formatDuration,
+} from '../components/prototypeFormatters';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 export function WorkoutDetailPage({ params }: PageComponentProps) {
@@ -33,35 +33,88 @@ export function WorkoutDetailPage({ params }: PageComponentProps) {
   }
 
   const steps = getWorkoutSteps(workout.id);
+  const formattedDate = formatDate(
+    workout.scheduledStartTime ?? workout.scheduledDate,
+  );
+
+  const stepsWithDuration = steps.filter((s) => s.durationSeconds);
+  const totalStepSeconds = stepsWithDuration.reduce(
+    (sum, s) => sum + (s.durationSeconds ?? 0),
+    0,
+  );
 
   return (
     <PageShell
       title={workout.title}
-      eyebrow="Workout detail"
+      eyebrow={`Workout · ${formattedDate}`}
       description={
-        <>
-          Workout detail placeholder with {steps.length} structured mock steps.
-        </>
+        workout.objective ? (
+          <span className="workout-detail__objective">{workout.objective}</span>
+        ) : undefined
       }
     >
-      <div className="prototype-grid">
-        <DashboardWidget title="Workout overview" eyebrow="Planned session">
-          <div className="badge-row">
-            <SportBadge sport={workout.sport} />
-            <IntensityBadge intensity={workout.intensity} />
+      <dl className="workout-detail__meta">
+        <div>
+          <dt>Duration</dt>
+          <dd>{formatDuration(workout.plannedDurationSeconds)}</dd>
+        </div>
+        {workout.plannedDistanceMeters ? (
+          <div>
+            <dt>Distance</dt>
+            <dd>{formatDistance(workout.plannedDistanceMeters)}</dd>
           </div>
-          <WorkoutCard workout={workout} />
-        </DashboardWidget>
+        ) : null}
+        <div>
+          <dt>Sport</dt>
+          <dd>
+            <SportBadge sport={workout.sport} />
+          </dd>
+        </div>
+        <div>
+          <dt>Intensity</dt>
+          <dd>
+            <IntensityBadge intensity={workout.intensity} />
+          </dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd>
+            <WorkoutStatusBadge status={workout.status} />
+          </dd>
+        </div>
+      </dl>
 
-        {workout.coachNotes ? (
-          <DashboardWidget title="Coach notes" eyebrow="Context">
-            <p className="prototype-copy">{workout.coachNotes}</p>
-          </DashboardWidget>
+      {workout.coachNotes ? (
+        <blockquote className="workout-detail__notes">
+          {workout.coachNotes}
+        </blockquote>
+      ) : null}
+
+      <div className="workout-detail__steps">
+        <p className="workout-detail__steps-label">Session structure</p>
+
+        {stepsWithDuration.length > 0 ? (
+          <div className="session-bar" aria-hidden="true" title="Session structure overview">
+            {stepsWithDuration.map((step) => (
+              <div
+                key={step.id}
+                className={`session-bar__segment session-bar__segment--${step.stepType}`}
+                style={{ flex: step.durationSeconds }}
+                title={`${stepTypeLabels[step.stepType]}: ${formatDuration(step.durationSeconds)}`}
+              />
+            ))}
+            {totalStepSeconds < (workout.plannedDurationSeconds ?? 0) && (
+              <div
+                className="session-bar__segment session-bar__segment--other"
+                style={{
+                  flex: (workout.plannedDurationSeconds ?? 0) - totalStepSeconds,
+                }}
+              />
+            )}
+          </div>
         ) : null}
 
-        <DashboardWidget title="Workout steps" eyebrow="Structure">
-          <WorkoutStepList steps={steps} />
-        </DashboardWidget>
+        <WorkoutStepList steps={steps} />
       </div>
     </PageShell>
   );

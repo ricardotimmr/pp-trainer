@@ -241,11 +241,36 @@ export type ActivitySwimLap = {
   averageHeartRateBpm?: number;
 };
 
+export type ActivityStrengthSet = {
+  id?: string;
+  externalSetId?: string;
+  setNumber: number;
+  exerciseName?: string;
+  exerciseCategory?: string;
+  muscleGroup?: string;
+  reps?: number;
+  weightKg?: number;
+  durationSeconds?: number;
+  restSeconds?: number;
+  notes?: string;
+};
+
+export type ActivityStrengthExercise = {
+  exerciseName: string;
+  exerciseCategory?: string;
+  muscleGroup?: string;
+  sets: number;
+  reps?: number;
+  volumeKg?: number;
+  bestWeightKg?: number;
+};
+
 export type ActivityTimeSeriesSample = {
   offsetSeconds: number;
   heartRateBpm?: number;
   powerWatts?: number;
   paceSecPerKm?: number;
+  swimPaceSecPer100m?: number;
   speedKmh?: number;
   cadenceRpm?: number;
   elevationMeters?: number;
@@ -314,6 +339,11 @@ export type Activity = {
   notes?: string;
   laps?: ActivityLap[];
   swimLaps?: ActivitySwimLap[];
+  strengthSets?: ActivityStrengthSet[];
+  strengthExercises?: ActivityStrengthExercise[];
+  totalSets?: number;
+  totalReps?: number;
+  totalVolumeKg?: number;
   timeSeries?: ActivityTimeSeriesSample[];
   timeInHrZones?: TimeInZone[];
   intensityFactor?: number;

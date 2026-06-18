@@ -1,4 +1,4 @@
-import type { WorkoutStep } from '../../mock/prototypeData.types';
+import type { WorkoutStep, WorkoutStepType } from '../../mock/prototypeData.types';
 import { EmptyState } from '../states/EmptyState';
 import {
   formatDistance,
@@ -10,25 +10,40 @@ type WorkoutStepListProps = {
   steps: WorkoutStep[];
 };
 
-const getStepTarget = (step: WorkoutStep) => {
+export const stepTypeLabels: Record<WorkoutStepType, string> = {
+  warmup: 'Warm-up',
+  main: 'Main set',
+  interval: 'Interval',
+  recovery: 'Recovery',
+  cooldown: 'Cool-down',
+  technique: 'Technique',
+  strength_exercise: 'Exercise',
+  rest: 'Rest',
+  other: 'Other',
+};
+
+const getStepTarget = (step: WorkoutStep): string | undefined => {
   if (step.targetPowerLowerWatts && step.targetPowerUpperWatts) {
-    return `${step.targetPowerLowerWatts}-${step.targetPowerUpperWatts} W`;
+    return `${step.targetPowerLowerWatts}–${step.targetPowerUpperWatts} W`;
   }
-
   if (step.targetPaceLowerSecPerKm && step.targetPaceUpperSecPerKm) {
-    return `${formatPace(step.targetPaceLowerSecPerKm)} to ${formatPace(
-      step.targetPaceUpperSecPerKm,
-    )}`;
+    return `${formatPace(step.targetPaceLowerSecPerKm)} – ${formatPace(step.targetPaceUpperSecPerKm)}`;
   }
-
-  if (
-    step.targetSwimPaceLowerSecPer100m &&
-    step.targetSwimPaceUpperSecPer100m
-  ) {
-    return `${step.targetSwimPaceLowerSecPer100m}-${step.targetSwimPaceUpperSecPer100m}s /100m`;
+  if (step.targetSwimPaceLowerSecPer100m && step.targetSwimPaceUpperSecPer100m) {
+    return `${step.targetSwimPaceLowerSecPer100m}–${step.targetSwimPaceUpperSecPer100m} s/100m`;
   }
-
   return undefined;
+};
+
+const buildMetrics = (step: WorkoutStep): string => {
+  const parts: string[] = [];
+  if (step.durationSeconds) parts.push(formatDuration(step.durationSeconds));
+  if (step.distanceMeters) parts.push(formatDistance(step.distanceMeters));
+  if (step.repetitions) parts.push(`×${step.repetitions}`);
+  const target = getStepTarget(step);
+  if (target) parts.push(target);
+  if (step.restSeconds) parts.push(`Rest ${formatDuration(step.restSeconds)}`);
+  return parts.join(' · ');
 };
 
 export function WorkoutStepList({ steps }: WorkoutStepListProps) {
@@ -45,42 +60,28 @@ export function WorkoutStepList({ steps }: WorkoutStepListProps) {
   return (
     <ol className="workout-step-list">
       {steps.map((step) => {
-        const target = getStepTarget(step);
+        const typeLabel = stepTypeLabels[step.stepType] ?? step.stepType;
+        const hasTitle = !!step.title;
+        const title = step.title ?? step.instruction;
+        const instruction = hasTitle ? step.instruction : undefined;
+        const metrics = buildMetrics(step);
 
         return (
-          <li key={step.id} className="workout-step">
-            <div className="workout-step__index">{step.stepIndex}</div>
-            <div className="workout-step__body">
-              <p className="workout-step__type">{step.stepType}</p>
-              <h3>{step.title ?? step.instruction}</h3>
-              {step.title ? <p>{step.instruction}</p> : null}
-              <dl className="workout-step__metrics">
-                {step.durationSeconds ? (
-                  <div>
-                    <dt>Duration</dt>
-                    <dd>{formatDuration(step.durationSeconds)}</dd>
-                  </div>
-                ) : null}
-                {step.distanceMeters ? (
-                  <div>
-                    <dt>Distance</dt>
-                    <dd>{formatDistance(step.distanceMeters)}</dd>
-                  </div>
-                ) : null}
-                {step.repetitions ? (
-                  <div>
-                    <dt>Reps</dt>
-                    <dd>{step.repetitions}</dd>
-                  </div>
-                ) : null}
-                {target ? (
-                  <div>
-                    <dt>Target</dt>
-                    <dd>{target}</dd>
-                  </div>
-                ) : null}
-              </dl>
-            </div>
+          <li
+            key={step.id}
+            className={`workout-step workout-step--${step.stepType}`}
+          >
+            <span className="workout-step__num" aria-hidden="true">
+              {String(step.stepIndex).padStart(2, '0')}
+            </span>
+            <span className="workout-step__type">{typeLabel}</span>
+            <h3 className="workout-step__title">{title}</h3>
+            {metrics && (
+              <p className="workout-step__metrics">{metrics}</p>
+            )}
+            {instruction && (
+              <p className="workout-step__instruction">{instruction}</p>
+            )}
           </li>
         );
       })}
