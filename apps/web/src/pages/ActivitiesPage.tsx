@@ -1,40 +1,26 @@
+import { useState } from 'react';
 import {
   ActivityCard,
   ActivitySummaryStats,
-  DashboardWidget,
   EmptyState,
 } from '../components';
 import { PageShell } from '../layout/PageShell';
-import {
-  getActivities,
-  getRecentActivities,
-} from '../mock/prototypeData.helpers';
+import { getActivities } from '../mock/prototypeData.helpers';
 import type { PageComponentProps } from '../routes/routeTypes';
+
+const PAGE_SIZE = 10;
 
 export function ActivitiesPage({ navigate }: PageComponentProps) {
   const activities = getActivities();
-  const recentActivities = getRecentActivities(3);
+  const [page, setPage] = useState(0);
+
+  const totalPages = Math.ceil(activities.length / PAGE_SIZE);
+  const pageActivities = activities.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
     <PageShell
       title="Activities"
-      description={
-        <>
-          Activity list placeholder with {recentActivities.length} mock
-          activities ready for the first list implementation.
-        </>
-      }
-      actions={
-        <button
-          type="button"
-          className="button button--primary"
-          onClick={() =>
-            navigate(`/activities/${recentActivities[0]?.id ?? ''}`)
-          }
-        >
-          Open first mock activity
-        </button>
-      }
+      description={`Prototype activity log — ${activities.length} activities across all sports.`}
     >
       {activities.length === 0 ? (
         <EmptyState
@@ -43,12 +29,10 @@ export function ActivitiesPage({ navigate }: PageComponentProps) {
         />
       ) : (
         <>
-          <DashboardWidget title="Activity summary" eyebrow="Mock history">
-            <ActivitySummaryStats activities={activities} />
-          </DashboardWidget>
+          <ActivitySummaryStats activities={activities} />
 
-          <div className="list-stack" aria-label="Prototype activity list">
-            {activities.slice(0, 6).map((activity) => (
+          <div className="list-stack" aria-label="Activity list">
+            {pageActivities.map((activity) => (
               <ActivityCard
                 key={activity.id}
                 activity={activity}
@@ -56,6 +40,32 @@ export function ActivitiesPage({ navigate }: PageComponentProps) {
               />
             ))}
           </div>
+
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button
+                type="button"
+                className="pagination__btn"
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page === 0}
+                aria-label="Previous page"
+              >
+                ←
+              </button>
+              <span className="pagination__indicator">
+                {page + 1} / {totalPages}
+              </span>
+              <button
+                type="button"
+                className="pagination__btn"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page === totalPages - 1}
+                aria-label="Next page"
+              >
+                →
+              </button>
+            </div>
+          )}
         </>
       )}
     </PageShell>

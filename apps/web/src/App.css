@@ -545,6 +545,52 @@
   color: var(--color-accent-dark);
 }
 
+.button:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding-top: 28px;
+}
+
+.pagination__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: none;
+  background: none;
+  font-size: 1.1rem;
+  color: var(--color-ink);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: color 0.15s ease;
+}
+
+.pagination__btn:hover {
+  color: var(--color-accent);
+}
+
+.pagination__btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+  pointer-events: none;
+}
+
+.pagination__indicator {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
 .dashboard-page {
   display: grid;
   gap: 22px;
