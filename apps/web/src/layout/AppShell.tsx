@@ -183,8 +183,12 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
     );
   };
 
+  const shellClasses = ['app-shell', pathname === '/' ? 'app-shell--home' : '']
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className="app-shell">
+    <div className={shellClasses}>
       <header
         className={[
           'app-shell__header',
