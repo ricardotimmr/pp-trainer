@@ -1,6 +1,8 @@
 import type {
   Activity,
   ActivityLap,
+  ActivityStrengthExercise,
+  ActivityStrengthSet,
   ActivitySwimLap,
   ActivityTimeSeriesSample,
   AiCoachPreview,
@@ -124,6 +126,64 @@ function makeRunTimeSeries(
       elevationMeters: Math.max(0, elev),
     };
   });
+}
+
+function makeSwimTimeSeries(
+  laps: ActivitySwimLap[],
+  totalDurationSeconds: number,
+  avgHr: number,
+): ActivityTimeSeriesSample[] {
+  const samples: ActivityTimeSeriesSample[] = [];
+  let offsetSeconds = 0;
+
+  laps.forEach((lap, index) => {
+    const sampleCount = Math.max(2, Math.round(lap.durationSeconds / 30));
+
+    Array.from({ length: sampleCount }, (_, sampleIndex) => {
+      const lapProgress = sampleCount > 1 ? sampleIndex / (sampleCount - 1) : 0;
+      const totalProgress =
+        totalDurationSeconds > 0 ? offsetSeconds / totalDurationSeconds : 0;
+      const drillPenalty = lap.strokeType === 'drill' ? 8 : 0;
+      const pace = Math.round(
+        (lap.averagePaceSecPer100m ?? lap.durationSeconds) +
+          drillPenalty +
+          wave(lapProgress + index * 0.07, 2, 3),
+      );
+      const hr = clamp(
+        Math.round(
+          avgHr -
+            12 +
+            totalProgress * 14 +
+            wave(totalProgress, 4, 5) +
+            (lap.averageHeartRateBpm ? (lap.averageHeartRateBpm - avgHr) * 0.7 : 0),
+        ),
+        90,
+        178,
+      );
+
+      samples.push({
+        offsetSeconds: Math.min(
+          totalDurationSeconds,
+          Math.round(offsetSeconds + lap.durationSeconds * lapProgress),
+        ),
+        heartRateBpm: hr,
+        swimPaceSecPer100m: clamp(pace, 82, 145),
+      });
+    });
+
+    offsetSeconds += lap.durationSeconds;
+  });
+
+  const lastSample = samples[samples.length - 1];
+
+  if (lastSample && lastSample.offsetSeconds < totalDurationSeconds) {
+    samples.push({
+      ...lastSample,
+      offsetSeconds: totalDurationSeconds,
+    });
+  }
+
+  return samples;
 }
 
 // ---------------------------------------------------------------------------
@@ -286,6 +346,235 @@ function swimLap(
   };
 }
 
+const swimTechniqueLaps: ActivitySwimLap[] = [
+  // warmup 400m (4 x 100m)
+  swimLap(1, 118, 'freestyle', 66, 112),
+  swimLap(2, 115, 'freestyle', 64, 116),
+  swimLap(3, 114, 'freestyle', 63, 118),
+  swimLap(4, 113, 'freestyle', 62, 120),
+  // drill block 400m (4 x 100m)
+  swimLap(5, 130, 'drill', 72, 120),
+  swimLap(6, 126, 'drill', 70, 122),
+  swimLap(7, 128, 'drill', 71, 121),
+  swimLap(8, 125, 'drill', 69, 122),
+  // main set 5 x 200m = 10 x 100m
+  swimLap(9, 112, 'freestyle', 62, 128),
+  swimLap(10, 111, 'freestyle', 62, 130),
+  swimLap(11, 112, 'freestyle', 63, 131),
+  swimLap(12, 110, 'freestyle', 61, 132),
+  swimLap(13, 111, 'freestyle', 62, 133),
+  swimLap(14, 112, 'freestyle', 63, 133),
+  swimLap(15, 113, 'freestyle', 63, 134),
+  swimLap(16, 112, 'freestyle', 62, 134),
+  swimLap(17, 113, 'freestyle', 63, 133),
+  swimLap(18, 114, 'freestyle', 64, 132),
+  // cooldown 400m (4 x 100m)
+  swimLap(19, 118, 'freestyle', 66, 130),
+  swimLap(20, 120, 'freestyle', 68, 127),
+  swimLap(21, 122, 'freestyle', 69, 124),
+  swimLap(22, 124, 'freestyle', 70, 121),
+];
+
+const swimEnduranceLaps: ActivitySwimLap[] = [
+  // warmup 500m (5 x 100m)
+  swimLap(1, 108, 'freestyle', 64, 115),
+  swimLap(2, 105, 'freestyle', 62, 120),
+  swimLap(3, 103, 'freestyle', 61, 122),
+  swimLap(4, 102, 'freestyle', 60, 124),
+  swimLap(5, 102, 'freestyle', 60, 125),
+  // main set 5 x 400m (20 x 100m)
+  swimLap(6, 100, 'freestyle', 58, 128),
+  swimLap(7, 99, 'freestyle', 58, 129),
+  swimLap(8, 101, 'freestyle', 59, 130),
+  swimLap(9, 100, 'freestyle', 58, 131),
+  swimLap(10, 99, 'freestyle', 58, 132),
+  swimLap(11, 101, 'freestyle', 59, 132),
+  swimLap(12, 100, 'freestyle', 58, 133),
+  swimLap(13, 102, 'freestyle', 59, 133),
+  swimLap(14, 100, 'freestyle', 58, 134),
+  swimLap(15, 99, 'freestyle', 58, 134),
+  swimLap(16, 101, 'freestyle', 59, 134),
+  swimLap(17, 103, 'freestyle', 60, 135),
+  swimLap(18, 102, 'freestyle', 59, 135),
+  swimLap(19, 104, 'freestyle', 60, 134),
+  swimLap(20, 103, 'freestyle', 60, 133),
+  swimLap(21, 102, 'freestyle', 59, 133),
+  swimLap(22, 104, 'freestyle', 60, 132),
+  swimLap(23, 103, 'freestyle', 60, 131),
+  swimLap(24, 105, 'freestyle', 61, 130),
+  swimLap(25, 104, 'freestyle', 61, 129),
+  // cooldown 300m (3 x 100m)
+  swimLap(26, 108, 'freestyle', 63, 128),
+  swimLap(27, 110, 'freestyle', 64, 125),
+  swimLap(28, 112, 'freestyle', 65, 122),
+];
+
+const lowerBodyStrengthSets: ActivityStrengthSet[] = [
+  {
+    setNumber: 1,
+    exerciseName: 'Goblet squat',
+    exerciseCategory: 'Squat',
+    muscleGroup: 'Quads',
+    reps: 10,
+    weightKg: 28,
+    durationSeconds: 52,
+    restSeconds: 75,
+    notes: 'Controlled tempo',
+  },
+  {
+    setNumber: 2,
+    exerciseName: 'Goblet squat',
+    exerciseCategory: 'Squat',
+    muscleGroup: 'Quads',
+    reps: 10,
+    weightKg: 30,
+    durationSeconds: 54,
+    restSeconds: 85,
+  },
+  {
+    setNumber: 3,
+    exerciseName: 'Goblet squat',
+    exerciseCategory: 'Squat',
+    muscleGroup: 'Quads',
+    reps: 8,
+    weightKg: 32,
+    durationSeconds: 48,
+    restSeconds: 95,
+  },
+  {
+    setNumber: 4,
+    exerciseName: 'Romanian deadlift',
+    exerciseCategory: 'Hinge',
+    muscleGroup: 'Hamstrings',
+    reps: 10,
+    weightKg: 55,
+    durationSeconds: 58,
+    restSeconds: 90,
+  },
+  {
+    setNumber: 5,
+    exerciseName: 'Romanian deadlift',
+    exerciseCategory: 'Hinge',
+    muscleGroup: 'Hamstrings',
+    reps: 10,
+    weightKg: 60,
+    durationSeconds: 60,
+    restSeconds: 105,
+  },
+  {
+    setNumber: 6,
+    exerciseName: 'Romanian deadlift',
+    exerciseCategory: 'Hinge',
+    muscleGroup: 'Hamstrings',
+    reps: 8,
+    weightKg: 65,
+    durationSeconds: 55,
+    restSeconds: 120,
+  },
+  {
+    setNumber: 7,
+    exerciseName: 'Rear-foot elevated split squat',
+    exerciseCategory: 'Single-leg',
+    muscleGroup: 'Glutes',
+    reps: 8,
+    weightKg: 20,
+    durationSeconds: 64,
+    restSeconds: 75,
+    notes: 'Each side',
+  },
+  {
+    setNumber: 8,
+    exerciseName: 'Rear-foot elevated split squat',
+    exerciseCategory: 'Single-leg',
+    muscleGroup: 'Glutes',
+    reps: 8,
+    weightKg: 22,
+    durationSeconds: 66,
+    restSeconds: 85,
+    notes: 'Each side',
+  },
+  {
+    setNumber: 9,
+    exerciseName: 'Standing calf raise',
+    exerciseCategory: 'Accessory',
+    muscleGroup: 'Calves',
+    reps: 15,
+    weightKg: 24,
+    durationSeconds: 42,
+    restSeconds: 45,
+  },
+  {
+    setNumber: 10,
+    exerciseName: 'Standing calf raise',
+    exerciseCategory: 'Accessory',
+    muscleGroup: 'Calves',
+    reps: 15,
+    weightKg: 24,
+    durationSeconds: 43,
+    restSeconds: 45,
+  },
+  {
+    setNumber: 11,
+    exerciseName: 'Side plank',
+    exerciseCategory: 'Core',
+    muscleGroup: 'Core',
+    durationSeconds: 45,
+    restSeconds: 30,
+    notes: 'Left side',
+  },
+  {
+    setNumber: 12,
+    exerciseName: 'Side plank',
+    exerciseCategory: 'Core',
+    muscleGroup: 'Core',
+    durationSeconds: 45,
+    restSeconds: 30,
+    notes: 'Right side',
+  },
+];
+
+function summarizeStrengthExercises(
+  sets: ActivityStrengthSet[],
+): ActivityStrengthExercise[] {
+  const exerciseMap = new Map<string, ActivityStrengthExercise>();
+
+  sets.forEach((set) => {
+    const exerciseName = set.exerciseName ?? 'Unknown exercise';
+    const current =
+      exerciseMap.get(exerciseName) ??
+      {
+        exerciseName,
+        exerciseCategory: set.exerciseCategory,
+        muscleGroup: set.muscleGroup,
+        sets: 0,
+        reps: 0,
+        volumeKg: 0,
+        bestWeightKg: 0,
+      };
+    const setVolume =
+      set.reps !== undefined && set.weightKg !== undefined
+        ? set.reps * set.weightKg
+        : 0;
+
+    current.sets += 1;
+    current.reps = (current.reps ?? 0) + (set.reps ?? 0);
+    current.volumeKg = (current.volumeKg ?? 0) + setVolume;
+    current.bestWeightKg = Math.max(current.bestWeightKg ?? 0, set.weightKg ?? 0);
+    exerciseMap.set(exerciseName, current);
+  });
+
+  return [...exerciseMap.values()].map((exercise) => ({
+    ...exercise,
+    reps: exercise.reps || undefined,
+    volumeKg: exercise.volumeKg || undefined,
+    bestWeightKg: exercise.bestWeightKg || undefined,
+  }));
+}
+
+const lowerBodyStrengthExercises = summarizeStrengthExercises(
+  lowerBodyStrengthSets,
+);
+
 // ---------------------------------------------------------------------------
 // Activities
 // ---------------------------------------------------------------------------
@@ -408,35 +697,9 @@ export const prototypeActivities: Activity[] = [
     dominantStrokeType: 'freestyle',
     totalStrokeCount: 1364,
     avgSwolfScore: 43,
-    swimLaps: [
-      // warmup 400m (4 x 100m)
-      swimLap(1,  118, 'freestyle', 66, 112),
-      swimLap(2,  115, 'freestyle', 64, 116),
-      swimLap(3,  114, 'freestyle', 63, 118),
-      swimLap(4,  113, 'freestyle', 62, 120),
-      // drill block 400m (4 x 100m)
-      swimLap(5,  130, 'drill', 72, 120),
-      swimLap(6,  126, 'drill', 70, 122),
-      swimLap(7,  128, 'drill', 71, 121),
-      swimLap(8,  125, 'drill', 69, 122),
-      // main set 5 x 200m = 10 x 100m
-      swimLap(9,  112, 'freestyle', 62, 128),
-      swimLap(10, 111, 'freestyle', 62, 130),
-      swimLap(11, 112, 'freestyle', 63, 131),
-      swimLap(12, 110, 'freestyle', 61, 132),
-      swimLap(13, 111, 'freestyle', 62, 133),
-      swimLap(14, 112, 'freestyle', 63, 133),
-      swimLap(15, 113, 'freestyle', 63, 134),
-      swimLap(16, 112, 'freestyle', 62, 134),
-      swimLap(17, 113, 'freestyle', 63, 133),
-      swimLap(18, 114, 'freestyle', 64, 132),
-      // cooldown 400m (4 x 100m)
-      swimLap(19, 118, 'freestyle', 66, 130),
-      swimLap(20, 120, 'freestyle', 68, 127),
-      swimLap(21, 122, 'freestyle', 69, 124),
-      swimLap(22, 124, 'freestyle', 70, 121),
-    ],
+    swimLaps: swimTechniqueLaps,
     timeInHrZones: hrZones([1050, 1650, 300, 0, 0]),
+    timeSeries: makeSwimTimeSeries(swimTechniqueLaps, 3000, 128),
     createdAt: '2026-06-12T06:40:00.000Z',
     updatedAt: '2026-06-12T06:40:00.000Z',
   },
@@ -504,6 +767,18 @@ export const prototypeActivities: Activity[] = [
     calories: 260,
     perceivedExertion: 5,
     notes: 'Squat pattern, single-leg stability and posterior chain work.',
+    strengthSets: lowerBodyStrengthSets,
+    strengthExercises: lowerBodyStrengthExercises,
+    totalSets: lowerBodyStrengthSets.length,
+    totalReps: lowerBodyStrengthSets.reduce(
+      (total, set) => total + (set.reps ?? 0),
+      0,
+    ),
+    totalVolumeKg: lowerBodyStrengthSets.reduce(
+      (total, set) =>
+        total + (set.reps ?? 0) * (set.weightKg ?? 0),
+      0,
+    ),
     timeInHrZones: hrZones([2295, 405, 0, 0, 0]),
     createdAt: '2026-06-10T18:50:00.000Z',
     updatedAt: '2026-06-10T18:50:00.000Z',
@@ -578,40 +853,9 @@ export const prototypeActivities: Activity[] = [
     dominantStrokeType: 'freestyle',
     totalStrokeCount: 1624,
     avgSwolfScore: 41,
-    swimLaps: [
-      // warmup 500m (5 x 100m)
-      swimLap(1,  108, 'freestyle', 64, 115),
-      swimLap(2,  105, 'freestyle', 62, 120),
-      swimLap(3,  103, 'freestyle', 61, 122),
-      swimLap(4,  102, 'freestyle', 60, 124),
-      swimLap(5,  102, 'freestyle', 60, 125),
-      // main set 5 x 400m (20 x 100m)
-      swimLap(6,  100, 'freestyle', 58, 128),
-      swimLap(7,   99, 'freestyle', 58, 129),
-      swimLap(8,  101, 'freestyle', 59, 130),
-      swimLap(9,  100, 'freestyle', 58, 131),
-      swimLap(10,  99, 'freestyle', 58, 132),
-      swimLap(11, 101, 'freestyle', 59, 132),
-      swimLap(12, 100, 'freestyle', 58, 133),
-      swimLap(13, 102, 'freestyle', 59, 133),
-      swimLap(14, 100, 'freestyle', 58, 134),
-      swimLap(15,  99, 'freestyle', 58, 134),
-      swimLap(16, 101, 'freestyle', 59, 134),
-      swimLap(17, 103, 'freestyle', 60, 135),
-      swimLap(18, 102, 'freestyle', 59, 135),
-      swimLap(19, 104, 'freestyle', 60, 134),
-      swimLap(20, 103, 'freestyle', 60, 133),
-      swimLap(21, 102, 'freestyle', 59, 133),
-      swimLap(22, 104, 'freestyle', 60, 132),
-      swimLap(23, 103, 'freestyle', 60, 131),
-      swimLap(24, 105, 'freestyle', 61, 130),
-      swimLap(25, 104, 'freestyle', 61, 129),
-      // cooldown 300m (3 x 100m)
-      swimLap(26, 108, 'freestyle', 63, 128),
-      swimLap(27, 110, 'freestyle', 64, 125),
-      swimLap(28, 112, 'freestyle', 65, 122),
-    ],
+    swimLaps: swimEnduranceLaps,
     timeInHrZones: hrZones([825, 2145, 330, 0, 0]),
+    timeSeries: makeSwimTimeSeries(swimEnduranceLaps, 3300, 132),
     createdAt: '2026-06-07T09:20:00.000Z',
     updatedAt: '2026-06-07T09:20:00.000Z',
   },

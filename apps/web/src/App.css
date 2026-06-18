@@ -1499,6 +1499,97 @@
   background: var(--color-accent-soft);
 }
 
+.activity-table--strength {
+  min-width: 920px;
+}
+
+.activity-strength-exercises {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.activity-strength-exercise {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  padding: 14px;
+}
+
+.activity-strength-exercise p {
+  margin: 0 0 5px;
+  color: var(--color-muted);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.activity-strength-exercise h3 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 1rem;
+  line-height: 1.12;
+}
+
+.activity-strength-exercise dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.activity-strength-exercise dt {
+  margin: 0 0 4px;
+  color: var(--color-muted);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.activity-strength-exercise dd {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.activity-strength-exercise > span {
+  width: fit-content;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 5px 9px;
+  text-transform: uppercase;
+}
+
+.activity-strength-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.activity-strength-tags span {
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 6px 10px;
+  text-transform: uppercase;
+}
+
 .activity-copy,
 .activity-muted {
   margin: 0;
@@ -2941,6 +3032,10 @@
 
   .activity-chart--large .activity-chart__plot {
     height: 220px;
+  }
+
+  .activity-strength-exercises {
+    grid-template-columns: 1fr;
   }
 
   .activity-zone-list div {

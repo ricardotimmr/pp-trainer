@@ -20,6 +20,8 @@ import {
 } from '../mock/prototypeData.helpers';
 import type {
   Activity,
+  ActivityStrengthExercise,
+  ActivityStrengthSet,
   ActivitySwimLap,
   ActivityTimeSeriesSample,
   TimeInZone,
@@ -68,6 +70,12 @@ const formatSpeed = (value?: number) =>
 
 const formatMeters = (value?: number) =>
   hasValue(value) ? `${Math.round(value)} m` : undefined;
+
+const formatWeight = (value?: number) =>
+  hasValue(value) ? `${value.toLocaleString('en')} kg` : undefined;
+
+const formatVolume = (value?: number) =>
+  hasValue(value) ? `${value.toLocaleString('en')} kg` : undefined;
 
 const formatSwimPace = (secondsPer100m?: number) => {
   if (!secondsPer100m) {
@@ -346,6 +354,8 @@ function TimeSeriesChart({
 
 function ChartSection({ activity }: { activity: Activity }) {
   const [activeMetricIndex, setActiveMetricIndex] = useState(0);
+  const isCycling = activity.sport === 'cycling';
+  const isSwimming = activity.sport === 'swimming';
   const metrics: ChartMetric[] = [
     {
       id: 'heart-rate',
@@ -358,17 +368,23 @@ function ChartSection({ activity }: { activity: Activity }) {
     },
     {
       id: 'pace',
-      title: activity.sport === 'cycling' ? 'Speed' : 'Pace',
-      eyebrow: 'Output rhythm',
-      unit: activity.sport === 'cycling' ? 'km/h' : '/km',
+      title: isCycling ? 'Speed' : isSwimming ? 'Swim pace' : 'Pace',
+      eyebrow: isSwimming ? 'Pool rhythm' : 'Output rhythm',
+      unit: isCycling ? 'km/h' : isSwimming ? '/100m' : '/km',
       color: '#f2641a',
       getValue: (sample) =>
-        activity.sport === 'cycling' ? sample.speedKmh : sample.paceSecPerKm,
+        isCycling
+          ? sample.speedKmh
+          : isSwimming
+            ? sample.swimPaceSecPer100m
+            : sample.paceSecPerKm,
       formatValue: (value) =>
-        activity.sport === 'cycling'
+        isCycling
           ? `${value.toFixed(1)} km/h`
-          : (formatPace(value) ?? 'n/a'),
-      invert: activity.sport !== 'cycling',
+          : isSwimming
+            ? (formatSwimPace(value) ?? 'n/a')
+            : (formatPace(value) ?? 'n/a'),
+      invert: !isCycling,
     },
     {
       id: 'elevation',
@@ -613,6 +629,156 @@ function SwimLapsTable({ laps }: { laps: ActivitySwimLap[] }) {
   );
 }
 
+function StrengthExerciseGrid({
+  exercises,
+}: {
+  exercises?: ActivityStrengthExercise[];
+}) {
+  if (!exercises?.length) {
+    return null;
+  }
+
+  return (
+    <div className="activity-strength-exercises">
+      {exercises.map((exercise) => (
+        <article
+          key={exercise.exerciseName}
+          className="activity-strength-exercise"
+        >
+          <div>
+            <p>{exercise.exerciseCategory ?? 'Exercise'}</p>
+            <h3>{exercise.exerciseName}</h3>
+          </div>
+          <dl>
+            <div>
+              <dt>Sets</dt>
+              <dd>{exercise.sets}</dd>
+            </div>
+            <div>
+              <dt>Reps</dt>
+              <dd>{formatNumber(exercise.reps) ?? 'n/a'}</dd>
+            </div>
+            <div>
+              <dt>Best</dt>
+              <dd>{formatWeight(exercise.bestWeightKg) ?? 'n/a'}</dd>
+            </div>
+          </dl>
+          {exercise.muscleGroup ? <span>{exercise.muscleGroup}</span> : null}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function StrengthSetsTable({ sets }: { sets?: ActivityStrengthSet[] }) {
+  if (!sets?.length) {
+    return (
+      <section className="activity-panel">
+        <SectionHeader eyebrow="Strength" title="Set details unavailable" />
+        <p className="activity-muted">
+          This strength file has summary data only. Exercise and set details will
+          appear here when the source provides them.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="activity-panel">
+      <SectionHeader
+        eyebrow="Strength sets"
+        title="Set breakdown"
+        action={<span>{sets.length} sets</span>}
+      />
+      <div className="activity-table-wrap">
+        <table className="activity-table activity-table--strength">
+          <thead>
+            <tr>
+              <th>Set</th>
+              <th>Exercise</th>
+              <th>Category</th>
+              <th>Reps</th>
+              <th>Load</th>
+              <th>Duration</th>
+              <th>Rest</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sets.map((set) => (
+              <tr key={`${set.setNumber}-${set.exerciseName ?? 'unknown'}`}>
+                <td>{set.setNumber}</td>
+                <td>{set.exerciseName ?? 'Unknown exercise'}</td>
+                <td>{set.exerciseCategory ?? 'n/a'}</td>
+                <td>{formatNumber(set.reps) ?? 'n/a'}</td>
+                <td>{formatWeight(set.weightKg) ?? 'n/a'}</td>
+                <td>
+                  {set.durationSeconds
+                    ? formatClock(set.durationSeconds)
+                    : 'n/a'}
+                </td>
+                <td>
+                  {set.restSeconds ? formatClock(set.restSeconds) : 'n/a'}
+                </td>
+                <td>{set.notes ?? 'n/a'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function StrengthDetailSection({ activity }: { activity: Activity }) {
+  return (
+    <>
+      <section className="activity-panel">
+        <SectionHeader
+          eyebrow="Strength file"
+          title="Exercise overview"
+          action={
+            activity.strengthExercises?.length ? (
+              <span>{activity.strengthExercises.length} exercises</span>
+            ) : undefined
+          }
+        />
+        <MetricStrip
+          metrics={[
+            {
+              label: 'Total sets',
+              value: formatNumber(activity.totalSets),
+              accent: true,
+            },
+            {
+              label: 'Total reps',
+              value: formatNumber(activity.totalReps),
+            },
+            {
+              label: 'Volume',
+              value: formatVolume(activity.totalVolumeKg),
+            },
+            {
+              label: 'Avg HR',
+              value: formatNumber(activity.averageHeartRateBpm, ' bpm'),
+            },
+            {
+              label: 'Max HR',
+              value: formatNumber(activity.maxHeartRateBpm, ' bpm'),
+            },
+            {
+              label: 'RPE',
+              value: formatNumber(activity.perceivedExertion, '/10'),
+            },
+          ]}
+        />
+        <StrengthExerciseGrid exercises={activity.strengthExercises} />
+      </section>
+      <StrengthSetsTable sets={activity.strengthSets} />
+    </>
+  );
+}
+
 function getPowerZoneDistribution(
   activity: Activity,
   powerZones: TrainingZone[],
@@ -774,6 +940,47 @@ function SportSpecificSection({ activity }: { activity: Activity }) {
     );
   }
 
+  if (activity.sport === 'strength') {
+    const primaryMuscleGroups = [
+      ...new Set(
+        activity.strengthExercises
+          ?.map((exercise) => exercise.muscleGroup)
+          .filter((muscleGroup): muscleGroup is string => Boolean(muscleGroup)) ??
+          [],
+      ),
+    ];
+
+    return (
+      <section className="activity-panel">
+        <SectionHeader eyebrow="Strength" title="Session load" />
+        <MetricStrip
+          metrics={[
+            {
+              label: 'Exercises',
+              value: formatNumber(activity.strengthExercises?.length),
+              accent: true,
+            },
+            {
+              label: 'Sets',
+              value: formatNumber(activity.totalSets),
+            },
+            {
+              label: 'Volume',
+              value: formatVolume(activity.totalVolumeKg),
+            },
+          ]}
+        />
+        {primaryMuscleGroups.length ? (
+          <div className="activity-strength-tags" aria-label="Muscle groups">
+            {primaryMuscleGroups.map((muscleGroup) => (
+              <span key={muscleGroup}>{muscleGroup}</span>
+            ))}
+          </div>
+        ) : null}
+      </section>
+    );
+  }
+
   return null;
 }
 
@@ -842,7 +1049,7 @@ export function ActivityDetailPage({ params, navigate }: PageComponentProps) {
     );
   }
 
-  const keyMetrics: DetailMetric[] = [
+  const baseKeyMetrics: DetailMetric[] = [
     {
       label: 'Duration',
       value: formatDuration(activity.durationSeconds),
@@ -850,10 +1057,6 @@ export function ActivityDetailPage({ params, navigate }: PageComponentProps) {
         ? `${formatDuration(activity.movingDurationSeconds)} moving`
         : undefined,
       accent: true,
-    },
-    {
-      label: 'Distance',
-      value: formatDistance(activity.distanceMeters),
     },
     {
       label: 'Avg HR',
@@ -867,14 +1070,35 @@ export function ActivityDetailPage({ params, navigate }: PageComponentProps) {
       label: 'Calories',
       value: formatCalories(activity.calories),
     },
-    {
-      label: activity.sport === 'cycling' ? 'Avg power' : 'Avg pace',
-      value:
-        activity.sport === 'cycling'
-          ? formatNumber(activity.averagePowerWatts, ' W')
-          : formatActivityPace(activity),
-    },
   ];
+  const keyMetrics: DetailMetric[] =
+    activity.sport === 'strength'
+      ? [
+          ...baseKeyMetrics,
+          {
+            label: 'Sets',
+            value: formatNumber(activity.totalSets),
+          },
+          {
+            label: 'Volume',
+            value: formatVolume(activity.totalVolumeKg),
+          },
+        ]
+      : [
+          baseKeyMetrics[0],
+          {
+            label: 'Distance',
+            value: formatDistance(activity.distanceMeters),
+          },
+          ...baseKeyMetrics.slice(1),
+          {
+            label: activity.sport === 'cycling' ? 'Avg power' : 'Avg pace',
+            value:
+              activity.sport === 'cycling'
+                ? formatNumber(activity.averagePowerWatts, ' W')
+                : formatActivityPace(activity),
+          },
+        ];
 
   return (
     <PageShell
@@ -912,8 +1136,14 @@ export function ActivityDetailPage({ params, navigate }: PageComponentProps) {
 
         <div className="activity-detail-layout">
           <main className="activity-detail-main">
-            <ChartSection activity={activity} />
-            <SplitsTable activity={activity} />
+            {activity.sport === 'strength' ? (
+              <StrengthDetailSection activity={activity} />
+            ) : (
+              <>
+                <ChartSection activity={activity} />
+                <SplitsTable activity={activity} />
+              </>
+            )}
           </main>
 
           <aside className="activity-detail-side" aria-label="Activity context">
