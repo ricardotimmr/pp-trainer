@@ -1,13 +1,12 @@
-import {
-  DashboardWidget,
-  ErrorState,
-  IntensityBadge,
-  SportBadge,
-  WorkoutCard,
-  WorkoutStepList,
-} from '../components';
+import { ErrorState, IntensityBadge, SportBadge, WorkoutStepList } from '../components';
+import { WorkoutStatusBadge } from '../components/badges/WorkoutStatusBadge';
 import { PageShell } from '../layout/PageShell';
 import { getWorkoutById, getWorkoutSteps } from '../mock/prototypeData.helpers';
+import {
+  formatDate,
+  formatDistance,
+  formatDuration,
+} from '../components/prototypeFormatters';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 export function WorkoutDetailPage({ params }: PageComponentProps) {
@@ -33,36 +32,65 @@ export function WorkoutDetailPage({ params }: PageComponentProps) {
   }
 
   const steps = getWorkoutSteps(workout.id);
+  const formattedDate = formatDate(
+    workout.scheduledStartTime ?? workout.scheduledDate,
+  );
 
   return (
     <PageShell
       title={workout.title}
-      eyebrow="Workout detail"
+      eyebrow={`Workout · ${formattedDate}`}
       description={
-        <>
-          Workout detail placeholder with {steps.length} structured mock steps.
-        </>
+        workout.objective ? (
+          <span className="workout-detail__objective">{workout.objective}</span>
+        ) : undefined
       }
     >
-      <div className="prototype-grid">
-        <DashboardWidget title="Workout overview" eyebrow="Planned session">
-          <div className="badge-row">
-            <SportBadge sport={workout.sport} />
-            <IntensityBadge intensity={workout.intensity} />
+      <dl className="workout-detail__meta">
+        <div>
+          <dt>Duration</dt>
+          <dd>{formatDuration(workout.plannedDurationSeconds)}</dd>
+        </div>
+        {workout.plannedDistanceMeters ? (
+          <div>
+            <dt>Distance</dt>
+            <dd>{formatDistance(workout.plannedDistanceMeters)}</dd>
           </div>
-          <WorkoutCard workout={workout} />
-        </DashboardWidget>
-
-        {workout.coachNotes ? (
-          <DashboardWidget title="Coach notes" eyebrow="Context">
-            <p className="prototype-copy">{workout.coachNotes}</p>
-          </DashboardWidget>
         ) : null}
+        <div>
+          <dt>Sport</dt>
+          <dd>
+            <SportBadge sport={workout.sport} />
+          </dd>
+        </div>
+        <div>
+          <dt>Intensity</dt>
+          <dd>
+            <IntensityBadge intensity={workout.intensity} />
+          </dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd>
+            <WorkoutStatusBadge status={workout.status} />
+          </dd>
+        </div>
+      </dl>
 
-        <DashboardWidget title="Workout steps" eyebrow="Structure">
-          <WorkoutStepList steps={steps} />
-        </DashboardWidget>
+      {workout.coachNotes ? (
+        <blockquote className="workout-detail__notes">
+          {workout.coachNotes}
+        </blockquote>
+      ) : null}
+
+      <div className="workout-detail__steps">
+        <p className="workout-detail__steps-label">Session structure</p>
+        <WorkoutStepList steps={steps} />
       </div>
+
+      {workout.description && !workout.objective ? (
+        <p className="prototype-muted">{workout.description}</p>
+      ) : null}
     </PageShell>
   );
 }

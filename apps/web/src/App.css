@@ -537,6 +537,76 @@
   min-height: 220px;
 }
 
+/* ── Workout detail page ──────────────────────────────────────────────────── */
+
+.workout-detail__objective {
+  display: block;
+  margin-top: 14px;
+  color: var(--color-accent);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.workout-detail__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 44px;
+  margin: 0 0 32px;
+  padding: 0;
+}
+
+.workout-detail__meta > div {
+  border-top: 1.5px solid var(--color-ink);
+  padding-top: 10px;
+  padding-bottom: 4px;
+  min-width: 80px;
+}
+
+.workout-detail__meta dt {
+  margin: 0 0 6px;
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.workout-detail__meta dd {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.workout-detail__meta .badge {
+  font-size: 10px;
+  padding: 5px 8px;
+}
+
+.workout-detail__notes {
+  margin: 0 0 32px;
+  padding: 14px 20px;
+  border-left: 3px solid var(--color-accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: color-mix(in srgb, var(--color-accent) 6%, var(--color-surface));
+  color: var(--color-text);
+  font-style: italic;
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.workout-detail__steps-label {
+  margin: 0 0 16px;
+  border-top: 1.5px solid var(--color-ink);
+  padding-top: 12px;
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
 .button {
   display: inline-flex;
   align-items: center;
