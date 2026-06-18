@@ -130,7 +130,7 @@ function makeRunTimeSeries(
 
 function makeSwimTimeSeries(
   laps: ActivitySwimLap[],
-  totalDurationSeconds: number,
+  streamDurationSeconds: number,
   avgHr: number,
 ): ActivityTimeSeriesSample[] {
   const samples: ActivityTimeSeriesSample[] = [];
@@ -142,7 +142,7 @@ function makeSwimTimeSeries(
     Array.from({ length: sampleCount }, (_, sampleIndex) => {
       const lapProgress = sampleCount > 1 ? sampleIndex / (sampleCount - 1) : 0;
       const totalProgress =
-        totalDurationSeconds > 0 ? offsetSeconds / totalDurationSeconds : 0;
+        streamDurationSeconds > 0 ? offsetSeconds / streamDurationSeconds : 0;
       const drillPenalty = lap.strokeType === 'drill' ? 8 : 0;
       const pace = Math.round(
         (lap.averagePaceSecPer100m ?? lap.durationSeconds) +
@@ -163,7 +163,7 @@ function makeSwimTimeSeries(
 
       samples.push({
         offsetSeconds: Math.min(
-          totalDurationSeconds,
+          streamDurationSeconds,
           Math.round(offsetSeconds + lap.durationSeconds * lapProgress),
         ),
         heartRateBpm: hr,
@@ -176,10 +176,10 @@ function makeSwimTimeSeries(
 
   const lastSample = samples[samples.length - 1];
 
-  if (lastSample && lastSample.offsetSeconds < totalDurationSeconds) {
+  if (lastSample && lastSample.offsetSeconds < streamDurationSeconds) {
     samples.push({
       ...lastSample,
-      offsetSeconds: totalDurationSeconds,
+      offsetSeconds: streamDurationSeconds,
     });
   }
 
@@ -409,7 +409,15 @@ const swimEnduranceLaps: ActivitySwimLap[] = [
   swimLap(28, 112, 'freestyle', 65, 122),
 ];
 
+function strengthSet(set: ActivityStrengthSet): ActivityStrengthSet {
+  return {
+    ...set,
+    id: `strength-lower-body-set-${set.setNumber}`,
+  };
+}
+
 const lowerBodyStrengthSets: ActivityStrengthSet[] = [
+  strengthSet(
   {
     setNumber: 1,
     exerciseName: 'Goblet squat',
@@ -421,6 +429,8 @@ const lowerBodyStrengthSets: ActivityStrengthSet[] = [
     restSeconds: 75,
     notes: 'Controlled tempo',
   },
+  ),
+  strengthSet(
   {
     setNumber: 2,
     exerciseName: 'Goblet squat',
@@ -431,6 +441,8 @@ const lowerBodyStrengthSets: ActivityStrengthSet[] = [
     durationSeconds: 54,
     restSeconds: 85,
   },
+  ),
+  strengthSet(
   {
     setNumber: 3,
     exerciseName: 'Goblet squat',
@@ -441,6 +453,8 @@ const lowerBodyStrengthSets: ActivityStrengthSet[] = [
     durationSeconds: 48,
     restSeconds: 95,
   },
+  ),
+  strengthSet(
   {
     setNumber: 4,
     exerciseName: 'Romanian deadlift',
@@ -451,6 +465,8 @@ const lowerBodyStrengthSets: ActivityStrengthSet[] = [
     durationSeconds: 58,
     restSeconds: 90,
   },
+  ),
+  strengthSet(
   {
     setNumber: 5,
     exerciseName: 'Romanian deadlift',
@@ -461,6 +477,8 @@ const lowerBodyStrengthSets: ActivityStrengthSet[] = [
     durationSeconds: 60,
     restSeconds: 105,
   },
+  ),
+  strengthSet(
   {
     setNumber: 6,
     exerciseName: 'Romanian deadlift',
@@ -471,6 +489,8 @@ const lowerBodyStrengthSets: ActivityStrengthSet[] = [
     durationSeconds: 55,
     restSeconds: 120,
   },
+  ),
+  strengthSet(
   {
     setNumber: 7,
     exerciseName: 'Rear-foot elevated split squat',
@@ -482,6 +502,8 @@ const lowerBodyStrengthSets: ActivityStrengthSet[] = [
     restSeconds: 75,
     notes: 'Each side',
   },
+  ),
+  strengthSet(
   {
     setNumber: 8,
     exerciseName: 'Rear-foot elevated split squat',
@@ -493,6 +515,8 @@ const lowerBodyStrengthSets: ActivityStrengthSet[] = [
     restSeconds: 85,
     notes: 'Each side',
   },
+  ),
+  strengthSet(
   {
     setNumber: 9,
     exerciseName: 'Standing calf raise',
@@ -503,6 +527,8 @@ const lowerBodyStrengthSets: ActivityStrengthSet[] = [
     durationSeconds: 42,
     restSeconds: 45,
   },
+  ),
+  strengthSet(
   {
     setNumber: 10,
     exerciseName: 'Standing calf raise',
@@ -513,6 +539,8 @@ const lowerBodyStrengthSets: ActivityStrengthSet[] = [
     durationSeconds: 43,
     restSeconds: 45,
   },
+  ),
+  strengthSet(
   {
     setNumber: 11,
     exerciseName: 'Side plank',
@@ -522,6 +550,8 @@ const lowerBodyStrengthSets: ActivityStrengthSet[] = [
     restSeconds: 30,
     notes: 'Left side',
   },
+  ),
+  strengthSet(
   {
     setNumber: 12,
     exerciseName: 'Side plank',
@@ -531,6 +561,7 @@ const lowerBodyStrengthSets: ActivityStrengthSet[] = [
     restSeconds: 30,
     notes: 'Right side',
   },
+  ),
 ];
 
 function summarizeStrengthExercises(
@@ -699,7 +730,7 @@ export const prototypeActivities: Activity[] = [
     avgSwolfScore: 43,
     swimLaps: swimTechniqueLaps,
     timeInHrZones: hrZones([1050, 1650, 300, 0, 0]),
-    timeSeries: makeSwimTimeSeries(swimTechniqueLaps, 3000, 128),
+    timeSeries: makeSwimTimeSeries(swimTechniqueLaps, 2460, 128),
     createdAt: '2026-06-12T06:40:00.000Z',
     updatedAt: '2026-06-12T06:40:00.000Z',
   },
@@ -855,7 +886,7 @@ export const prototypeActivities: Activity[] = [
     avgSwolfScore: 41,
     swimLaps: swimEnduranceLaps,
     timeInHrZones: hrZones([825, 2145, 330, 0, 0]),
-    timeSeries: makeSwimTimeSeries(swimEnduranceLaps, 3300, 132),
+    timeSeries: makeSwimTimeSeries(swimEnduranceLaps, 2850, 132),
     createdAt: '2026-06-07T09:20:00.000Z',
     updatedAt: '2026-06-07T09:20:00.000Z',
   },

@@ -1235,6 +1235,17 @@
   box-shadow: none;
 }
 
+.activity-chart-tabs button:focus-visible::after {
+  position: absolute;
+  right: 18px;
+  bottom: 7px;
+  left: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  content: '';
+}
+
 .activity-chart-stage {
   min-width: 0;
 }

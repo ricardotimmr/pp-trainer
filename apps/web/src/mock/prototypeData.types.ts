@@ -242,6 +242,8 @@ export type ActivitySwimLap = {
 };
 
 export type ActivityStrengthSet = {
+  id?: string;
+  externalSetId?: string;
   setNumber: number;
   exerciseName?: string;
   exerciseCategory?: string;

@@ -122,16 +122,26 @@ const formatClock = (seconds: number) => {
 const getSeriesValues = (
   samples: ActivityTimeSeriesSample[] | undefined,
   getValue: ChartMetric['getValue'],
-) =>
-  (samples ?? [])
-    .map((sample) => ({
+) => {
+  const valuesByOffset = new Map<number, { offsetSeconds: number; value: number }>();
+
+  (samples ?? []).forEach((sample) => {
+    const value = getValue(sample);
+
+    if (value === undefined || !Number.isFinite(value)) {
+      return;
+    }
+
+    valuesByOffset.set(sample.offsetSeconds, {
       offsetSeconds: sample.offsetSeconds,
-      value: getValue(sample),
-    }))
-    .filter(
-      (sample): sample is { offsetSeconds: number; value: number } =>
-        sample.value !== undefined && Number.isFinite(sample.value),
-    );
+      value,
+    });
+  });
+
+  return [...valuesByOffset.values()].sort(
+    (a, b) => a.offsetSeconds - b.offsetSeconds,
+  );
+};
 
 const buildPath = (
   points: ChartPoint[],
@@ -705,20 +715,28 @@ function StrengthSetsTable({ sets }: { sets?: ActivityStrengthSet[] }) {
             </tr>
           </thead>
           <tbody>
-            {sets.map((set) => (
-              <tr key={`${set.setNumber}-${set.exerciseName ?? 'unknown'}`}>
+            {sets.map((set, index) => (
+              <tr
+                key={
+                  set.id ??
+                  set.externalSetId ??
+                  `${set.setNumber}-${set.exerciseName ?? 'unknown'}-${index}`
+                }
+              >
                 <td>{set.setNumber}</td>
                 <td>{set.exerciseName ?? 'Unknown exercise'}</td>
                 <td>{set.exerciseCategory ?? 'n/a'}</td>
                 <td>{formatNumber(set.reps) ?? 'n/a'}</td>
                 <td>{formatWeight(set.weightKg) ?? 'n/a'}</td>
                 <td>
-                  {set.durationSeconds
+                  {hasValue(set.durationSeconds)
                     ? formatClock(set.durationSeconds)
                     : 'n/a'}
                 </td>
                 <td>
-                  {set.restSeconds ? formatClock(set.restSeconds) : 'n/a'}
+                  {hasValue(set.restSeconds)
+                    ? formatClock(set.restSeconds)
+                    : 'n/a'}
                 </td>
                 <td>{set.notes ?? 'n/a'}</td>
               </tr>
