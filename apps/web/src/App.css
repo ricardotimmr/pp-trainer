@@ -43,6 +43,21 @@
   --header-height: 68px;
 }
 
+/* ── Global button focus reset ──────────────────────────────────────────── */
+
+button:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: var(--radius);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+
 .app-shell {
   min-height: 100vh;
   background: var(--color-paper);
@@ -207,16 +222,11 @@
   visibility: hidden;
 }
 
-.app-shell__brand:focus,
 .app-shell__brand:focus-visible,
-.app-shell__compact-brand:focus,
 .app-shell__compact-brand:focus-visible,
-.app-shell__nav-button:focus,
 .app-shell__nav-button:focus-visible,
-.app-shell__menu-button:focus,
 .app-shell__menu-button:focus-visible {
   outline: none;
-  box-shadow: none;
 }
 
 .app-shell__compact-brand {
@@ -1324,10 +1334,8 @@
   color: #ffffff;
 }
 
-.activity-chart-tabs button:focus,
 .activity-chart-tabs button:focus-visible {
-  outline: none;
-  box-shadow: none;
+  outline-offset: -3px;
 }
 
 .activity-chart-tabs button:focus-visible::after {
@@ -3549,4 +3557,433 @@
   color: var(--color-muted);
   letter-spacing: 0.06em;
   margin: 0;
+}
+
+/* ── AI Coach Preview Page ──────────────────────────────────────────────── */
+
+.ai-coach__preview-notice {
+  display: block;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.ai-coach-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  gap: 56px;
+  align-items: start;
+}
+
+.ai-coach__context {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ai-context-section {
+  padding: 18px 0;
+  border-top: 1.5px solid var(--color-ink);
+}
+
+.ai-context-section:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.ai-context-section__label {
+  margin: 0 0 12px;
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ai-context-dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 32px;
+  margin: 0;
+  padding: 0;
+}
+
+.ai-context-dl > div {
+  padding-bottom: 8px;
+  min-width: 80px;
+}
+
+.ai-context-dl dt {
+  margin: 0 0 3px;
+  color: var(--color-muted);
+  font-size: 0.72rem;
+}
+
+.ai-context-dl dd {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+}
+
+.ai-context-sports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.ai-context-goal__title {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.ai-context-goal__date {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+}
+
+.ai-context-availability {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-context-availability__day {
+  display: grid;
+  grid-template-columns: 36px 54px 1fr;
+  gap: 0 10px;
+  align-items: baseline;
+}
+
+.ai-context-availability__weekday {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.ai-context-availability__duration {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.ai-context-availability__sports {
+  font-size: 0.82rem;
+  color: var(--color-text);
+}
+
+.ai-request-preview__prompt {
+  margin: 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 4%, var(--color-surface));
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  font-style: italic;
+  color: var(--color-text);
+}
+
+/* Output panel */
+
+.ai-coach__output {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.segmented-control {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-self: flex-start;
+  border-bottom: 1.5px solid var(--color-line);
+}
+
+.segmented-control__indicator {
+  position: absolute;
+  bottom: -1px;
+  height: 2px;
+  background: var(--color-accent);
+  border-radius: 999px;
+  pointer-events: none;
+  transition:
+    left 0.32s cubic-bezier(0.2, 0.85, 0.2, 1),
+    width 0.32s cubic-bezier(0.2, 0.85, 0.2, 1);
+}
+
+.segmented-control__tab {
+  padding: 8px 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-muted);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.14s ease;
+}
+
+.segmented-control__tab.is-active {
+  color: var(--color-accent);
+}
+
+.segmented-control__tab:not(.is-active):hover {
+  color: var(--color-accent);
+}
+
+.segmented-control__tab:focus-visible {
+  outline-offset: -3px;
+}
+
+.ai-output {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ai-output__label {
+  margin: 0;
+  border-top: 1.5px solid var(--color-ink);
+  padding-top: 12px;
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.ai-week-plan {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ai-week-row {
+  border-top: 1px solid var(--color-line);
+}
+
+.ai-week-row:last-child {
+  border-bottom: 1px solid var(--color-line);
+}
+
+.ai-week-row__inner {
+  display: grid;
+  grid-template-columns: 72px auto 1fr auto;
+  gap: 0 16px;
+  align-items: center;
+  width: 100%;
+  padding: 13px 4px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: background 0.12s ease;
+}
+
+.ai-week-row__inner--rest {
+  grid-template-columns: 72px 1fr;
+  cursor: default;
+}
+
+.ai-week-row__rest {
+  font-size: 0.82rem;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.ai-week-row__inner:hover {
+  background: color-mix(in srgb, var(--color-accent) 5%, transparent);
+}
+
+.ai-week-row__inner:hover .ai-week-row__title {
+  color: var(--color-accent);
+}
+
+.ai-week-row__date {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.ai-week-row__weekday {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.ai-week-row__datenum {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--color-ink);
+}
+
+.ai-week-row__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ai-week-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ai-week-row__title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.12s ease;
+}
+
+.ai-week-row__objective {
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-week-row__duration {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Single workout output */
+
+.ai-single-workout {
+  padding: 0;
+}
+
+.ai-single-workout__title {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.ai-single-workout__objective {
+  margin: 0 0 20px;
+  font-size: 0.95rem;
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
+/* Coach rationale */
+
+.coach-rationale {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 24px;
+  border-top: 1.5px solid var(--color-line-strong);
+}
+
+.coach-rationale__label {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.coach-rationale__text {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--color-text);
+}
+
+.coach-rationale__notes {
+  margin: 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 5%, var(--color-surface));
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--color-text);
+  font-style: italic;
+}
+
+.coach-rationale__caveat {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+/* Accept / Reject */
+
+.ai-coach__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 24px;
+  border-top: 1.5px solid var(--color-line);
+}
+
+.ai-coach__action-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+@media (max-width: 900px) {
+  .ai-coach-layout {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .ai-coach__context {
+    border-bottom: 1.5px solid var(--color-line-strong);
+    padding-bottom: 32px;
+    margin-bottom: 32px;
+  }
+
+  .ai-week-row__inner {
+    grid-template-columns: 64px auto 1fr;
+    grid-template-rows: auto auto;
+    gap: 4px 12px;
+  }
+
+  .ai-week-row__duration {
+    grid-column: 3;
+    grid-row: 1;
+    text-align: right;
+  }
+
+  .ai-week-row__body {
+    grid-column: 1 / -1;
+    padding-bottom: 4px;
+  }
 }
