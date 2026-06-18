@@ -1,5 +1,6 @@
 import { ErrorState, IntensityBadge, SportBadge, WorkoutStepList } from '../components';
 import { WorkoutStatusBadge } from '../components/badges/WorkoutStatusBadge';
+import { stepTypeLabels } from '../components/data/WorkoutStepList';
 import { PageShell } from '../layout/PageShell';
 import { getWorkoutById, getWorkoutSteps } from '../mock/prototypeData.helpers';
 import {
@@ -34,6 +35,12 @@ export function WorkoutDetailPage({ params }: PageComponentProps) {
   const steps = getWorkoutSteps(workout.id);
   const formattedDate = formatDate(
     workout.scheduledStartTime ?? workout.scheduledDate,
+  );
+
+  const stepsWithDuration = steps.filter((s) => s.durationSeconds);
+  const totalStepSeconds = stepsWithDuration.reduce(
+    (sum, s) => sum + (s.durationSeconds ?? 0),
+    0,
   );
 
   return (
@@ -85,12 +92,30 @@ export function WorkoutDetailPage({ params }: PageComponentProps) {
 
       <div className="workout-detail__steps">
         <p className="workout-detail__steps-label">Session structure</p>
+
+        {stepsWithDuration.length > 0 ? (
+          <div className="session-bar" aria-hidden="true" title="Session structure overview">
+            {stepsWithDuration.map((step) => (
+              <div
+                key={step.id}
+                className={`session-bar__segment session-bar__segment--${step.stepType}`}
+                style={{ flex: step.durationSeconds }}
+                title={`${stepTypeLabels[step.stepType]}: ${formatDuration(step.durationSeconds)}`}
+              />
+            ))}
+            {totalStepSeconds < (workout.plannedDurationSeconds ?? 0) && (
+              <div
+                className="session-bar__segment session-bar__segment--other"
+                style={{
+                  flex: (workout.plannedDurationSeconds ?? 0) - totalStepSeconds,
+                }}
+              />
+            )}
+          </div>
+        ) : null}
+
         <WorkoutStepList steps={steps} />
       </div>
-
-      {workout.description && !workout.objective ? (
-        <p className="prototype-muted">{workout.description}</p>
-      ) : null}
     </PageShell>
   );
 }
