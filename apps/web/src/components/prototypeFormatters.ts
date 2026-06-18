@@ -1,6 +1,7 @@
 import type {
   Activity,
   DataSourceType,
+  GoalPriority,
   SportType,
   WorkoutIntensity,
 } from '../mock/prototypeData.types';
@@ -38,6 +39,12 @@ export const sourceLabels: Record<DataSourceType, string> = {
   garmin_export: 'Garmin Export',
   strava: 'Strava',
   aggregator: 'Aggregator',
+};
+
+export const goalPriorityLabels: Record<GoalPriority, string> = {
+  main_goal: 'Main goal',
+  secondary_goal: 'Secondary goal',
+  watchlist: 'Watchlist',
 };
 
 export const formatDate = (dateValue: string) =>

@@ -15,6 +15,7 @@ import {
   formatDate,
   formatDistance,
   formatDuration,
+  goalPriorityLabels,
   sportLabels,
 } from '../components/prototypeFormatters';
 
@@ -297,7 +298,7 @@ export function DashboardPage({ navigate }: PageComponentProps) {
                         <SportBadge sport={dashboard.activeGoal.sport} />
                       ) : null}
                       <span className="badge badge--source">
-                        {dashboard.activeGoal.priority}
+                        {goalPriorityLabels[dashboard.activeGoal.priority]}
                       </span>
                     </div>
                     <h3>{dashboard.activeGoal.title}</h3>

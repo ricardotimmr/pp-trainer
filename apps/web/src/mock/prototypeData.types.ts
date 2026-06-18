@@ -47,7 +47,7 @@ export type TrainingGoalType =
   | 'fitness'
   | 'general';
 
-export type GoalPriority = 'low' | 'medium' | 'high' | 'main_goal';
+export type GoalPriority = 'main_goal' | 'secondary_goal' | 'watchlist';
 
 export type TrainingZoneType =
   | 'heart_rate'
