@@ -726,13 +726,12 @@
 
 .dashboard-metric {
   min-width: 0;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius);
-  padding: 14px;
+  border-top: 1.5px solid var(--color-ink);
+  padding-top: 12px;
 }
 
 .dashboard-metric.is-accent {
-  border-color: rgba(235, 15, 122, 0.42);
+  border-top-color: var(--color-accent);
   color: var(--color-accent-dark);
 }
 
@@ -1710,9 +1709,8 @@
 
 .metric {
   min-width: 0;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius);
-  padding: 12px;
+  border-top: 1.5px solid var(--color-ink);
+  padding-top: 12px;
 }
 
 .metric dt,
@@ -1758,21 +1756,19 @@
 .activity-card--button,
 .workout-card--button {
   cursor: pointer;
-  background-image: linear-gradient(to right, var(--color-accent) 50%, transparent 50%);
-  background-size: 300% 100%;
-  background-position: right center;
-  background-repeat: no-repeat;
   transition:
-    background-position 0.38s cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 0.18s ease,
     color 0.18s ease,
-    transform 0.18s ease;
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .activity-card--button:hover,
 .workout-card--button:hover {
-  background-position: left center;
+  background-color: var(--color-accent);
   color: var(--color-on-dark);
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(235, 15, 122, 0.3);
 }
 
 .activity-card--button:hover dt,
