@@ -15,18 +15,9 @@ export function TrainingPlanPage({ navigate }: PageComponentProps) {
       title="Training Plan"
       description={
         <>
-          {trainingPlan.title} placeholder with {plannedWorkouts.length} planned
-          workouts ready for the week view.
+          {trainingPlan.title} — {plannedWorkouts.length} sessions planned this
+          week. Open any workout for the full structured session view.
         </>
-      }
-      actions={
-        <button
-          type="button"
-          className="button button--primary"
-          onClick={() => navigate(`/workouts/${plannedWorkouts[0]?.id ?? ''}`)}
-        >
-          Open first mock workout
-        </button>
       }
     >
       <DashboardWidget title={trainingPlan.title} eyebrow="Active plan">

@@ -2368,6 +2368,27 @@
   letter-spacing: 0.1em;
 }
 
+/* Status: dot + tinted border */
+.badge--status {
+  border: 1.5px solid var(--badge-color);
+  color: var(--badge-color);
+  background: none;
+}
+.badge--status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--badge-color);
+  flex: none;
+}
+.badge--status-planned    { --badge-color: var(--color-muted); }
+.badge--status-completed  { --badge-color: #22c55e; }
+.badge--status-missed     { --badge-color: #ef4444; }
+.badge--status-moved      { --badge-color: #f59e0b; }
+.badge--status-adjusted   { --badge-color: #3b82f6; }
+.badge--status-cancelled  { --badge-color: var(--color-line-strong); }
+
 .dashboard-widget {
   min-width: 0;
   border: 1px solid var(--color-line);
@@ -2482,8 +2503,7 @@
 .activity-card--button:hover dt,
 .workout-card--button:hover dt,
 .activity-card--button:hover p,
-.workout-card--button:hover p,
-.workout-card--button:hover .workout-card__status {
+.workout-card--button:hover p {
   color: rgba(255, 255, 255, 0.65);
 }
 
@@ -2503,6 +2523,14 @@
 .workout-card--button:hover .badge--source {
   border-color: rgba(255, 255, 255, 0.35);
   color: rgba(255, 255, 255, 0.65);
+}
+
+.workout-card--button:hover .badge--status {
+  border-color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.8);
+}
+.workout-card--button:hover .badge--status::before {
+  background: rgba(255, 255, 255, 0.8);
 }
 
 .activity-card__badges,
@@ -2543,15 +2571,6 @@
   grid-template-columns: 1fr;
 }
 
-.workout-card__status {
-  margin-left: auto;
-  color: var(--color-muted);
-  font-size: 0.72rem;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
 
 .workout-step-list {
   display: grid;

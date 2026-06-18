@@ -1,6 +1,7 @@
 import type { PlannedWorkout } from '../../mock/prototypeData.types';
 import { IntensityBadge } from '../badges/IntensityBadge';
 import { SportBadge } from '../badges/SportBadge';
+import { WorkoutStatusBadge } from '../badges/WorkoutStatusBadge';
 import {
   formatDate,
   formatDistance,
@@ -18,7 +19,7 @@ export function WorkoutCard({ workout, onOpen }: WorkoutCardProps) {
       <div className="workout-card__topline">
         <SportBadge sport={workout.sport} />
         <IntensityBadge intensity={workout.intensity} />
-        <span className="workout-card__status">{workout.status}</span>
+        <WorkoutStatusBadge status={workout.status} />
       </div>
       <h3>{workout.title}</h3>
       <p>

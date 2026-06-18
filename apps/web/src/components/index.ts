@@ -1,6 +1,7 @@
 export { IntensityBadge } from './badges/IntensityBadge';
 export { SourceBadge } from './badges/SourceBadge';
 export { SportBadge } from './badges/SportBadge';
+export { WorkoutStatusBadge } from './badges/WorkoutStatusBadge';
 export { ActivityCard } from './cards/ActivityCard';
 export { WorkoutCard } from './cards/WorkoutCard';
 export { ActivitySummaryStats } from './data/ActivitySummaryStats';
