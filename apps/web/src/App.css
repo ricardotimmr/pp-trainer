@@ -2640,6 +2640,103 @@
   grid-template-columns: 1fr;
 }
 
+/* ── Training plan week view ──────────────────────────────────────────────── */
+
+.week-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 44px;
+  margin: 0 0 36px;
+  padding: 0;
+}
+
+.week-summary > div {
+  border-top: 1.5px solid var(--color-ink);
+  padding-top: 10px;
+  padding-bottom: 4px;
+  min-width: 72px;
+}
+
+.week-summary dt {
+  margin: 0 0 6px;
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.week-summary dd {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.week-plan {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.week-day {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 28px;
+  align-items: start;
+  padding: 22px 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.week-day:last-child {
+  border-bottom: 1px solid var(--color-line);
+}
+
+.week-day__label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 2px;
+}
+
+.week-day__weekday {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-ink);
+}
+
+.week-day__date {
+  font-size: 0.76rem;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+}
+
+.week-day__today-tag {
+  margin-top: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.week-day--today .week-day__weekday {
+  color: var(--color-accent);
+}
+
+.week-day__content {
+  display: grid;
+  gap: 10px;
+}
+
+.week-day__rest {
+  margin: 0;
+  padding-top: 4px;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
 /* ── Session bar ──────────────────────────────────────────────────────────── */
 
 .session-bar {
@@ -3011,6 +3108,21 @@
 
   .metric-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .week-day {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .week-day__label {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .week-day__today-tag {
+    margin-top: 0;
   }
 
   .dashboard-hero,
