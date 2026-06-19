@@ -1,4 +1,5 @@
-import type { WorkoutStep, WorkoutStepType } from '../../mock/prototypeData.types';
+import type { WorkoutStep } from '../../mock/prototypeData.types';
+import { stepTypeLabels } from './workoutStepLabels';
 import { EmptyState } from '../states/EmptyState';
 import {
   formatDistance,
@@ -8,18 +9,6 @@ import {
 
 type WorkoutStepListProps = {
   steps: WorkoutStep[];
-};
-
-export const stepTypeLabels: Record<WorkoutStepType, string> = {
-  warmup: 'Warm-up',
-  main: 'Main set',
-  interval: 'Interval',
-  recovery: 'Recovery',
-  cooldown: 'Cool-down',
-  technique: 'Technique',
-  strength_exercise: 'Exercise',
-  rest: 'Rest',
-  other: 'Other',
 };
 
 const getStepTarget = (step: WorkoutStep): string | undefined => {

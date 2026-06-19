@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { IntensityBadge, SportBadge, WorkoutStepList } from '../components';
-import { stepTypeLabels } from '../components/data/WorkoutStepList';
+import { stepTypeLabels } from '../components/data/workoutStepLabels';
 import { usePrototypeAthleteContext } from '../context/prototypeAthleteContextValue';
 import { PageShell } from '../layout/PageShell';
 import {

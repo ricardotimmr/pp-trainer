@@ -3,18 +3,22 @@ import {
   formatPace,
   sportLabels,
 } from '../components/prototypeFormatters';
+import {
+  formatTrainingZoneRange,
+  getZoneColor,
+} from '../components/zoneVisuals';
 import { PageShell } from '../layout/PageShell';
 import {
-  prototypePerformanceStats,
-  prototypeTrainingZoneSets,
-} from '../mock/prototypeData';
-import { getTrainingZones } from '../mock/prototypeData.helpers';
+  getPerformanceRacePredictionsBySport,
+  getPerformanceStats,
+  getTrainingZonesBySetId,
+  getTrainingZoneSetsBySport,
+} from '../mock/prototypeData.helpers';
 import type {
   RacePrediction,
   SportType,
   TrainingZone,
   TrainingZoneSet,
-  TrainingZoneUnit,
 } from '../mock/prototypeData.types';
 
 type PerformanceSport = 'running' | 'cycling' | 'swimming';
@@ -34,14 +38,6 @@ type SportSection = {
   zoneSets: TrainingZoneSet[];
   predictions: RacePrediction[];
 };
-
-const zoneColors = [
-  'var(--color-int-recovery)',
-  'var(--color-int-easy)',
-  'var(--color-int-moderate)',
-  'var(--color-int-threshold)',
-  'var(--color-int-vo2max)',
-];
 
 function formatDate(date?: string): string {
   if (!date) return 'No measurement';
@@ -93,28 +89,6 @@ function getPredictedSwimPace(prediction: RacePrediction): string | undefined {
   );
 }
 
-function formatZoneValue(value?: number, unit?: TrainingZoneUnit): string {
-  if (value === undefined) return '?';
-  if (unit === 'bpm') return `${value}`;
-  if (unit === 'watts') return `${value}`;
-  if (unit === 'sec_per_km') return formatPace(value) ?? '?';
-  if (unit === 'sec_per_100m') return formatSwimPace(value) ?? '?';
-  return `${value}`;
-}
-
-function formatZoneRange(zone: TrainingZone): string {
-  const range = `${formatZoneValue(zone.lowerBound, zone.unit)} - ${formatZoneValue(
-    zone.upperBound,
-    zone.unit,
-  )}`;
-
-  if (zone.unit === 'bpm') return `${range} bpm`;
-  if (zone.unit === 'watts') return `${range} W`;
-  if (zone.unit === 'sec_per_km') return range;
-  if (zone.unit === 'sec_per_100m') return range;
-  return range;
-}
-
 function getZoneSetTitle(zoneSet: TrainingZoneSet): string {
   if (zoneSet.zoneType === 'heart_rate') return 'Heart rate zones';
   if (zoneSet.zoneType === 'cycling_power') return 'Power zones';
@@ -161,7 +135,7 @@ function ZoneBar({ zoneSet, zones }: { zoneSet: TrainingZoneSet; zones: Training
         {zones.map((zone, index) => (
           <span
             key={zone.id}
-            style={{ background: zoneColors[index] ?? 'var(--color-muted)' }}
+            style={{ background: getZoneColor(index) }}
           />
         ))}
       </div>
@@ -169,12 +143,12 @@ function ZoneBar({ zoneSet, zones }: { zoneSet: TrainingZoneSet; zones: Training
         {zones.map((zone, index) => (
           <div key={zone.id}>
             <span
-              style={{ background: zoneColors[index] ?? 'var(--color-muted)' }}
+              style={{ background: getZoneColor(index) }}
               aria-hidden="true"
             />
             <strong>Z{zone.zoneNumber}</strong>
             <p>{zone.name}</p>
-            <em>{formatZoneRange(zone)}</em>
+            <em>{formatTrainingZoneRange(zone)}</em>
           </div>
         ))}
       </div>
@@ -204,24 +178,10 @@ function RacePredictor({ prediction }: { prediction: RacePrediction }) {
 }
 
 export function PerformancePage() {
-  const allZones = getTrainingZones();
-
-  const getZoneSetsForSport = (sport: PerformanceSport) =>
-    prototypeTrainingZoneSets.filter((zoneSet) => zoneSet.sport === sport);
-
-  const getZonesForSet = (zoneSetId: string) =>
-    allZones
-      .filter((zone) => zone.trainingZoneSetId === zoneSetId)
-      .sort((first, second) => first.zoneNumber - second.zoneNumber);
-
-  const getPredictionsForSport = (sport: PerformanceSport) =>
-    (prototypePerformanceStats.racePredictions ?? []).filter(
-      (prediction) => prediction.sport === sport,
-    );
-
-  const runningStats = prototypePerformanceStats.bySport.running;
-  const cyclingStats = prototypePerformanceStats.bySport.cycling;
-  const swimmingStats = prototypePerformanceStats.bySport.swimming;
+  const performanceStats = getPerformanceStats();
+  const runningStats = performanceStats.bySport.running;
+  const cyclingStats = performanceStats.bySport.cycling;
+  const swimmingStats = performanceStats.bySport.swimming;
 
   const sportSections: SportSection[] = [
     {
@@ -246,8 +206,8 @@ export function PerformancePage() {
           date: runningStats?.thresholdPaceEstimatedAt,
         },
       ],
-      zoneSets: getZoneSetsForSport('running'),
-      predictions: getPredictionsForSport('running'),
+      zoneSets: getTrainingZoneSetsBySport('running'),
+      predictions: getPerformanceRacePredictionsBySport('running'),
     },
     {
       sport: 'cycling',
@@ -271,8 +231,8 @@ export function PerformancePage() {
           date: cyclingStats?.ftpEstimatedAt,
         },
       ],
-      zoneSets: getZoneSetsForSport('cycling'),
-      predictions: getPredictionsForSport('cycling'),
+      zoneSets: getTrainingZoneSetsBySport('cycling'),
+      predictions: getPerformanceRacePredictionsBySport('cycling'),
     },
     {
       sport: 'swimming',
@@ -291,8 +251,8 @@ export function PerformancePage() {
           date: swimmingStats?.thresholdPaceEstimatedAt,
         },
       ],
-      zoneSets: getZoneSetsForSport('swimming'),
-      predictions: getPredictionsForSport('swimming'),
+      zoneSets: getTrainingZoneSetsBySport('swimming'),
+      predictions: getPerformanceRacePredictionsBySport('swimming'),
     },
   ];
 
@@ -306,7 +266,7 @@ export function PerformancePage() {
         <section className="performance-overview">
           <div>
             <p className="performance-section-label">Latest model update</p>
-            <h2>{formatDate(prototypePerformanceStats.updatedAt)}</h2>
+            <h2>{formatDate(performanceStats.updatedAt)}</h2>
           </div>
           <p>
             VO2 max, thresholds, zones and race predictors stay visible here so
@@ -336,7 +296,7 @@ export function PerformancePage() {
                   <ZoneBar
                     key={zoneSet.id}
                     zoneSet={zoneSet}
-                    zones={getZonesForSet(zoneSet.id)}
+                    zones={getTrainingZonesBySetId(zoneSet.id)}
                   />
                 ))
               ) : (

@@ -1,6 +1,6 @@
 import { ErrorState, IntensityBadge, SportBadge, WorkoutStepList } from '../components';
 import { WorkoutStatusBadge } from '../components/badges/WorkoutStatusBadge';
-import { stepTypeLabels } from '../components/data/WorkoutStepList';
+import { stepTypeLabels } from '../components/data/workoutStepLabels';
 import { PageShell } from '../layout/PageShell';
 import { getWorkoutById, getWorkoutSteps } from '../mock/prototypeData.helpers';
 import {

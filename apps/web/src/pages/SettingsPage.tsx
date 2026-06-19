@@ -11,25 +11,21 @@ import {
   formatPace,
   goalPriorityLabels,
 } from '../components/prototypeFormatters';
+import {
+  formatZonePaceShort,
+  formatZoneRange,
+  getZoneColor,
+} from '../components/zoneVisuals';
 import type {
   GoalPriority,
   SportType,
   TrainingGoal,
-  TrainingZoneUnit,
 } from '../mock/prototypeData.types';
 
 const WEEKDAY_SHORT: Record<string, string> = {
   monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed',
   thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun',
 };
-
-const ZONE_COLORS = [
-  'var(--color-int-recovery)',
-  'var(--color-int-easy)',
-  'var(--color-int-moderate)',
-  'var(--color-int-threshold)',
-  'var(--color-int-vo2max)',
-];
 
 const GOAL_PRIORITY_OPTIONS: GoalPriority[] = [
   'main_goal',
@@ -42,39 +38,6 @@ const GOAL_PRIORITY_DESCRIPTIONS: Record<GoalPriority, string> = {
   secondary_goal: 'Included in planning when it fits the main goal.',
   watchlist: 'Tracked on the side without dedicated training.',
 };
-
-function formatSwimPaceShort(secPer100m: number): string {
-  const min = Math.floor(secPer100m / 60);
-  const sec = secPer100m % 60;
-  return `${min}:${sec.toString().padStart(2, '0')}`;
-}
-
-function formatPaceShort(secPerKm: number): string {
-  const min = Math.floor(secPerKm / 60);
-  const sec = Math.round(secPerKm % 60);
-  return `${min}:${sec.toString().padStart(2, '0')}`;
-}
-
-function formatZoneRange(
-  lower?: number,
-  upper?: number,
-  unit?: TrainingZoneUnit,
-): string {
-  if (lower === undefined && upper === undefined) return '—';
-  if (unit === 'bpm') return `${lower ?? '?'} – ${upper ?? '?'} bpm`;
-  if (unit === 'watts') return `${lower ?? '?'} – ${upper ?? '?'} W`;
-  if (unit === 'sec_per_km') {
-    const lo = lower !== undefined ? formatPaceShort(lower) : '?';
-    const hi = upper !== undefined ? formatPaceShort(upper) : '?';
-    return `${lo} – ${hi} /km`;
-  }
-  if (unit === 'sec_per_100m') {
-    const lo = lower !== undefined ? formatSwimPaceShort(lower) : '?';
-    const hi = upper !== undefined ? formatSwimPaceShort(upper) : '?';
-    return `${lo} – ${hi} /100m`;
-  }
-  return `${lower ?? '?'} – ${upper ?? '?'}`;
-}
 
 function formatGoalDate(date: string): string {
   return new Intl.DateTimeFormat('de-DE', {
@@ -89,7 +52,7 @@ function getGoalMetric(goal: TrainingGoal): string | undefined {
   if (goal.targetPaceSecPerKm) return formatPace(goal.targetPaceSecPerKm);
   if (goal.targetPowerWatts) return `${goal.targetPowerWatts} W`;
   if (goal.targetSwimPaceSecPer100m) {
-    return `${formatSwimPaceShort(goal.targetSwimPaceSecPer100m)} /100m`;
+    return `${formatZonePaceShort(goal.targetSwimPaceSecPer100m)} /100m`;
   }
   return undefined;
 }
@@ -303,7 +266,7 @@ export function SettingsPage() {
                 <div>
                   <dt>Swim threshold</dt>
                   <dd>
-                    {formatSwimPaceShort(profile.swimmingThresholdPaceSecPer100m)} /100m
+                    {formatZonePaceShort(profile.swimmingThresholdPaceSecPer100m)} /100m
                   </dd>
                 </div>
               )}
@@ -648,7 +611,7 @@ export function SettingsPage() {
                   {hrZones.map((zone, i) => (
                     <span
                       key={zone.id}
-                      style={{ background: ZONE_COLORS[i] ?? 'var(--color-muted)' }}
+                      style={{ background: getZoneColor(i) }}
                     />
                   ))}
                 </div>
@@ -657,7 +620,7 @@ export function SettingsPage() {
                     <li key={zone.id} className="zone-row">
                       <span
                         className="zone-row__dot"
-                        style={{ background: ZONE_COLORS[i] ?? 'var(--color-muted)' }}
+                        style={{ background: getZoneColor(i) }}
                         aria-hidden="true"
                       />
                       <span className="zone-row__num">Z{zone.zoneNumber}</span>
@@ -686,7 +649,7 @@ export function SettingsPage() {
                     {zones.map((zone, i) => (
                       <span
                         key={zone.id}
-                        style={{ background: ZONE_COLORS[i] ?? 'var(--color-muted)' }}
+                        style={{ background: getZoneColor(i) }}
                       />
                     ))}
                   </div>
@@ -695,7 +658,7 @@ export function SettingsPage() {
                   <li key={zone.id} className="zone-row">
                     <span
                       className="zone-row__dot"
-                      style={{ background: ZONE_COLORS[i] ?? 'var(--color-muted)' }}
+                      style={{ background: getZoneColor(i) }}
                       aria-hidden="true"
                     />
                     <span className="zone-row__num">Z{zone.zoneNumber}</span>

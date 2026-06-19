@@ -137,6 +137,27 @@ test.describe('Phase 2 top-level routes', () => {
     ).toBeVisible();
   });
 
+  test('compact navigation keeps performance reachable at tablet width', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await page.goto('/dashboard');
+
+    await page.evaluate(() => window.scrollTo(0, 240));
+
+    await expect(page.locator('.app-shell__header')).toHaveClass(/is-scrolled/);
+
+    await page
+      .getByRole('navigation', { name: 'Prototype screens' })
+      .getByRole('button', { name: 'Performance' })
+      .click();
+
+    await expect(page).toHaveURL(/\/performance$/);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Performance' }),
+    ).toBeVisible();
+  });
+
   test('settings edits feed the AI Coach session context', async ({ page }) => {
     await page.goto('/settings');
 

@@ -240,71 +240,89 @@ Implemented:
 
 ## Priority 3 — Useful Enhancements
 
-### Add a dedicated Performance data helper
+### Fixed: Performance page uses dedicated data helpers
 
 - Category: Maintainability
 - Files:
   - `apps/web/src/mock/prototypeData.helpers.ts`
   - `apps/web/src/pages/PerformancePage.tsx`
 - Priority: P3
+- Status: Fixed on 2026-06-19
+- Follow-up: GitHub issue #28 for the broader data ownership audit
 
-PerformancePage currently imports `prototypePerformanceStats` and
-`prototypeTrainingZoneSets` directly and performs sport grouping in the page.
-That works for Phase 2, but real data from python-garminconnect will need a
-mapping layer.
+PerformancePage previously imported `prototypePerformanceStats` and
+`prototypeTrainingZoneSets` directly and performed sport grouping in the page.
 
-Recommended fix: add helpers such as `getPerformanceStats()`,
-`getPerformanceSportSections()` or `getTrainingZoneSetsBySport()`. This keeps
-the page mostly presentational and gives the real importer a single mapping
-target.
+Implemented helper accessors:
 
-### Extract shared zone visualisation logic
+- `getPerformanceStats()`
+- `getTrainingZoneSets()`
+- `getTrainingZoneSetsBySport()`
+- `getTrainingZonesBySetId()`
+- `getPerformanceRacePredictionsBySport()`
+
+PerformancePage now consumes these helpers instead of importing performance
+mock constants directly. The broader single-source-of-truth work remains
+tracked in #28.
+
+### Partially fixed: shared zone helpers extracted
 
 - Category: Maintainability / UI consistency
 - Files:
-  - `apps/web/src/pages/ActivityDetailPage.tsx`
+  - `apps/web/src/components/zoneVisuals.ts`
   - `apps/web/src/pages/SettingsPage.tsx`
   - `apps/web/src/pages/PerformancePage.tsx`
 - Priority: P3
+- Status: Partially fixed on 2026-06-19
+- Follow-up: GitHub issue #29, related to #28
 
-Zone bars/tables now exist in multiple pages with similar but separate
-formatting logic. This is not broken, but the next phase will make zones more
-important.
+Zone bars/tables exist in multiple pages with similar but separate formatting
+logic. This is not broken, but the next phase will make zones more important.
 
-Recommended fix: extract shared helpers/components for:
+Implemented the safe first step:
 
-- zone range formatting
-- zone colour selection
-- zone band rendering
-- compact zone list rendering
+- extracted shared zone colors and `getZoneColor()`
+- extracted shared zone pace/range formatting helpers
+- moved Settings and Performance to the shared formatting/color helpers
 
-Start with `ZoneBar`, then reuse it in Performance and Settings where the
-layout fits.
+Deferred shared UI components to #29. Activity Detail, Settings and Performance
+show different zone concepts today, so a reusable `ZoneBand` / `ZoneList`
+component should wait until the broader data ownership audit in #28 clarifies
+which zone views should truly share UI.
 
-### Improve top navigation scalability after adding Performance
+### Fixed: compact navigation is smoke-covered after adding Performance
 
 - Category: Navigation / Responsive layout
 - Files:
-  - `apps/web/src/layout/AppShell.tsx`
-  - `apps/web/src/App.css`
+  - `apps/web/e2e/phase-2-routes.spec.ts`
 - Priority: P3
+- Status: Fixed on 2026-06-19
 
 The compact desktop nav now splits non-home routes as 3 left and 4 right:
 Dashboard, Activities, Training Plan | Performance, AI Coach, Settings, Import.
-This matches the requested placement, but it should be regression-tested around
-tablet widths.
+This matches the requested placement.
 
-Recommended fix: add a visual/smoke check for the compact nav at common widths
-and consider a route metadata field for `compactSide` if the split becomes more
-intentional than `slice(0, 3)`.
+Implemented a route smoke test at tablet/desktop width that:
 
-### Add route-level empty-state fixtures
+- sets the viewport to `1100x800`
+- scrolls until the shell header enters compact `is-scrolled` state
+- verifies the Performance nav item remains clickable
+- verifies navigation reaches `/performance`
+
+No route metadata field was added yet. A future `compactSide` field only makes
+sense if nav grouping becomes more intentional than the current route-order
+split.
+
+### Deferred: add route-level empty-state fixtures
 
 - Category: Test data / Product resilience
 - Files:
   - `apps/web/src/mock/prototypeData.ts`
   - page-specific tests
 - Priority: P3
+- Status: Deferred to GitHub issue #30
+- Parent: Phase 2 epic #2
+- Depends on: GitHub issue #28
 
 Most pages render the happy path with rich mock data. Activity Detail already
 handles unknown IDs well. Other pages would benefit from one or two explicit
@@ -319,18 +337,29 @@ empty/limited fixtures:
 This would make real-data integration safer because Garmin/private imports will
 often have partial data.
 
-### Fast refresh warning for exported constants
+This remains Phase 2 scope, but should be implemented after #28 clarifies the
+prototype data ownership and fixture injection strategy. Tracking issue #30 was
+created for that follow-up.
+
+### Fixed: Fast Refresh warning for exported constants
 
 - Category: Developer experience
-- Files: `apps/web/src/components/data/WorkoutStepList.tsx`
+- Files:
+  - `apps/web/src/components/data/WorkoutStepList.tsx`
+  - `apps/web/src/components/data/workoutStepLabels.ts`
+  - `apps/web/src/pages/AiCoachPreviewPage.tsx`
+  - `apps/web/src/pages/WorkoutDetailPage.tsx`
 - Priority: P3
+- Status: Fixed on 2026-06-19
 
-Lint reports a Fast Refresh warning because `WorkoutStepList.tsx` exports
+Lint reported a Fast Refresh warning because `WorkoutStepList.tsx` exported
 `stepTypeLabels` alongside a component.
 
-Recommended fix: move shared constants to a small adjacent file such as
-`workoutStepLabels.ts`. This is not user-facing, but it keeps lint output clean
-after the P1 lint error is fixed.
+Implemented:
+
+- moved `stepTypeLabels` to `workoutStepLabels.ts`
+- updated AI Coach and Workout Detail imports
+- `WorkoutStepList.tsx` now exports only the component
 
 ## Suggested Order
 
