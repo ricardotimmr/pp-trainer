@@ -1,39 +1,41 @@
 # pp-trainer
 
-`pp-trainer` is a training analysis and planning project. Phase 1: Repo and App Foundation is complete.
-
-The product concepts, architecture, data model, data-source strategy, AI coach concept, and roadmap live in `docs/` and are the source of truth for implementation decisions.
+`pp-trainer` is a personal training analysis and planning tool for triathletes. The product concepts, architecture, data model, data-source strategy, AI coach concept, and roadmap live in `docs/` and are the source of truth for implementation decisions.
 
 ## Current Status
 
-Phase 0 documentation is available in `docs/`.
+**Phase 2: Frontend Prototype with Mock Data — in progress**
 
-Phase 1 prepared the technical foundation:
+A fully navigable frontend prototype is being built with static mock data. No backend, database, or real data sources are connected yet. The goal is to validate screens, data flows, and UI components before implementing the backend stack.
 
-- monorepo-style repository layout
-- React + Vite + TypeScript frontend under `apps/web`
-- empty backend area under `apps/api`
-- empty shared TypeScript package area under `packages/shared`
-- Prisma folder prepared for later database work
-- ADR folder prepared for upcoming technical decisions
-- root scripts for frontend development, build, linting, and formatting
+Pages currently implemented:
 
-No product features are implemented yet. Dashboard features, activity import, Garmin integration, AI coach logic, database implementation, auth, and training planning are intentionally out of scope until their roadmap phases.
+- **Home** — landing and entry point
+- **Dashboard** — weekly summary, upcoming workouts, recent activities
+- **Training Plan** — full week view with planned workouts
+- **Workout Detail** — session structure, steps, intensity breakdown
+- **Activities** — activity list with filters
+- **Activity Detail** — laps, zones, charts, performance breakdown
+- **Performance** — stats, race predictions, trends
+- **AI Coach Preview** — two-column layout with athlete context and generated output
+- **Import** — data source status, pipeline overview, import history
+- **Settings** — athlete profile, performance baselines, training zones
 
-The next roadmap step is Phase 2: Frontend Prototype with Mock Data.
+A `/dev/ui-showcase` route exposes the component library for design review.
+
+All data is served from `apps/web/src/mock/`. An env-gated fixture system (`VITE_ENABLE_PROTOTYPE_FIXTURES`) allows route-level empty-state testing via query parameter.
 
 ## Repository Structure
 
 ```txt
 pp-trainer/
 ├── apps/
-│   ├── web/
-│   └── api/
+│   ├── web/          React + Vite + TypeScript frontend
+│   └── api/          Backend area (Phase 3+)
 ├── packages/
-│   └── shared/
-├── docs/
-│   └── adr/
-├── prisma/
+│   └── shared/       Shared TypeScript package (Phase 3+)
+├── docs/             Product docs, ADRs, brand assets
+├── prisma/           Schema prepared for Phase 3
 ├── README.md
 ├── package.json
 └── .env.example
@@ -47,16 +49,10 @@ Install dependencies from the repository root:
 npm install
 ```
 
-Start the frontend:
+Start the frontend dev server:
 
 ```bash
 npm run dev
-```
-
-Equivalent explicit command:
-
-```bash
-npm run dev:web
 ```
 
 Build the frontend:
@@ -77,9 +73,13 @@ Check formatting:
 npm run format:check
 ```
 
-## Environment
+Run Playwright e2e tests:
 
-Create a local `.env` file from the example:
+```bash
+npm run test:e2e
+```
+
+## Environment
 
 ```bash
 cp .env.example .env
@@ -87,8 +87,17 @@ cp .env.example .env
 
 Only placeholder values are committed. Real secrets must stay out of Git.
 
-## Next Work
+## Roadmap
 
-- Phase 2: build the first frontend prototype with mock data.
-- Keep ADRs updated when technical decisions are made.
-- Add backend and shared package manifests only when their implementation phases begin.
+```txt
+Phase 0   Project Foundation          done
+Phase 1   Repo and App Foundation     done
+Phase 2   Frontend Prototype          in progress
+Phase 3   Backend and Database        upcoming
+Phase 4   Activity Import             upcoming
+Phase 5   Training Planning Core      upcoming
+Phase 6   AI Coach MVP                upcoming
+Phase 7   MVP Integration             upcoming
+```
+
+Full roadmap: `docs/07-roadmap.md`
