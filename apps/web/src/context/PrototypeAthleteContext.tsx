@@ -1,9 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
 
 import {
-  prototypeAthleteProfile,
-  prototypeTrainingGoals,
-} from '../mock/prototypeData';
+  getAthleteProfile,
+  getTrainingGoals,
+} from '../mock/prototypeData.helpers';
 import {
   PrototypeAthleteContext,
   type PrototypeAthleteContextValue,
@@ -21,8 +21,11 @@ const GOAL_PRIORITY_ORDER: Record<GoalPriority, number> = {
   watchlist: 2,
 };
 
+const baselineAthleteProfile = getAthleteProfile();
+const baselineTrainingGoals = getTrainingGoals();
+
 function getInitialVisibleGoalIds(): string[] {
-  return prototypeTrainingGoals
+  return baselineTrainingGoals
     .filter((goal) => goal.isActive)
     .sort((a, b) => GOAL_PRIORITY_ORDER[a.priority] - GOAL_PRIORITY_ORDER[b.priority])
     .slice(0, 3)
@@ -31,18 +34,18 @@ function getInitialVisibleGoalIds(): string[] {
 
 export function PrototypeAthleteProvider({ children }: { children: ReactNode }) {
   const [focusedSports, setFocusedSports] = useState<SportType[]>(() => [
-    ...prototypeAthleteProfile.primarySports,
+    ...baselineAthleteProfile.primarySports,
   ]);
   const [visibleGoalIds, setVisibleGoalIds] = useState(getInitialVisibleGoalIds);
   const [goalPriorities, setGoalPriorities] = useState<Record<string, GoalPriority>>({});
 
   const value = useMemo<PrototypeAthleteContextValue>(() => {
     const profile: AthleteProfile = {
-      ...prototypeAthleteProfile,
+      ...baselineAthleteProfile,
       primarySports: focusedSports,
     };
 
-    const allGoals = prototypeTrainingGoals.map((goal) => ({
+    const allGoals = baselineTrainingGoals.map((goal) => ({
       ...goal,
       priority: goalPriorities[goal.id] ?? goal.priority,
       isActive: visibleGoalIds.includes(goal.id),
@@ -68,7 +71,7 @@ export function PrototypeAthleteProvider({ children }: { children: ReactNode }) 
       profile,
       allGoals,
       activeGoals,
-      availableSports: prototypeAthleteProfile.primarySports,
+      availableSports: baselineAthleteProfile.primarySports,
       focusedSports,
       visibleGoalIds,
       mainGoal,

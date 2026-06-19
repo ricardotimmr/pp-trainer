@@ -1,18 +1,8 @@
-import {
-  prototypeActivities,
-  prototypeAiCoachPreview,
-  prototypeAthleteProfile,
-  prototypePerformanceStats,
-  prototypePlannedWorkouts,
-  prototypeTrainingGoals,
-  prototypeTrainingPlan,
-  prototypeTrainingZoneSets,
-  prototypeTrainingZones,
-  prototypeWeeklySummary,
-  prototypeWorkoutSteps,
-} from './prototypeData';
+import { getActivePrototypeDataSet } from './prototypeData.fixtures';
 import type {
   Activity,
+  AiCoachPreview,
+  AthleteProfile,
   DashboardSummary,
   PerformanceStats,
   PlannedWorkout,
@@ -22,6 +12,7 @@ import type {
   TrainingPlan,
   TrainingZoneSet,
   TrainingZone,
+  TrainingZoneType,
   WeeklySummary,
   WorkoutStep,
 } from './prototypeData.types';
@@ -41,25 +32,36 @@ const compareByScheduledTimeAscending = (
   return new Date(firstTime).getTime() - new Date(secondTime).getTime();
 };
 
+export const getAthleteProfile = (): AthleteProfile =>
+  getActivePrototypeDataSet().athleteProfile;
+
 export const getActivities = (): Activity[] =>
-  [...prototypeActivities].sort(compareByStartTimeDescending);
+  [...getActivePrototypeDataSet().activities].sort(compareByStartTimeDescending);
 
 export const getActivityById = (activityId: string): Activity | undefined =>
-  prototypeActivities.find((activity) => activity.id === activityId);
+  getActivePrototypeDataSet().activities.find(
+    (activity) => activity.id === activityId,
+  );
 
 export const getRecentActivities = (limit = 5): Activity[] =>
   getActivities().slice(0, limit);
 
-export const getCurrentTrainingPlan = (): TrainingPlan => prototypeTrainingPlan;
+export const getCurrentTrainingPlan = (): TrainingPlan =>
+  getActivePrototypeDataSet().trainingPlan;
 
 export const getPlannedWorkouts = (): PlannedWorkout[] =>
-  [...prototypePlannedWorkouts].sort(compareByScheduledTimeAscending);
+  [...getActivePrototypeDataSet().plannedWorkouts].sort(
+    compareByScheduledTimeAscending,
+  );
 
 export const getWorkoutById = (workoutId: string): PlannedWorkout | undefined =>
-  prototypePlannedWorkouts.find((workout) => workout.id === workoutId);
+  getActivePrototypeDataSet().plannedWorkouts.find(
+    (workout) => workout.id === workoutId,
+  );
 
 export const getWorkoutSteps = (workoutId: string): WorkoutStep[] =>
-  prototypeWorkoutSteps
+  getActivePrototypeDataSet()
+    .workoutSteps
     .filter((step) => step.plannedWorkoutId === workoutId)
     .sort((first, second) => first.stepIndex - second.stepIndex);
 
@@ -69,17 +71,30 @@ export const getUpcomingWorkouts = (limit = 3): PlannedWorkout[] =>
     .slice(0, limit);
 
 export const getTrainingZones = (): TrainingZone[] => [
-  ...prototypeTrainingZones,
+  ...getActivePrototypeDataSet().trainingZones,
 ];
 
 export const getTrainingZoneSets = (): TrainingZoneSet[] => [
-  ...prototypeTrainingZoneSets,
+  ...getActivePrototypeDataSet().trainingZoneSets,
 ];
+
+export const getActiveTrainingZoneSets = (): TrainingZoneSet[] =>
+  getTrainingZoneSets().filter((zoneSet) => zoneSet.isActive);
 
 export const getTrainingZoneSetsBySport = (
   sport: SportType,
 ): TrainingZoneSet[] =>
   getTrainingZoneSets().filter((zoneSet) => zoneSet.sport === sport);
+
+export const getTrainingZoneSetsByType = (
+  zoneType: TrainingZoneType,
+): TrainingZoneSet[] =>
+  getTrainingZoneSets().filter((zoneSet) => zoneSet.zoneType === zoneType);
+
+export const getActiveTrainingZoneSetsByType = (
+  zoneType: TrainingZoneType,
+): TrainingZoneSet[] =>
+  getActiveTrainingZoneSets().filter((zoneSet) => zoneSet.zoneType === zoneType);
 
 export const getTrainingZonesBySetId = (zoneSetId: string): TrainingZone[] =>
   getTrainingZones()
@@ -87,17 +102,24 @@ export const getTrainingZonesBySetId = (zoneSetId: string): TrainingZone[] =>
     .sort((first, second) => first.zoneNumber - second.zoneNumber);
 
 export const getPerformanceStats = (): PerformanceStats =>
-  prototypePerformanceStats;
+  getActivePrototypeDataSet().performanceStats;
 
 export const getPerformanceRacePredictionsBySport = (
   sport: SportType,
 ): RacePrediction[] =>
-  (prototypePerformanceStats.racePredictions ?? []).filter(
+  (getPerformanceStats().racePredictions ?? []).filter(
     (prediction) => prediction.sport === sport,
   );
 
+export const getAiCoachPreview = (): AiCoachPreview =>
+  getActivePrototypeDataSet().aiCoachPreview;
+
+export const getTrainingGoals = (): TrainingGoal[] => [
+  ...getActivePrototypeDataSet().trainingGoals,
+];
+
 export const getActiveTrainingGoals = (): TrainingGoal[] =>
-  prototypeTrainingGoals.filter((goal) => goal.isActive);
+  getTrainingGoals().filter((goal) => goal.isActive);
 
 export const getMainTrainingGoal = (): TrainingGoal | undefined =>
   getActiveTrainingGoals().find((goal) => goal.priority === 'main_goal');
@@ -111,14 +133,15 @@ export const getWatchlistTrainingGoals = (): TrainingGoal[] =>
 export const getActiveTrainingGoal = (): TrainingGoal | undefined =>
   getMainTrainingGoal();
 
-export const getWeeklySummary = (): WeeklySummary => prototypeWeeklySummary;
+export const getWeeklySummary = (): WeeklySummary =>
+  getActivePrototypeDataSet().weeklySummary;
 
 export const getDashboardSummary = (): DashboardSummary => ({
-  athleteProfile: prototypeAthleteProfile,
+  athleteProfile: getAthleteProfile(),
   activeGoal: getActiveTrainingGoal(),
-  currentWeek: prototypeWeeklySummary,
-  currentTrainingPlan: prototypeTrainingPlan,
+  currentWeek: getWeeklySummary(),
+  currentTrainingPlan: getCurrentTrainingPlan(),
   recentActivities: getRecentActivities(4),
   upcomingWorkouts: getUpcomingWorkouts(3),
-  aiCoachPreview: prototypeAiCoachPreview,
+  aiCoachPreview: getAiCoachPreview(),
 });
