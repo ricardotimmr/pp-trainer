@@ -1,5 +1,6 @@
-import { SourceBadge } from '../components';
+import { EmptyState, SourceBadge } from '../components';
 import { PageShell } from '../layout/PageShell';
+import { getImportHistoryRows } from '../mock/prototypeImportData';
 import type { DataSourceType } from '../mock/prototypeData.types';
 
 type ImportSourceStatus = 'Prototype' | 'Planned' | 'Future' | 'Fallback';
@@ -10,14 +11,6 @@ type ImportSource = {
   status: ImportSourceStatus;
   description: string;
   details: string[];
-};
-
-type ImportHistoryRow = {
-  source: DataSourceType;
-  status: 'Queued' | 'Validated' | 'Blocked';
-  activities: number;
-  timestamp: string;
-  note: string;
 };
 
 const futureFormats = ['FIT', 'GPX', 'TCX'];
@@ -82,30 +75,6 @@ const pipelineSteps = [
   },
 ];
 
-const historyRows: ImportHistoryRow[] = [
-  {
-    source: 'garmin_unofficial',
-    status: 'Validated',
-    activities: 8,
-    timestamp: 'Prototype sample',
-    note: 'Representative Garmin sync batch with streams, laps and zones.',
-  },
-  {
-    source: 'manual_fit_upload',
-    status: 'Queued',
-    activities: 1,
-    timestamp: 'Future upload',
-    note: 'Single FIT activity awaiting parser integration.',
-  },
-  {
-    source: 'manual_json_import',
-    status: 'Blocked',
-    activities: 0,
-    timestamp: 'Dev fixture',
-    note: 'Missing activity start time in example JSON payload.',
-  },
-];
-
 const validationExamples = [
   {
     title: 'Unsupported file type',
@@ -118,6 +87,8 @@ const validationExamples = [
 ];
 
 export function ImportPage() {
+  const historyRows = getImportHistoryRows();
+
   return (
     <PageShell
       title="Import"
@@ -214,33 +185,41 @@ export function ImportPage() {
                 <h2>History placeholder</h2>
               </div>
             </header>
-            <table className="import-history" aria-label="Static import history">
-              <thead>
-                <tr>
-                  <th scope="col">Source</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Count</th>
-                  <th scope="col">When</th>
-                  <th scope="col">Note</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historyRows.map((row) => (
-                  <tr key={`${row.source}-${row.status}`}>
-                    <td data-label="Source"><SourceBadge source={row.source} /></td>
-                    <td
-                      className={`import-status import-status--${row.status.toLowerCase()}`}
-                      data-label="Status"
-                    >
-                      {row.status}
-                    </td>
-                    <td data-label="Count">{row.activities}</td>
-                    <td data-label="When">{row.timestamp}</td>
-                    <td data-label="Note">{row.note}</td>
+            {historyRows.length > 0 ? (
+              <table className="import-history" aria-label="Static import history">
+                <thead>
+                  <tr>
+                    <th scope="col">Source</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Count</th>
+                    <th scope="col">When</th>
+                    <th scope="col">Note</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {historyRows.map((row) => (
+                    <tr key={`${row.source}-${row.status}`}>
+                      <td data-label="Source"><SourceBadge source={row.source} /></td>
+                      <td
+                        className={`import-status import-status--${row.status.toLowerCase()}`}
+                        data-label="Status"
+                      >
+                        {row.status}
+                      </td>
+                      <td data-label="Count">{row.activities}</td>
+                      <td data-label="When">{row.timestamp}</td>
+                      <td data-label="Note">{row.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <EmptyState
+                title="No recent imports"
+                description="Import history will appear here once activity data has been queued or validated."
+                variant="inline"
+              />
+            )}
           </div>
 
           <aside className="import-section import-section--compact">

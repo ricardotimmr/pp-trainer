@@ -20,6 +20,10 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm --workspace @pp-trainer/web run dev -- --port 4173',
+    env: {
+      ...process.env,
+      VITE_ENABLE_PROTOTYPE_FIXTURES: 'true',
+    },
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: true,
     timeout: 30_000,

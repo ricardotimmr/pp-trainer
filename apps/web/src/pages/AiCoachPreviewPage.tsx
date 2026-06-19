@@ -98,6 +98,13 @@ export function AiCoachPreviewPage({ navigate }: PageComponentProps) {
   const age = profile.birthYear
     ? new Date().getFullYear() - profile.birthYear
     : undefined;
+  const hasThresholdBaselines = Boolean(
+    profile.currentFtpWatts
+      || profile.maxHeartRateBpm
+      || profile.restingHeartRateBpm
+      || profile.runningThresholdPaceSecPerKm
+      || profile.swimmingThresholdPaceSecPer100m,
+  );
 
   return (
     <PageShell
@@ -135,29 +142,35 @@ export function AiCoachPreviewPage({ navigate }: PageComponentProps) {
 
           <section className="ai-context-section">
             <p className="ai-context-section__label">Thresholds</p>
-            <dl className="ai-context-dl">
-              {profile.currentFtpWatts && (
-                <div><dt>Bike FTP</dt><dd>{profile.currentFtpWatts} W</dd></div>
-              )}
-              {profile.maxHeartRateBpm && (
-                <div><dt>HR max</dt><dd>{profile.maxHeartRateBpm} bpm</dd></div>
-              )}
-              {profile.restingHeartRateBpm && (
-                <div><dt>HR rest</dt><dd>{profile.restingHeartRateBpm} bpm</dd></div>
-              )}
-              {profile.runningThresholdPaceSecPerKm && (
-                <div>
-                  <dt>Run threshold</dt>
-                  <dd>{formatRunPace(profile.runningThresholdPaceSecPerKm)}</dd>
-                </div>
-              )}
-              {profile.swimmingThresholdPaceSecPer100m && (
-                <div>
-                  <dt>Swim threshold</dt>
-                  <dd>{formatSwimPace(profile.swimmingThresholdPaceSecPer100m)}</dd>
-                </div>
-              )}
-            </dl>
+            {hasThresholdBaselines ? (
+              <dl className="ai-context-dl">
+                {profile.currentFtpWatts && (
+                  <div><dt>Bike FTP</dt><dd>{profile.currentFtpWatts} W</dd></div>
+                )}
+                {profile.maxHeartRateBpm && (
+                  <div><dt>HR max</dt><dd>{profile.maxHeartRateBpm} bpm</dd></div>
+                )}
+                {profile.restingHeartRateBpm && (
+                  <div><dt>HR rest</dt><dd>{profile.restingHeartRateBpm} bpm</dd></div>
+                )}
+                {profile.runningThresholdPaceSecPerKm && (
+                  <div>
+                    <dt>Run threshold</dt>
+                    <dd>{formatRunPace(profile.runningThresholdPaceSecPerKm)}</dd>
+                  </div>
+                )}
+                {profile.swimmingThresholdPaceSecPer100m && (
+                  <div>
+                    <dt>Swim threshold</dt>
+                    <dd>{formatSwimPace(profile.swimmingThresholdPaceSecPer100m)}</dd>
+                  </div>
+                )}
+              </dl>
+            ) : (
+              <p className="ai-context-empty">
+                No threshold baselines available yet.
+              </p>
+            )}
           </section>
 
           {mainGoal && (

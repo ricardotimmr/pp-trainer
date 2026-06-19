@@ -168,6 +168,13 @@ export function SettingsPage() {
     ? new Date().getFullYear() - profile.birthYear
     : undefined;
   const sportOptions: SportType[] = availableSports;
+  const hasThresholdBaselines = Boolean(
+    profile.currentFtpWatts
+      || profile.maxHeartRateBpm
+      || profile.restingHeartRateBpm
+      || profile.runningThresholdPaceSecPerKm
+      || profile.swimmingThresholdPaceSecPer100m,
+  );
 
   return (
     <PageShell
@@ -268,6 +275,12 @@ export function SettingsPage() {
                   <dd>
                     {formatZonePaceShort(profile.swimmingThresholdPaceSecPer100m)} /100m
                   </dd>
+                </div>
+              )}
+              {!hasThresholdBaselines && (
+                <div>
+                  <dt>Thresholds</dt>
+                  <dd>No threshold baselines available yet.</dd>
                 </div>
               )}
             </dl>
