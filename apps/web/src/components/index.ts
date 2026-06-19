@@ -10,3 +10,5 @@ export { DashboardWidget } from './layout/DashboardWidget';
 export { EmptyState } from './states/EmptyState';
 export { ErrorState } from './states/ErrorState';
 export { LoadingState } from './states/LoadingState';
+export { ZoneBand } from './zones/ZoneBand';
+export { ZoneList } from './zones/ZoneList';

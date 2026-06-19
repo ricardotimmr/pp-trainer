@@ -1,12 +1,8 @@
-import { SportBadge } from '../components';
+import { SportBadge, ZoneBand, ZoneList } from '../components';
 import {
   formatPace,
   sportLabels,
 } from '../components/prototypeFormatters';
-import {
-  formatTrainingZoneRange,
-  getZoneColor,
-} from '../components/zoneVisuals';
 import { PageShell } from '../layout/PageShell';
 import {
   getPerformanceRacePredictionsBySport,
@@ -125,33 +121,16 @@ function ZoneBar({ zoneSet, zones }: { zoneSet: TrainingZoneSet; zones: Training
         </div>
         {zoneSet.basedOn ? <span>{zoneSet.basedOn}</span> : null}
       </div>
-      <div
-        className="performance-zone-band"
-        style={{
-          gridTemplateColumns: `repeat(${zones.length}, minmax(0, 1fr))`,
-        }}
-        aria-hidden="true"
-      >
-        {zones.map((zone, index) => (
-          <span
-            key={zone.id}
-            style={{ background: getZoneColor(index) }}
-          />
-        ))}
-      </div>
-      <div className="performance-zone-list">
-        {zones.map((zone, index) => (
-          <div key={zone.id}>
-            <span
-              style={{ background: getZoneColor(index) }}
-              aria-hidden="true"
-            />
-            <strong>Z{zone.zoneNumber}</strong>
-            <p>{zone.name}</p>
-            <em>{formatTrainingZoneRange(zone)}</em>
-          </div>
-        ))}
-      </div>
+      <ZoneBand zones={zones} className="performance-zone-band" />
+      <ZoneList
+        zones={zones}
+        className="performance-zone-list"
+        rowClassName="performance-zone-row"
+        dotClassName="performance-zone-row__dot"
+        numberClassName="performance-zone-row__num"
+        nameClassName="performance-zone-row__name"
+        rangeClassName="performance-zone-row__range"
+      />
     </article>
   );
 }

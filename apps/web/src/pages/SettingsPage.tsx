@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { SportBadge } from '../components';
+import { SportBadge, ZoneBand, ZoneList } from '../components';
 import { usePrototypeAthleteContext } from '../context/prototypeAthleteContextValue';
 import { PageShell } from '../layout/PageShell';
 import {
@@ -14,8 +14,6 @@ import {
 } from '../components/prototypeFormatters';
 import {
   formatZonePaceShort,
-  formatZoneRange,
-  getZoneColor,
 } from '../components/zoneVisuals';
 import type {
   GoalPriority,
@@ -620,30 +618,16 @@ export function SettingsPage() {
                 {activeHrZoneSet?.basedOn && (
                   <p className="settings-zone-basis">{activeHrZoneSet.basedOn}</p>
                 )}
-                <div className="settings-zone-band" aria-hidden="true">
-                  {hrZones.map((zone, i) => (
-                    <span
-                      key={zone.id}
-                      style={{ background: getZoneColor(i) }}
-                    />
-                  ))}
-                </div>
-                <ul className="zone-table">
-                  {hrZones.map((zone, i) => (
-                    <li key={zone.id} className="zone-row">
-                      <span
-                        className="zone-row__dot"
-                        style={{ background: getZoneColor(i) }}
-                        aria-hidden="true"
-                      />
-                      <span className="zone-row__num">Z{zone.zoneNumber}</span>
-                      <span className="zone-row__name">{zone.name}</span>
-                      <span className="zone-row__range">
-                        {formatZoneRange(zone.lowerBound, zone.upperBound, zone.unit)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <ZoneBand zones={hrZones} className="settings-zone-band" />
+                <ZoneList
+                  zones={hrZones}
+                  className="zone-table"
+                  rowClassName="zone-row"
+                  dotClassName="zone-row__dot"
+                  numberClassName="zone-row__num"
+                  nameClassName="zone-row__name"
+                  rangeClassName="zone-row__range"
+                />
               </section>
             )}
 
@@ -658,30 +642,16 @@ export function SettingsPage() {
                   {zoneSet.basedOn && (
                     <p className="settings-zone-basis">{zoneSet.basedOn}</p>
                   )}
-                  <div className="settings-zone-band" aria-hidden="true">
-                    {zones.map((zone, i) => (
-                      <span
-                        key={zone.id}
-                        style={{ background: getZoneColor(i) }}
-                      />
-                    ))}
-                  </div>
-              <ul className="zone-table">
-                {zones.map((zone, i) => (
-                  <li key={zone.id} className="zone-row">
-                    <span
-                      className="zone-row__dot"
-                      style={{ background: getZoneColor(i) }}
-                      aria-hidden="true"
-                    />
-                    <span className="zone-row__num">Z{zone.zoneNumber}</span>
-                    <span className="zone-row__name">{zone.name}</span>
-                    <span className="zone-row__range">
-                      {formatZoneRange(zone.lowerBound, zone.upperBound, zone.unit)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+                  <ZoneBand zones={zones} className="settings-zone-band" />
+                  <ZoneList
+                    zones={zones}
+                    className="zone-table"
+                    rowClassName="zone-row"
+                    dotClassName="zone-row__dot"
+                    numberClassName="zone-row__num"
+                    nameClassName="zone-row__name"
+                    rangeClassName="zone-row__range"
+                  />
                 </section>
               );
             })}

@@ -71,6 +71,10 @@ test.describe('Phase 2 top-level routes', () => {
     await expect(
       page.getByRole('heading', { name: 'Intensity model' }),
     ).toBeVisible();
+    await expect(page.getByText('Max heart rate 194 bpm · cycling')).toBeVisible();
+    await expect(page.getByText('95 – 120 bpm')).toBeVisible();
+    await expect(page.getByText('Cycling Power Zones')).toBeVisible();
+    await expect(page.getByText('0 – 157 W')).toBeVisible();
   });
 
   test('import renders disabled upload, source strategy and pipeline', async ({
@@ -121,6 +125,12 @@ test.describe('Phase 2 top-level routes', () => {
     await expect(
       page.getByText('Race predictors', { exact: true }),
     ).toHaveCount(3);
+    await expect(page.getByText('Cycling Power Zones')).toBeVisible();
+    await expect(page.getByText('300 – 342 W')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Swimming Pace Zones' }),
+    ).toBeVisible();
+    await expect(page.getByText('1:32 – 1:39 /100m')).toBeVisible();
   });
 
   test('primary navigation can reach performance', async ({ page }) => {

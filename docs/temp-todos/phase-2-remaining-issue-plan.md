@@ -77,13 +77,18 @@ Expected output:
 ### #29 - Extract shared zone visualisation components
 
 - GitHub: https://github.com/ricardotimmr/pp-trainer/issues/29
-- Do in Phase 2: Not required for closure
-- Recommended timing: After #28, only if #28 shows that Settings and
-  Performance should share real UI components.
+- Do in Phase 2: Done on 2026-06-19
+- Recommended timing: Completed after #28/#30 data ownership and fixture work.
 
-We already extracted shared zone colors and formatting helpers. A shared
-`ZoneBand` / `ZoneList` component should wait until the data ownership audit
-confirms that the zone views have matching semantics.
+Implemented with a deliberately small scope:
+
+- extracted shared `ZoneBand` and `ZoneList` components for `TrainingZone[]`
+- reused them in Performance and Settings
+- kept page-specific cards, headings and copy inside the pages
+- kept Activity Detail zone distribution separate because it visualizes time in
+  activity HR zones, not training-zone definitions
+- added route-level e2e assertions that Performance and Settings still render
+  concrete zone names and ranges
 
 ### #18 - Revisit back-to-top interaction
 

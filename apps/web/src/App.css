@@ -4270,9 +4270,12 @@ button:focus-visible {
 .performance-zone-list {
   display: grid;
   gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.performance-zone-list > div {
+.performance-zone-row {
   display: grid;
   grid-template-columns: 10px 30px minmax(0, 1fr) auto;
   gap: 9px;
@@ -4281,34 +4284,34 @@ button:focus-visible {
   padding: 8px 0;
 }
 
-.performance-zone-list > div:first-child {
+.performance-zone-row:first-child {
   border-top: 1px solid var(--color-line);
 }
 
-.performance-zone-list > div > span {
+.performance-zone-row__dot {
   width: 8px;
   height: 8px;
   border-radius: 3px;
 }
 
-.performance-zone-list strong {
+.performance-zone-row__num {
   color: var(--color-muted);
   font-family: var(--font-mono);
   font-size: 0.72rem;
+  font-weight: 800;
 }
 
-.performance-zone-list p {
-  margin: 0;
+.performance-zone-row__name {
+  min-width: 0;
   color: var(--color-ink);
   font-size: 0.82rem;
   font-weight: 800;
 }
 
-.performance-zone-list em {
+.performance-zone-row__range {
   color: var(--color-muted);
   font-family: var(--font-mono);
   font-size: 0.76rem;
-  font-style: normal;
   text-align: right;
   white-space: nowrap;
 }
@@ -4425,11 +4428,11 @@ button:focus-visible {
 }
 
 @media (max-width: 520px) {
-  .performance-zone-list > div {
+  .performance-zone-row {
     grid-template-columns: 10px 30px minmax(0, 1fr);
   }
 
-  .performance-zone-list em {
+  .performance-zone-row__range {
     grid-column: 3;
     text-align: left;
   }
