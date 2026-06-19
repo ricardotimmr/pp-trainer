@@ -1,0 +1,368 @@
+import { SportBadge } from '../components';
+import {
+  formatPace,
+  sportLabels,
+} from '../components/prototypeFormatters';
+import { PageShell } from '../layout/PageShell';
+import {
+  prototypePerformanceStats,
+  prototypeTrainingZoneSets,
+} from '../mock/prototypeData';
+import { getTrainingZones } from '../mock/prototypeData.helpers';
+import type {
+  RacePrediction,
+  SportType,
+  TrainingZone,
+  TrainingZoneSet,
+  TrainingZoneUnit,
+} from '../mock/prototypeData.types';
+
+type PerformanceSport = 'running' | 'cycling' | 'swimming';
+
+type PerformanceMetricProps = {
+  label: string;
+  value?: string;
+  date?: string;
+  accent?: boolean;
+};
+
+type SportSection = {
+  sport: PerformanceSport;
+  title: string;
+  summary: string;
+  metrics: PerformanceMetricProps[];
+  zoneSets: TrainingZoneSet[];
+  predictions: RacePrediction[];
+};
+
+const zoneColors = [
+  'var(--color-int-recovery)',
+  'var(--color-int-easy)',
+  'var(--color-int-moderate)',
+  'var(--color-int-threshold)',
+  'var(--color-int-vo2max)',
+];
+
+function formatDate(date?: string): string {
+  if (!date) return 'No measurement';
+
+  return new Intl.DateTimeFormat('en', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(date));
+}
+
+function formatSwimPace(secondsPer100m?: number): string | undefined {
+  if (!secondsPer100m) return undefined;
+
+  const minutes = Math.floor(secondsPer100m / 60);
+  const seconds = Math.round(secondsPer100m % 60);
+  return `${minutes}:${seconds.toString().padStart(2, '0')} /100m`;
+}
+
+function formatRaceTime(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds
+      .toString()
+      .padStart(2, '0')}`;
+  }
+
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+function formatZoneValue(value?: number, unit?: TrainingZoneUnit): string {
+  if (value === undefined) return '?';
+  if (unit === 'bpm') return `${value}`;
+  if (unit === 'watts') return `${value}`;
+  if (unit === 'sec_per_km') return formatPace(value) ?? '?';
+  if (unit === 'sec_per_100m') return formatSwimPace(value) ?? '?';
+  return `${value}`;
+}
+
+function formatZoneRange(zone: TrainingZone): string {
+  const range = `${formatZoneValue(zone.lowerBound, zone.unit)} - ${formatZoneValue(
+    zone.upperBound,
+    zone.unit,
+  )}`;
+
+  if (zone.unit === 'bpm') return `${range} bpm`;
+  if (zone.unit === 'watts') return `${range} W`;
+  if (zone.unit === 'sec_per_km') return range;
+  if (zone.unit === 'sec_per_100m') return range;
+  return range;
+}
+
+function getThresholdHr(zoneSet: TrainingZoneSet, zones: TrainingZone[]): string | undefined {
+  if (zoneSet.zoneType !== 'heart_rate') return undefined;
+
+  const thresholdZone = zones.find((zone) => zone.zoneNumber === 4);
+  return thresholdZone?.lowerBound ? `${thresholdZone.lowerBound} bpm` : undefined;
+}
+
+function getZoneSetTitle(zoneSet: TrainingZoneSet): string {
+  if (zoneSet.zoneType === 'heart_rate') return 'Heart rate zones';
+  if (zoneSet.zoneType === 'cycling_power') return 'Power zones';
+  if (zoneSet.zoneType === 'running_pace') return 'Running pace zones';
+  if (zoneSet.zoneType === 'swimming_pace') return 'Swimming pace zones';
+  return zoneSet.name;
+}
+
+function PerformanceMetric({ label, value, date, accent }: PerformanceMetricProps) {
+  return (
+    <div className={accent ? 'performance-metric is-accent' : 'performance-metric'}>
+      <dt>{label}</dt>
+      <dd>{value ?? 'n/a'}</dd>
+      <span>{formatDate(date)}</span>
+    </div>
+  );
+}
+
+function ZoneBar({ zoneSet, zones }: { zoneSet: TrainingZoneSet; zones: TrainingZone[] }) {
+  if (zones.length === 0) {
+    return (
+      <div className="performance-empty">
+        <p>No zone data available for {zoneSet.name}.</p>
+      </div>
+    );
+  }
+
+  return (
+    <article className="performance-zone-card">
+      <div className="performance-zone-card__head">
+        <div>
+          <p>{getZoneSetTitle(zoneSet)}</p>
+          <h4>{zoneSet.name}</h4>
+        </div>
+        {zoneSet.basedOn ? <span>{zoneSet.basedOn}</span> : null}
+      </div>
+      <div className="performance-zone-band" aria-hidden="true">
+        {zones.map((zone, index) => (
+          <span
+            key={zone.id}
+            style={{ background: zoneColors[index] ?? 'var(--color-muted)' }}
+          />
+        ))}
+      </div>
+      <div className="performance-zone-list">
+        {zones.map((zone, index) => (
+          <div key={zone.id}>
+            <span
+              style={{ background: zoneColors[index] ?? 'var(--color-muted)' }}
+              aria-hidden="true"
+            />
+            <strong>Z{zone.zoneNumber}</strong>
+            <p>{zone.name}</p>
+            <em>{formatZoneRange(zone)}</em>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function RacePredictor({ prediction }: { prediction: RacePrediction }) {
+  const secondary =
+    prediction.predictedPaceSecPerKm
+      ? formatPace(prediction.predictedPaceSecPerKm)
+      : prediction.predictedSpeedKmh
+        ? `${prediction.predictedSpeedKmh.toFixed(1)} km/h`
+        : undefined;
+
+  return (
+    <article className="race-predictor">
+      <p>Garmin estimate</p>
+      <h4>{prediction.distanceLabel}</h4>
+      <strong>{formatRaceTime(prediction.predictedDurationSeconds)}</strong>
+      <span>{secondary ?? formatDate(prediction.estimatedAt)}</span>
+    </article>
+  );
+}
+
+export function PerformancePage() {
+  const allZones = getTrainingZones();
+
+  const getZoneSetsForSport = (sport: PerformanceSport) =>
+    prototypeTrainingZoneSets.filter((zoneSet) => zoneSet.sport === sport);
+
+  const getZonesForSet = (zoneSetId: string) =>
+    allZones
+      .filter((zone) => zone.trainingZoneSetId === zoneSetId)
+      .sort((first, second) => first.zoneNumber - second.zoneNumber);
+
+  const getPredictionsForSport = (sport: PerformanceSport) =>
+    (prototypePerformanceStats.racePredictions ?? []).filter(
+      (prediction) => prediction.sport === sport,
+    );
+
+  const runningHrSet = getZoneSetsForSport('running').find(
+    (zoneSet) => zoneSet.zoneType === 'heart_rate',
+  );
+  const cyclingHrSet = getZoneSetsForSport('cycling').find(
+    (zoneSet) => zoneSet.zoneType === 'heart_rate',
+  );
+
+  const sportSections: SportSection[] = [
+    {
+      sport: 'running',
+      title: 'Running',
+      summary: 'Garmin running estimates for aerobic fitness, threshold pace and race outcomes.',
+      metrics: [
+        {
+          label: 'VO2 max',
+          value: prototypePerformanceStats.vo2maxEstimate?.toFixed(1),
+          date: prototypePerformanceStats.vo2maxEstimatedAt,
+          accent: true,
+        },
+        {
+          label: 'Threshold HR',
+          value: runningHrSet
+            ? getThresholdHr(runningHrSet, getZonesForSet(runningHrSet.id))
+            : undefined,
+          date: prototypePerformanceStats.runningThresholdEstimatedAt,
+        },
+        {
+          label: 'Threshold pace',
+          value: formatPace(prototypePerformanceStats.runningThresholdPaceSecPerKm),
+          date: prototypePerformanceStats.runningThresholdEstimatedAt,
+        },
+      ],
+      zoneSets: getZoneSetsForSport('running'),
+      predictions: getPredictionsForSport('running'),
+    },
+    {
+      sport: 'cycling',
+      title: 'Roadbike',
+      summary: 'Cycling context for FTP, heart-rate behavior and time-trial readiness.',
+      metrics: [
+        {
+          label: 'VO2 max',
+          value: prototypePerformanceStats.vo2maxEstimate?.toFixed(1),
+          date: prototypePerformanceStats.vo2maxEstimatedAt,
+          accent: true,
+        },
+        {
+          label: 'Threshold HR',
+          value: cyclingHrSet
+            ? getThresholdHr(cyclingHrSet, getZonesForSet(cyclingHrSet.id))
+            : undefined,
+          date: prototypePerformanceStats.cyclingFtpEstimatedAt,
+        },
+        {
+          label: 'FTP',
+          value: prototypePerformanceStats.cyclingFtpWatts
+            ? `${prototypePerformanceStats.cyclingFtpWatts} W`
+            : undefined,
+          date: prototypePerformanceStats.cyclingFtpEstimatedAt,
+        },
+      ],
+      zoneSets: getZoneSetsForSport('cycling'),
+      predictions: getPredictionsForSport('cycling'),
+    },
+    {
+      sport: 'swimming',
+      title: 'Swimming',
+      summary: 'Pool and open-water benchmarks for threshold pace and estimated race efforts.',
+      metrics: [
+        {
+          label: 'VO2 max',
+          value: undefined,
+          date: undefined,
+          accent: true,
+        },
+        {
+          label: 'Threshold HR',
+          value: undefined,
+          date: undefined,
+        },
+        {
+          label: 'Threshold pace',
+          value: formatSwimPace(prototypePerformanceStats.swimmingThresholdPaceSecPer100m),
+          date: prototypePerformanceStats.swimmingThresholdEstimatedAt,
+        },
+      ],
+      zoneSets: getZoneSetsForSport('swimming'),
+      predictions: getPredictionsForSport('swimming'),
+    },
+  ];
+
+  return (
+    <PageShell
+      title="Performance"
+      eyebrow="Garmin benchmarks · Athlete context"
+      description="Sport-specific performance stats derived from Garmin-style data and normalized into the athlete context used by the AI Coach."
+    >
+      <div className="performance-page">
+        <section className="performance-overview">
+          <div>
+            <p className="performance-section-label">Latest model update</p>
+            <h2>{formatDate(prototypePerformanceStats.updatedAt)}</h2>
+          </div>
+          <p>
+            VO2 max, thresholds, zones and race predictors stay visible here so
+            raw Garmin imports become coaching context instead of isolated files.
+          </p>
+        </section>
+
+        {sportSections.map((section) => (
+          <section key={section.sport} className="performance-sport-section">
+            <header className="performance-sport-section__head">
+              <div>
+                <SportBadge sport={section.sport as SportType} />
+                <h2>{section.title}</h2>
+                <p>{section.summary}</p>
+              </div>
+            </header>
+
+            <dl className="performance-metric-grid">
+              {section.metrics.map((metric) => (
+                <PerformanceMetric key={metric.label} {...metric} />
+              ))}
+            </dl>
+
+            <div className="performance-zone-grid">
+              {section.zoneSets.length > 0 ? (
+                section.zoneSets.map((zoneSet) => (
+                  <ZoneBar
+                    key={zoneSet.id}
+                    zoneSet={zoneSet}
+                    zones={getZonesForSet(zoneSet.id)}
+                  />
+                ))
+              ) : (
+                <div className="performance-empty">
+                  <p>No zone data available for {sportLabels[section.sport]}.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="performance-predictors">
+              <div className="performance-predictors__head">
+                <p className="performance-section-label">Race predictors</p>
+                <span>Garmin estimates</span>
+              </div>
+              {section.predictions.length > 0 ? (
+                <div className="race-predictor-grid">
+                  {section.predictions.map((prediction) => (
+                    <RacePredictor
+                      key={`${section.sport}-${prediction.distanceLabel}`}
+                      prediction={prediction}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="performance-empty">
+                  <p>No race predictor data available for {sportLabels[section.sport]}.</p>
+                </div>
+              )}
+            </div>
+          </section>
+        ))}
+      </div>
+    </PageShell>
+  );
+}
