@@ -214,25 +214,33 @@ export function ImportPage() {
                 <h2>History placeholder</h2>
               </div>
             </header>
-            <div className="import-history" role="table" aria-label="Static import history">
-              <div className="import-history__row import-history__row--head" role="row">
-                <span>Source</span>
-                <span>Status</span>
-                <span>Count</span>
-                <span>When</span>
-              </div>
-              {historyRows.map((row) => (
-                <div key={`${row.source}-${row.status}`} className="import-history__row" role="row">
-                  <span><SourceBadge source={row.source} /></span>
-                  <span className={`import-status import-status--${row.status.toLowerCase()}`}>
-                    {row.status}
-                  </span>
-                  <span>{row.activities}</span>
-                  <span>{row.timestamp}</span>
-                  <p>{row.note}</p>
-                </div>
-              ))}
-            </div>
+            <table className="import-history" aria-label="Static import history">
+              <thead>
+                <tr>
+                  <th scope="col">Source</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Count</th>
+                  <th scope="col">When</th>
+                  <th scope="col">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyRows.map((row) => (
+                  <tr key={`${row.source}-${row.status}`}>
+                    <td data-label="Source"><SourceBadge source={row.source} /></td>
+                    <td
+                      className={`import-status import-status--${row.status.toLowerCase()}`}
+                      data-label="Status"
+                    >
+                      {row.status}
+                    </td>
+                    <td data-label="Count">{row.activities}</td>
+                    <td data-label="When">{row.timestamp}</td>
+                    <td data-label="Note">{row.note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           <aside className="import-section import-section--compact">

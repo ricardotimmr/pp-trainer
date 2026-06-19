@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, useRef } from 'react';
 import { useLenis } from 'lenis/react';
 import './App.css';
 
+import { PrototypeAthleteProvider } from './context/PrototypeAthleteContext';
 import { AppShell } from './layout/AppShell';
 import { getRouteMatch } from './routes/routeConfig';
 import { usePrototypeRouter } from './routes/usePrototypeRouter';
@@ -68,14 +69,16 @@ function App() {
   const Page = displayedMatch.route.component;
 
   return (
-    <AppShell pathname={pathname} navigate={navigate}>
-      <div
-        key={displayedPath}
-        className={`page-transition page-transition--${phase}`}
-      >
-        <Page params={displayedMatch.params} navigate={navigate} />
-      </div>
-    </AppShell>
+    <PrototypeAthleteProvider>
+      <AppShell pathname={pathname} navigate={navigate}>
+        <div
+          key={displayedPath}
+          className={`page-transition page-transition--${phase}`}
+        >
+          <Page params={displayedMatch.params} navigate={navigate} />
+        </div>
+      </AppShell>
+    </PrototypeAthleteProvider>
   );
 }
 

@@ -1358,14 +1358,30 @@ const racePredictions: RacePrediction[] = [
 
 export const prototypePerformanceStats: PerformanceStats = {
   athleteProfileId: prototypeAthleteProfile.id,
-  vo2maxEstimate: 54.2,
-  vo2maxEstimatedAt: '2026-06-03T18:45:00.000Z',
-  runningThresholdPaceSecPerKm: 258,
-  runningThresholdEstimatedAt: '2026-06-09T07:30:00.000Z',
-  cyclingFtpWatts: 285,
-  cyclingFtpEstimatedAt: '2026-05-28T09:00:00.000Z',
-  swimmingThresholdPaceSecPer100m: 105,
-  swimmingThresholdEstimatedAt: '2026-06-07T09:20:00.000Z',
+  bySport: {
+    running: {
+      vo2maxEstimate: 54.2,
+      vo2maxEstimatedAt: '2026-06-03T18:45:00.000Z',
+      thresholdHeartRateBpm: 169,
+      thresholdHeartRateEstimatedAt: '2026-06-09T07:30:00.000Z',
+      thresholdPaceSecPerKm: 258,
+      thresholdPaceEstimatedAt: '2026-06-09T07:30:00.000Z',
+    },
+    cycling: {
+      vo2maxEstimate: 52.8,
+      vo2maxEstimatedAt: '2026-05-28T09:00:00.000Z',
+      thresholdHeartRateBpm: 161,
+      thresholdHeartRateEstimatedAt: '2026-05-28T09:00:00.000Z',
+      ftpWatts: 285,
+      ftpEstimatedAt: '2026-05-28T09:00:00.000Z',
+    },
+    swimming: {
+      thresholdHeartRateBpm: 158,
+      thresholdHeartRateEstimatedAt: '2026-06-07T09:20:00.000Z',
+      thresholdPaceSecPer100m: 105,
+      thresholdPaceEstimatedAt: '2026-06-07T09:20:00.000Z',
+    },
+  },
   racePredictions,
   updatedAt: now,
 };

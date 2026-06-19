@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { SportBadge } from '../components';
+import { usePrototypeAthleteContext } from '../context/prototypeAthleteContextValue';
 import { PageShell } from '../layout/PageShell';
 import {
-  prototypeAthleteProfile,
-  prototypeTrainingGoals,
   prototypeTrainingZoneSets,
 } from '../mock/prototypeData';
 import { getTrainingZones } from '../mock/prototypeData.helpers';
@@ -31,12 +30,6 @@ const ZONE_COLORS = [
   'var(--color-int-threshold)',
   'var(--color-int-vo2max)',
 ];
-
-const GOAL_PRIORITY_ORDER: Record<GoalPriority, number> = {
-  main_goal: 0,
-  secondary_goal: 1,
-  watchlist: 2,
-};
 
 const GOAL_PRIORITY_OPTIONS: GoalPriority[] = [
   'main_goal',
@@ -102,21 +95,45 @@ function getGoalMetric(goal: TrainingGoal): string | undefined {
 }
 
 export function SettingsPage() {
+  const {
+    activeGoals,
+    addActiveGoal,
+    allGoals,
+    availableSports,
+    focusedSports,
+    profile,
+    removeActiveGoal,
+    setGoalPriority,
+    toggleFocusedSport,
+    visibleGoalIds,
+  } = usePrototypeAthleteContext();
   const [hrSport, setHrSport] = useState<'cycling' | 'running'>('cycling');
   const [openSportsMenu, setOpenSportsMenu] = useState<string | null>(null);
   const [openGoalMenu, setOpenGoalMenu] = useState(false);
   const [openPriorityMenu, setOpenPriorityMenu] = useState<string | null>(null);
-  const [goalPriorities, setGoalPriorities] = useState<Record<string, GoalPriority>>({});
-  const [visibleGoalIds, setVisibleGoalIds] = useState(() =>
-    prototypeTrainingGoals
-      .filter((goal) => goal.isActive)
-      .sort((a, b) => GOAL_PRIORITY_ORDER[a.priority] - GOAL_PRIORITY_ORDER[b.priority])
-      .slice(0, 3)
-      .map((goal) => goal.id),
+  const addGoalTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const priorityTriggerRefs = useRef(new Map<string, HTMLButtonElement>());
+  const sportsTriggerRefs = useRef(new Map<string, HTMLButtonElement>());
+  const lastMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
+
+  const focusMenuTrigger = useCallback((trigger?: HTMLButtonElement | null) => {
+    window.requestAnimationFrame(() => {
+      trigger?.focus();
+    });
+  }, []);
+
+  const closeSettingsMenus = useCallback(
+    (restoreFocus = false) => {
+      setOpenGoalMenu(false);
+      setOpenPriorityMenu(null);
+      setOpenSportsMenu(null);
+
+      if (restoreFocus) {
+        focusMenuTrigger(lastMenuTriggerRef.current);
+      }
+    },
+    [focusMenuTrigger],
   );
-  const [focusedSports, setFocusedSports] = useState<SportType[]>(() => [
-    ...prototypeAthleteProfile.primarySports,
-  ]);
 
   useEffect(() => {
     const closeMenusOnOutsideClick = (event: PointerEvent) => {
@@ -129,9 +146,7 @@ export function SettingsPage() {
         return;
       }
 
-      setOpenGoalMenu(false);
-      setOpenPriorityMenu(null);
-      setOpenSportsMenu(null);
+      closeSettingsMenus(false);
     };
 
     document.addEventListener('pointerdown', closeMenusOnOutsideClick);
@@ -139,15 +154,44 @@ export function SettingsPage() {
     return () => {
       document.removeEventListener('pointerdown', closeMenusOnOutsideClick);
     };
-  }, []);
+  }, [closeSettingsMenus]);
 
-  const profile = prototypeAthleteProfile;
+  useEffect(() => {
+    const hasOpenMenu = openGoalMenu || openPriorityMenu || openSportsMenu;
+    if (!hasOpenMenu) return;
+
+    const closeMenusOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+
+      event.preventDefault();
+      closeSettingsMenus(true);
+    };
+
+    const closeMenusOnFocusLeave = (event: FocusEvent) => {
+      const target = event.target;
+
+      if (
+        target instanceof Element
+        && target.closest('[data-settings-menu-root]')
+      ) {
+        return;
+      }
+
+      closeSettingsMenus(false);
+    };
+
+    document.addEventListener('keydown', closeMenusOnEscape);
+    document.addEventListener('focusin', closeMenusOnFocusLeave);
+
+    return () => {
+      document.removeEventListener('keydown', closeMenusOnEscape);
+      document.removeEventListener('focusin', closeMenusOnFocusLeave);
+    };
+  }, [closeSettingsMenus, openGoalMenu, openPriorityMenu, openSportsMenu]);
+
   const allZones = getTrainingZones();
-  const activeGoals = visibleGoalIds
-    .map((goalId) => prototypeTrainingGoals.find((goal) => goal.id === goalId))
-    .filter((goal): goal is TrainingGoal => Boolean(goal));
-  const availableGoalOptions = prototypeTrainingGoals.filter(
-    (goal) => goal.isActive && !visibleGoalIds.includes(goal.id),
+  const availableGoalOptions = allGoals.filter(
+    (goal) => !visibleGoalIds.includes(goal.id),
   );
 
   const hrZoneSets = prototypeTrainingZoneSets.filter((zs) => zs.zoneType === 'heart_rate');
@@ -160,7 +204,7 @@ export function SettingsPage() {
   const age = profile.birthYear
     ? new Date().getFullYear() - profile.birthYear
     : undefined;
-  const sportOptions: SportType[] = profile.primarySports;
+  const sportOptions: SportType[] = availableSports;
 
   return (
     <PageShell
@@ -168,7 +212,7 @@ export function SettingsPage() {
       eyebrow="Athlete context · Configuration"
       description={
         <span className="settings__prototype-notice">
-          Read-only — changes are not saved in this Phase 2 prototype
+          Session prototype — changes reset on reload and are not persisted
         </span>
       }
     >
@@ -187,7 +231,7 @@ export function SettingsPage() {
               <p className="settings-identity__eyebrow">Single athlete profile</p>
               <h3>{profile.displayName}</h3>
               <div className="settings-sports">
-                {profile.primarySports.map((sport) => (
+                {availableSports.map((sport) => (
                   <button
                     key={sport}
                     type="button"
@@ -198,13 +242,7 @@ export function SettingsPage() {
                       .filter(Boolean)
                       .join(' ')}
                     aria-pressed={focusedSports.includes(sport)}
-                    onClick={() =>
-                      setFocusedSports((current) =>
-                        current.includes(sport)
-                          ? current.filter((item) => item !== sport)
-                          : [...current, sport],
-                      )
-                    }
+                    onClick={() => toggleFocusedSport(sport)}
                   >
                     <SportBadge sport={sport} />
                     <span aria-hidden="true">
@@ -289,6 +327,7 @@ export function SettingsPage() {
                   <span>{activeGoals.length} / 3</span>
                   <button
                     type="button"
+                    ref={addGoalTriggerRef}
                     className={[
                       'settings-goal-add',
                       openGoalMenu ? 'is-open' : '',
@@ -299,7 +338,12 @@ export function SettingsPage() {
                     aria-expanded={openGoalMenu}
                     aria-haspopup="menu"
                     disabled={activeGoals.length >= 3 || availableGoalOptions.length === 0}
-                    onClick={() => setOpenGoalMenu((current) => !current)}
+                    onClick={(event) => {
+                      lastMenuTriggerRef.current = event.currentTarget;
+                      setOpenPriorityMenu(null);
+                      setOpenSportsMenu(null);
+                      setOpenGoalMenu((current) => !current);
+                    }}
                   >
                     +
                   </button>
@@ -320,8 +364,9 @@ export function SettingsPage() {
                           type="button"
                           role="menuitem"
                           onClick={() => {
-                            setVisibleGoalIds((current) => [...current, goal.id].slice(0, 3));
-                            setOpenGoalMenu(false);
+                            addActiveGoal(goal.id);
+                            closeSettingsMenus(false);
+                            focusMenuTrigger(addGoalTriggerRef.current);
                           }}
                         >
                           <span>{goal.title}</span>
@@ -337,7 +382,7 @@ export function SettingsPage() {
               {activeGoals.length > 0 ? (
                 <div className="settings-goal-list">
                   {activeGoals.map((goal) => {
-                    const priority = goalPriorities[goal.id] ?? goal.priority;
+                    const priority = goal.priority;
                     const goalMetric = getGoalMetric(goal);
 
                     return (
@@ -351,9 +396,7 @@ export function SettingsPage() {
                               className="settings-goal-remove"
                               aria-label={`Remove ${goal.title} from active goals`}
                               onClick={() =>
-                                setVisibleGoalIds((current) =>
-                                  current.filter((goalId) => goalId !== goal.id),
-                                )
+                                removeActiveGoal(goal.id)
                               }
                             >
                               −
@@ -369,6 +412,13 @@ export function SettingsPage() {
                             <span>Priority</span>
                             <button
                               type="button"
+                              ref={(element) => {
+                                if (element) {
+                                  priorityTriggerRefs.current.set(goal.id, element);
+                                } else {
+                                  priorityTriggerRefs.current.delete(goal.id);
+                                }
+                              }}
                               className={[
                                 'settings-goal-priority__trigger',
                                 openPriorityMenu === goal.id ? 'is-open' : '',
@@ -377,11 +427,14 @@ export function SettingsPage() {
                                 .join(' ')}
                               aria-expanded={openPriorityMenu === goal.id}
                               aria-haspopup="menu"
-                              onClick={() =>
+                              onClick={(event) => {
+                                lastMenuTriggerRef.current = event.currentTarget;
+                                setOpenGoalMenu(false);
+                                setOpenSportsMenu(null);
                                 setOpenPriorityMenu((current) =>
                                   current === goal.id ? null : goal.id,
-                                )
-                              }
+                                );
+                              }}
                             >
                               {goalPriorityLabels[priority]}
                             </button>
@@ -402,11 +455,11 @@ export function SettingsPage() {
                                   role="menuitem"
                                   className={option === priority ? 'is-selected' : ''}
                                   onClick={() => {
-                                    setGoalPriorities((current) => ({
-                                      ...current,
-                                      [goal.id]: option,
-                                    }));
-                                    setOpenPriorityMenu(null);
+                                    setGoalPriority(goal.id, option);
+                                    closeSettingsMenus(false);
+                                    focusMenuTrigger(
+                                      priorityTriggerRefs.current.get(goal.id),
+                                    );
                                   }}
                                 >
                                   <span>{goalPriorityLabels[option]}</span>
@@ -439,7 +492,7 @@ export function SettingsPage() {
                 <p className="settings-empty">No active goal set.</p>
               )}
             </div>
-            {prototypeTrainingGoals.length === 0 && (
+            {allGoals.length === 0 && (
               <p className="settings-empty">No goals configured.</p>
             )}
 
@@ -483,6 +536,13 @@ export function SettingsPage() {
                         </span>
                         <button
                           type="button"
+                          ref={(element) => {
+                            if (element) {
+                              sportsTriggerRefs.current.set(day.weekday, element);
+                            } else {
+                              sportsTriggerRefs.current.delete(day.weekday);
+                            }
+                          }}
                           className={[
                             'settings-availability__add',
                             openSportsMenu === day.weekday ? 'is-open' : '',
@@ -492,11 +552,14 @@ export function SettingsPage() {
                           aria-label={`Add preferred sport for ${WEEKDAY_SHORT[day.weekday]}`}
                           aria-expanded={openSportsMenu === day.weekday}
                           aria-haspopup="menu"
-                          onClick={() =>
+                          onClick={(event) => {
+                            lastMenuTriggerRef.current = event.currentTarget;
+                            setOpenGoalMenu(false);
+                            setOpenPriorityMenu(null);
                             setOpenSportsMenu((current) =>
                               current === day.weekday ? null : day.weekday,
-                            )
-                          }
+                            );
+                          }}
                         >
                           +
                         </button>

@@ -135,6 +135,10 @@ button:focus-visible {
   clip-path: inset(0 0% 0 0);
 }
 
+.app-shell__brand:focus-visible::after {
+  clip-path: inset(0 0% 0 0);
+}
+
 .app-shell__brand img {
   height: 52px;
   width: auto;
@@ -230,6 +234,7 @@ button:focus-visible {
 }
 
 .app-shell__compact-brand {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -260,6 +265,25 @@ button:focus-visible {
   max-width: none;
 }
 
+.app-shell__compact-brand::after,
+.app-shell__menu-button::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 2px;
+  height: 1.5px;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--color-accent) 0,
+    var(--color-accent) 4px,
+    transparent 4px,
+    transparent 9px
+  );
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.28s ease;
+}
+
 .app-shell__nav-button::before {
   content: '';
   position: absolute;
@@ -283,6 +307,12 @@ button:focus-visible {
 }
 
 .app-shell__nav-button:not(.is-active):hover::before {
+  clip-path: inset(0 0% 0 0);
+}
+
+.app-shell__nav-button:focus-visible::before,
+.app-shell__compact-brand:focus-visible::after,
+.app-shell__menu-button:focus-visible::after {
   clip-path: inset(0 0% 0 0);
 }
 
@@ -375,6 +405,17 @@ button:focus-visible {
 }
 
 .app-shell__header.is-scrolled .app-shell__nav-button::before {
+  background-image: repeating-linear-gradient(
+    to right,
+    rgba(251, 251, 248, 0.72) 0,
+    rgba(251, 251, 248, 0.72) 4px,
+    transparent 4px,
+    transparent 9px
+  );
+}
+
+.app-shell__header.is-scrolled .app-shell__compact-brand::after,
+.app-shell__header.is-scrolled .app-shell__menu-button::after {
   background-image: repeating-linear-gradient(
     to right,
     rgba(251, 251, 248, 0.72) 0,
@@ -4328,6 +4369,15 @@ button:focus-visible {
   font-size: 0.74rem;
 }
 
+.race-predictor time {
+  display: block;
+  margin-top: 5px;
+  color: rgba(40, 40, 36, 0.56);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  line-height: 1.35;
+}
+
 .performance-empty {
   border-top: 1px solid var(--color-line);
   padding-top: 12px;
@@ -4647,33 +4697,45 @@ button:focus-visible {
 }
 
 .import-history {
-  display: grid;
+  width: 100%;
   border-top: 1px solid var(--color-line);
+  border-collapse: collapse;
 }
 
-.import-history__row {
-  display: grid;
-  grid-template-columns: minmax(130px, 1.1fr) 92px 64px minmax(110px, 0.8fr);
-  gap: 12px;
-  align-items: center;
+.import-history tr {
   border-bottom: 1px solid var(--color-line);
-  padding: 12px 0;
 }
 
-.import-history__row--head {
+.import-history th,
+.import-history td {
+  padding: 12px 12px 12px 0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.import-history th:last-child,
+.import-history td:last-child {
+  padding-right: 0;
+}
+
+.import-history th {
   color: var(--color-muted);
   font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.1em;
-  padding: 9px 0;
+  padding-bottom: 9px;
+  padding-top: 9px;
   text-transform: uppercase;
 }
 
-.import-history__row p {
-  grid-column: 1 / -1;
-  margin: -2px 0 0;
+.import-history td {
+  font-size: 0.86rem;
+}
+
+.import-history td:last-child {
   color: var(--color-muted);
   font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .import-status {
@@ -4760,12 +4822,46 @@ button:focus-visible {
     flex-direction: column;
   }
 
-  .import-history__row {
-    grid-template-columns: 1fr 1fr;
+  .import-history,
+  .import-history tbody,
+  .import-history tr,
+  .import-history td {
+    display: block;
+    width: 100%;
   }
 
-  .import-history__row--head {
+  .import-history thead {
     display: none;
+  }
+
+  .import-history tr {
+    padding: 12px 0;
+  }
+
+  .import-history td {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 5px 0;
+  }
+
+  .import-history td::before {
+    content: attr(data-label);
+    color: var(--color-muted);
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .import-history td:last-child {
+    display: block;
+    padding-top: 9px;
+  }
+
+  .import-history td:last-child::before {
+    display: block;
+    margin-bottom: 4px;
   }
 }
 

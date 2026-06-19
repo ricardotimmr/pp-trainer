@@ -61,6 +61,14 @@ function formatSwimPace(secondsPer100m?: number): string | undefined {
   return `${minutes}:${seconds.toString().padStart(2, '0')} /100m`;
 }
 
+function formatHeartRate(heartRateBpm?: number): string | undefined {
+  return heartRateBpm ? `${heartRateBpm} bpm` : undefined;
+}
+
+function formatPower(powerWatts?: number): string | undefined {
+  return powerWatts ? `${powerWatts} W` : undefined;
+}
+
 function formatRaceTime(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
@@ -73,6 +81,16 @@ function formatRaceTime(seconds: number): string {
   }
 
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+function getPredictedSwimPace(prediction: RacePrediction): string | undefined {
+  if (prediction.sport !== 'swimming' || prediction.distanceMeters <= 0) {
+    return undefined;
+  }
+
+  return formatSwimPace(
+    prediction.predictedDurationSeconds / (prediction.distanceMeters / 100),
+  );
 }
 
 function formatZoneValue(value?: number, unit?: TrainingZoneUnit): string {
@@ -95,13 +113,6 @@ function formatZoneRange(zone: TrainingZone): string {
   if (zone.unit === 'sec_per_km') return range;
   if (zone.unit === 'sec_per_100m') return range;
   return range;
-}
-
-function getThresholdHr(zoneSet: TrainingZoneSet, zones: TrainingZone[]): string | undefined {
-  if (zoneSet.zoneType !== 'heart_rate') return undefined;
-
-  const thresholdZone = zones.find((zone) => zone.zoneNumber === 4);
-  return thresholdZone?.lowerBound ? `${thresholdZone.lowerBound} bpm` : undefined;
 }
 
 function getZoneSetTitle(zoneSet: TrainingZoneSet): string {
@@ -177,7 +188,7 @@ function RacePredictor({ prediction }: { prediction: RacePrediction }) {
       ? formatPace(prediction.predictedPaceSecPerKm)
       : prediction.predictedSpeedKmh
         ? `${prediction.predictedSpeedKmh.toFixed(1)} km/h`
-        : undefined;
+        : getPredictedSwimPace(prediction);
 
   return (
     <article className="race-predictor">
@@ -185,6 +196,9 @@ function RacePredictor({ prediction }: { prediction: RacePrediction }) {
       <h4>{prediction.distanceLabel}</h4>
       <strong>{formatRaceTime(prediction.predictedDurationSeconds)}</strong>
       <span>{secondary ?? formatDate(prediction.estimatedAt)}</span>
+      <time dateTime={prediction.estimatedAt}>
+        Estimated {formatDate(prediction.estimatedAt)}
+      </time>
     </article>
   );
 }
@@ -205,12 +219,9 @@ export function PerformancePage() {
       (prediction) => prediction.sport === sport,
     );
 
-  const runningHrSet = getZoneSetsForSport('running').find(
-    (zoneSet) => zoneSet.zoneType === 'heart_rate',
-  );
-  const cyclingHrSet = getZoneSetsForSport('cycling').find(
-    (zoneSet) => zoneSet.zoneType === 'heart_rate',
-  );
+  const runningStats = prototypePerformanceStats.bySport.running;
+  const cyclingStats = prototypePerformanceStats.bySport.cycling;
+  const swimmingStats = prototypePerformanceStats.bySport.swimming;
 
   const sportSections: SportSection[] = [
     {
@@ -220,21 +231,19 @@ export function PerformancePage() {
       metrics: [
         {
           label: 'VO2 max',
-          value: prototypePerformanceStats.vo2maxEstimate?.toFixed(1),
-          date: prototypePerformanceStats.vo2maxEstimatedAt,
+          value: runningStats?.vo2maxEstimate?.toFixed(1),
+          date: runningStats?.vo2maxEstimatedAt,
           accent: true,
         },
         {
           label: 'Threshold HR',
-          value: runningHrSet
-            ? getThresholdHr(runningHrSet, getZonesForSet(runningHrSet.id))
-            : undefined,
-          date: prototypePerformanceStats.runningThresholdEstimatedAt,
+          value: formatHeartRate(runningStats?.thresholdHeartRateBpm),
+          date: runningStats?.thresholdHeartRateEstimatedAt,
         },
         {
           label: 'Threshold pace',
-          value: formatPace(prototypePerformanceStats.runningThresholdPaceSecPerKm),
-          date: prototypePerformanceStats.runningThresholdEstimatedAt,
+          value: formatPace(runningStats?.thresholdPaceSecPerKm),
+          date: runningStats?.thresholdPaceEstimatedAt,
         },
       ],
       zoneSets: getZoneSetsForSport('running'),
@@ -247,23 +256,19 @@ export function PerformancePage() {
       metrics: [
         {
           label: 'VO2 max',
-          value: prototypePerformanceStats.vo2maxEstimate?.toFixed(1),
-          date: prototypePerformanceStats.vo2maxEstimatedAt,
+          value: cyclingStats?.vo2maxEstimate?.toFixed(1),
+          date: cyclingStats?.vo2maxEstimatedAt,
           accent: true,
         },
         {
           label: 'Threshold HR',
-          value: cyclingHrSet
-            ? getThresholdHr(cyclingHrSet, getZonesForSet(cyclingHrSet.id))
-            : undefined,
-          date: prototypePerformanceStats.cyclingFtpEstimatedAt,
+          value: formatHeartRate(cyclingStats?.thresholdHeartRateBpm),
+          date: cyclingStats?.thresholdHeartRateEstimatedAt,
         },
         {
           label: 'FTP',
-          value: prototypePerformanceStats.cyclingFtpWatts
-            ? `${prototypePerformanceStats.cyclingFtpWatts} W`
-            : undefined,
-          date: prototypePerformanceStats.cyclingFtpEstimatedAt,
+          value: formatPower(cyclingStats?.ftpWatts),
+          date: cyclingStats?.ftpEstimatedAt,
         },
       ],
       zoneSets: getZoneSetsForSport('cycling'),
@@ -275,20 +280,15 @@ export function PerformancePage() {
       summary: 'Pool and open-water benchmarks for threshold pace and estimated race efforts.',
       metrics: [
         {
-          label: 'VO2 max',
-          value: undefined,
-          date: undefined,
+          label: 'Threshold HR',
+          value: formatHeartRate(swimmingStats?.thresholdHeartRateBpm),
+          date: swimmingStats?.thresholdHeartRateEstimatedAt,
           accent: true,
         },
         {
-          label: 'Threshold HR',
-          value: undefined,
-          date: undefined,
-        },
-        {
           label: 'Threshold pace',
-          value: formatSwimPace(prototypePerformanceStats.swimmingThresholdPaceSecPer100m),
-          date: prototypePerformanceStats.swimmingThresholdEstimatedAt,
+          value: formatSwimPace(swimmingStats?.thresholdPaceSecPer100m),
+          date: swimmingStats?.thresholdPaceEstimatedAt,
         },
       ],
       zoneSets: getZoneSetsForSport('swimming'),

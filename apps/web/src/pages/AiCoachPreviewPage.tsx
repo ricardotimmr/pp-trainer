@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { IntensityBadge, SportBadge, WorkoutStepList } from '../components';
 import { stepTypeLabels } from '../components/data/WorkoutStepList';
+import { usePrototypeAthleteContext } from '../context/prototypeAthleteContextValue';
 import { PageShell } from '../layout/PageShell';
 import {
-  prototypeAthleteProfile,
   prototypeAiCoachPreview,
 } from '../mock/prototypeData';
 import {
@@ -12,9 +12,6 @@ import {
   getCurrentTrainingPlan,
   getWorkoutById,
   getWorkoutSteps,
-  getMainTrainingGoal,
-  getSecondaryTrainingGoals,
-  getWatchlistTrainingGoals,
 } from '../mock/prototypeData.helpers';
 import {
   formatDuration,
@@ -73,12 +70,10 @@ function getWeekDates(startDate: string, endDate: string): string[] {
 
 export function AiCoachPreviewPage({ navigate }: PageComponentProps) {
   const [outputMode, setOutputMode] = useState<'week_plan' | 'single_workout'>('week_plan');
+  const { mainGoal, profile, secondaryGoals, watchlistGoals } =
+    usePrototypeAthleteContext();
 
-  const profile = prototypeAthleteProfile;
   const preview = prototypeAiCoachPreview;
-  const mainGoal = getMainTrainingGoal();
-  const secondaryGoals = getSecondaryTrainingGoals();
-  const watchlistGoals = getWatchlistTrainingGoals();
   const weeklySummary = getWeeklySummary();
 
   const trainingPlan = getCurrentTrainingPlan();

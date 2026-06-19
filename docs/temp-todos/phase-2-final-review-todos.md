@@ -5,7 +5,8 @@ Local temporary review after completing the Phase 2 frontend prototype.
 Verification run:
 
 - `npm run build` passes
-- `npm run test:e2e` passes for current Activity Detail coverage
+- `npm run test:e2e` passes for Activity Detail and Phase 2 route smoke
+  coverage
 - `npm run lint` passes with one existing Fast Refresh warning in
   `WorkoutStepList.tsx`
 
@@ -71,7 +72,7 @@ Implemented:
 - verified `/performance` visually so the swimming bar now has four complete
   equal segments and no grey tail
 
-### Bug: keyboard focus is invisible in main navigation
+### Fixed: keyboard focus is visible in main navigation
 
 - Category: Bugs / Accessibility
 - Files: `apps/web/src/App.css`
@@ -81,30 +82,31 @@ Implemented:
   - `.app-shell__nav-button:focus-visible`
   - `.app-shell__menu-button:focus-visible`
 - Priority: P1
+- Status: Fixed on 2026-06-19
 
-The CSS removes focus outlines for the main nav and brand controls without
-adding a custom visible replacement. Keyboard users can tab through the app but
-cannot reliably see where focus is.
+The CSS removed focus outlines for the main nav and brand controls without
+adding a custom visible replacement.
 
-Recommended fix: keep native outlines removed if desired, but add a visible
-`:focus-visible` state, e.g. a pink underline, border, or box-shadow consistent
-with the active nav indicator.
+Implemented a consistent focus-visible underline pattern:
+
+- default brand logo uses its existing pink dashed underline
+- nav buttons reveal the same underline used for hover
+- compact logo and menu button get matching underline pseudo-elements
+- compact/dark nav state switches the underline to the existing light variant
 
 ## Priority 2 — Important Follow-Ups
 
-### Add smoke tests for all Phase 2 top-level routes
+### Fixed: smoke tests cover all Phase 2 top-level routes
 
 - Category: Test coverage
 - Files:
-  - `apps/web/e2e/`
+  - `apps/web/e2e/phase-2-routes.spec.ts`
   - `playwright.config.ts`
 - Priority: P2
+- Status: Fixed on 2026-06-19
 
-Current e2e coverage only covers Activity Detail branches. That was useful for
-FE-006, but the finished epic now has several large route surfaces without
-route-level coverage.
-
-Recommended first smoke tests:
+Current e2e coverage previously only covered Activity Detail branches. Added a
+dedicated top-level route smoke spec for:
 
 1. `/dashboard` renders the current week and active goal.
 2. `/training-plan` renders the week plan and links to a workout.
@@ -114,11 +116,10 @@ Recommended first smoke tests:
 6. `/performance` renders Running, Roadbike and Swimming sections.
 7. Navigation can reach `/performance` from the primary nav.
 
-This is not just coverage for coverage's sake. These tests would catch broken
-routes, hidden nav regressions and missing mock-data branches before the next
-phase.
+This should catch broken routes, hidden nav regressions and missing mock-data
+branches before the next phase.
 
-### Performance stats need sport-specific VO2 and measurement metadata
+### Fixed: Performance stats use sport-specific VO2 and measurement metadata
 
 - Category: Data model / AI Coach context
 - Files:
@@ -126,90 +127,116 @@ phase.
   - `apps/web/src/mock/prototypeData.ts`
   - `apps/web/src/pages/PerformancePage.tsx`
 - Priority: P2
+- Status: Fixed on 2026-06-19
 
-`PerformanceStats` currently has one global `vo2maxEstimate`, which the
-Performance page repeats for running and cycling while swimming shows `n/a`.
-Garmin-style data is usually sport-specific enough that this should not stay
-ambiguous.
+`PerformanceStats` previously had one global `vo2maxEstimate`, which the
+Performance page repeated for running and cycling while swimming showed `n/a`.
 
-Recommended fix: introduce sport-scoped performance metrics, for example:
+Implemented sport-scoped performance metrics under `PerformanceStats.bySport`:
 
-- running VO2 max estimate and date
-- cycling VO2 max estimate and date, if available
-- per-sport threshold HR and measured date
-- FTP date separate from cycling HR threshold date
-- swimming threshold pace and optional HR availability
+- Running now has its own VO2 max, threshold HR and threshold pace metadata.
+- Roadbike now has its own VO2 max, threshold HR and FTP metadata.
+- Swimming now has threshold HR and threshold pace metadata without a fake VO2
+  metric.
 
-This will make the page more useful and prevent the AI Coach from treating one
+This prevents the Performance page and later AI Coach context from treating one
 generic VO2 value as universal truth.
 
-### Performance race predictors should show sport-specific secondary metrics
+### Fixed: Performance race predictors show sport-specific secondary metrics
 
 - Category: UX / Data usefulness
 - Files: `apps/web/src/pages/PerformancePage.tsx`
 - Priority: P2
+- Status: Fixed on 2026-06-19
 
-Running predictors show pace, cycling shows speed, but swimming predictors fall
-back to the estimate date. For swimmers, pace per 100m is more useful than the
-date in that card.
+Running predictors showed pace, cycling showed speed, but swimming predictors
+fell back to the estimate date.
 
-Recommended fix: derive and show swim pace per 100m from
-`predictedDurationSeconds` and `distanceMeters`. Keep the measurement date as a
-small secondary timestamp if layout allows.
+Implemented:
 
-### Settings prototype edits do not feed AI Coach context
+- swimming predictors derive pace per 100m from `predictedDurationSeconds` and
+  `distanceMeters`
+- all predictor cards keep the measurement date as a small secondary timestamp
+
+### Partially fixed: Settings prototype edits feed AI Coach session context
 
 - Category: Product consistency / AI Coach context
 - Files:
+  - `apps/web/src/context/PrototypeAthleteContext.tsx`
+  - `apps/web/src/context/prototypeAthleteContextValue.ts`
   - `apps/web/src/pages/SettingsPage.tsx`
   - `apps/web/src/pages/AiCoachPreviewPage.tsx`
-  - `apps/web/src/mock/prototypeData.helpers.ts`
+  - `apps/web/src/pages/DashboardPage.tsx`
+  - `apps/web/e2e/phase-2-routes.spec.ts`
 - Priority: P2
+- Status: Partially fixed on 2026-06-19
+- Follow-up: GitHub issue #28
 
-Settings now lets the user toggle focused sports, remove/add active goals and
-change goal priorities locally. The AI Coach page still reads static mock data,
-so those changes do not affect the displayed coach context.
+Settings lets the user toggle focused sports, remove/add active goals and change
+goal priorities locally. AI Coach and Dashboard previously read static mock
+data, so those changes did not affect the displayed coach context.
 
-This is acceptable for a read-only prototype, but it can confuse review because
-the UI looks interactive.
+Implemented a session-local `PrototypeAthleteProvider`:
 
-Recommended fix options:
+- initial state still comes from mock data
+- Settings writes focused sports, active goals and goal priorities to the shared
+  context
+- AI Coach reads athlete sports and goal context from the same source
+- Dashboard reads the main/secondary/watchlist goal context from the same source
+- no backend, localStorage or real persistence is introduced; reload resets to
+  the mock defaults
 
-- make Settings controls visually read-only again, or
-- move these edits into a shared prototype state/context so AI Coach reflects
-  them during the same browser session.
+Added an e2e smoke flow that changes Settings and verifies the AI Coach session
+context reflects the change.
 
-The second option better supports product demos because it proves how athlete
-context affects coaching output.
+Remaining scope is tracked in #28: audit all Phase 2 pages and formalize one
+prototype data ownership model for athlete profile, goals, training
+availability, thresholds, zones, performance stats and activity-derived data.
+The session-context fix covers focused sports and goal context, but does not
+complete the broader single-source-of-truth cleanup.
 
-### Settings dropdowns need Escape-key and focus behavior
+### Fixed: Settings dropdowns support Escape-key and focus behavior
 
 - Category: Accessibility / Interaction
-- Files: `apps/web/src/pages/SettingsPage.tsx`
+- Files:
+  - `apps/web/src/pages/SettingsPage.tsx`
+  - `apps/web/e2e/phase-2-routes.spec.ts`
 - Priority: P2
+- Status: Fixed on 2026-06-19
 
-Settings dropdowns close on outside pointer click, but there is no Escape-key
-handler and focus is not restored to the trigger after selecting or closing a
-menu.
+Settings dropdowns previously closed on outside pointer click, but there was no
+Escape-key handler and focus was not restored to the trigger after selecting or
+closing a menu.
 
-Recommended fix: add keyboard handling for Escape, close on focus leaving the
-menu group where appropriate, and return focus to the trigger after selection.
-This matters because goal priority and preferred sport menus are real controls
-in the prototype.
+Implemented:
 
-### Import history uses table roles without cell semantics
+- Escape closes the active Settings menu and restores focus to its trigger.
+- Pointer clicks outside Settings menu roots close all open menus.
+- Focus leaving the active menu root closes open menus.
+- Add-goal, goal-priority and preferred-sport menu triggers now track their
+  trigger refs for focus restore.
+- E2E coverage verifies Escape closes a custom dropdown and returns trigger
+  focus.
+
+### Fixed: Import history uses semantic table markup
 
 - Category: Accessibility / Semantics
-- Files: `apps/web/src/pages/ImportPage.tsx`
+- Files:
+  - `apps/web/src/pages/ImportPage.tsx`
+  - `apps/web/src/App.css`
 - Priority: P2
+- Status: Fixed on 2026-06-19
 
-The import history is visually table-like and uses `role="table"` / `role="row"`,
-but cells are plain spans without `role="cell"` / `role="columnheader"`. That is
-less useful for assistive tech than either a real `<table>` or a complete ARIA
-table.
+The import history was visually table-like and used `role="table"` /
+`role="row"`, but cells were plain spans without `role="cell"` /
+`role="columnheader"`.
 
-Recommended fix: use a semantic `<table>` for import history. The styling can
-stay nearly identical.
+Implemented:
+
+- replaced the ARIA table-like div structure with a semantic `<table>`
+- added `thead`, `tbody`, column headers and table cells
+- kept the visual styling close to the previous layout
+- added compact mobile table labels via `data-label`
 
 ## Priority 3 — Useful Enhancements
 
