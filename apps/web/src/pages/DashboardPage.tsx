@@ -7,6 +7,7 @@ import {
   SportBadge,
   WorkoutCard,
 } from '../components';
+import { usePrototypeAthleteContext } from '../context/prototypeAthleteContextValue';
 import { PageShell } from '../layout/PageShell';
 import { getDashboardSummary } from '../mock/prototypeData.helpers';
 import type { SportType } from '../mock/prototypeData.types';
@@ -15,6 +16,7 @@ import {
   formatDate,
   formatDistance,
   formatDuration,
+  goalPriorityLabels,
   sportLabels,
 } from '../components/prototypeFormatters';
 
@@ -93,6 +95,8 @@ function WeekBalancePanel({
 
 export function DashboardPage({ navigate }: PageComponentProps) {
   const dashboard = getDashboardSummary();
+  const { mainGoal, secondaryGoals, watchlistGoals } =
+    usePrototypeAthleteContext();
   const isLoading = false;
   const week = dashboard.currentWeek;
   const plannedSeconds = week.plannedDurationSeconds ?? 0;
@@ -290,23 +294,33 @@ export function DashboardPage({ navigate }: PageComponentProps) {
                   <p className="open-panel__eyebrow">Focus</p>
                   <h2 className="open-panel__title">Active goal</h2>
                 </header>
-                {dashboard.activeGoal ? (
+                {mainGoal ? (
                   <div className="dashboard-goal">
                     <div className="badge-row">
-                      {dashboard.activeGoal.sport ? (
-                        <SportBadge sport={dashboard.activeGoal.sport} />
+                      {mainGoal.sport ? (
+                        <SportBadge sport={mainGoal.sport} />
                       ) : null}
                       <span className="badge badge--source">
-                        {dashboard.activeGoal.priority}
+                        {goalPriorityLabels[mainGoal.priority]}
                       </span>
+                      {secondaryGoals.length > 0 ? (
+                        <span className="badge badge--goal badge--goal-secondary">
+                          {secondaryGoals.length} secondary
+                        </span>
+                      ) : null}
+                      {watchlistGoals.length > 0 ? (
+                        <span className="badge badge--goal badge--goal-watchlist">
+                          {watchlistGoals.length} watchlist
+                        </span>
+                      ) : null}
                     </div>
-                    <h3>{dashboard.activeGoal.title}</h3>
-                    {dashboard.activeGoal.description ? (
-                      <p>{dashboard.activeGoal.description}</p>
+                    <h3>{mainGoal.title}</h3>
+                    {mainGoal.description ? (
+                      <p>{mainGoal.description}</p>
                     ) : null}
-                    {dashboard.activeGoal.targetDate ? (
+                    {mainGoal.targetDate ? (
                       <span>
-                        Target: {formatDate(dashboard.activeGoal.targetDate)}
+                        Target: {formatDate(mainGoal.targetDate)}
                       </span>
                     ) : null}
                   </div>

@@ -6,6 +6,7 @@ import { DevUiShowcasePage } from '../pages/DevUiShowcasePage';
 import { HomePage } from '../pages/HomePage';
 import { ImportPage } from '../pages/ImportPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
+import { PerformancePage } from '../pages/PerformancePage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { TrainingPlanPage } from '../pages/TrainingPlanPage';
 import { WorkoutDetailPage } from '../pages/WorkoutDetailPage';
@@ -53,6 +54,13 @@ export const routes: RouteConfig[] = [
     label: 'Workout Detail',
     navVisible: false,
     component: WorkoutDetailPage,
+  },
+  {
+    id: 'performance',
+    path: '/performance',
+    label: 'Performance',
+    navVisible: true,
+    component: PerformancePage,
   },
   {
     id: 'aiCoach',

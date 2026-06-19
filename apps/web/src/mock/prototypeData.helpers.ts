@@ -2,9 +2,11 @@ import {
   prototypeActivities,
   prototypeAiCoachPreview,
   prototypeAthleteProfile,
+  prototypePerformanceStats,
   prototypePlannedWorkouts,
   prototypeTrainingGoals,
   prototypeTrainingPlan,
+  prototypeTrainingZoneSets,
   prototypeTrainingZones,
   prototypeWeeklySummary,
   prototypeWorkoutSteps,
@@ -12,9 +14,13 @@ import {
 import type {
   Activity,
   DashboardSummary,
+  PerformanceStats,
   PlannedWorkout,
+  RacePrediction,
+  SportType,
   TrainingGoal,
   TrainingPlan,
+  TrainingZoneSet,
   TrainingZone,
   WeeklySummary,
   WorkoutStep,
@@ -66,8 +72,44 @@ export const getTrainingZones = (): TrainingZone[] => [
   ...prototypeTrainingZones,
 ];
 
+export const getTrainingZoneSets = (): TrainingZoneSet[] => [
+  ...prototypeTrainingZoneSets,
+];
+
+export const getTrainingZoneSetsBySport = (
+  sport: SportType,
+): TrainingZoneSet[] =>
+  getTrainingZoneSets().filter((zoneSet) => zoneSet.sport === sport);
+
+export const getTrainingZonesBySetId = (zoneSetId: string): TrainingZone[] =>
+  getTrainingZones()
+    .filter((zone) => zone.trainingZoneSetId === zoneSetId)
+    .sort((first, second) => first.zoneNumber - second.zoneNumber);
+
+export const getPerformanceStats = (): PerformanceStats =>
+  prototypePerformanceStats;
+
+export const getPerformanceRacePredictionsBySport = (
+  sport: SportType,
+): RacePrediction[] =>
+  (prototypePerformanceStats.racePredictions ?? []).filter(
+    (prediction) => prediction.sport === sport,
+  );
+
+export const getActiveTrainingGoals = (): TrainingGoal[] =>
+  prototypeTrainingGoals.filter((goal) => goal.isActive);
+
+export const getMainTrainingGoal = (): TrainingGoal | undefined =>
+  getActiveTrainingGoals().find((goal) => goal.priority === 'main_goal');
+
+export const getSecondaryTrainingGoals = (): TrainingGoal[] =>
+  getActiveTrainingGoals().filter((goal) => goal.priority === 'secondary_goal');
+
+export const getWatchlistTrainingGoals = (): TrainingGoal[] =>
+  getActiveTrainingGoals().filter((goal) => goal.priority === 'watchlist');
+
 export const getActiveTrainingGoal = (): TrainingGoal | undefined =>
-  prototypeTrainingGoals.find((goal) => goal.isActive);
+  getMainTrainingGoal();
 
 export const getWeeklySummary = (): WeeklySummary => prototypeWeeklySummary;
 

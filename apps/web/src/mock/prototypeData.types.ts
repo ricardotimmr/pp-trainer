@@ -47,7 +47,7 @@ export type TrainingGoalType =
   | 'fitness'
   | 'general';
 
-export type GoalPriority = 'low' | 'medium' | 'high' | 'main_goal';
+export type GoalPriority = 'main_goal' | 'secondary_goal' | 'watchlist';
 
 export type TrainingZoneType =
   | 'heart_rate'
@@ -293,16 +293,21 @@ export type RacePrediction = {
   estimatedAt: string;
 };
 
-export type PerformanceStats = {
-  athleteProfileId: string;
+export type PerformanceSportStats = {
   vo2maxEstimate?: number;
   vo2maxEstimatedAt?: string;
-  runningThresholdPaceSecPerKm?: number;
-  runningThresholdEstimatedAt?: string;
-  cyclingFtpWatts?: number;
-  cyclingFtpEstimatedAt?: string;
-  swimmingThresholdPaceSecPer100m?: number;
-  swimmingThresholdEstimatedAt?: string;
+  thresholdHeartRateBpm?: number;
+  thresholdHeartRateEstimatedAt?: string;
+  thresholdPaceSecPerKm?: number;
+  thresholdPaceSecPer100m?: number;
+  thresholdPaceEstimatedAt?: string;
+  ftpWatts?: number;
+  ftpEstimatedAt?: string;
+};
+
+export type PerformanceStats = {
+  athleteProfileId: string;
+  bySport: Partial<Record<SportType, PerformanceSportStats>>;
   racePredictions?: RacePrediction[];
   updatedAt: string;
 };

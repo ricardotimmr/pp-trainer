@@ -236,6 +236,37 @@ export const prototypeTrainingGoals: TrainingGoal[] = [
     createdAt: '2026-06-01T08:00:00.000Z',
     updatedAt: now,
   },
+  {
+    id: 'goal-run-10k-threshold',
+    athleteProfileId: prototypeAthleteProfile.id,
+    title: 'Sub-42 10K benchmark',
+    goalType: 'performance',
+    targetDate: '2026-08-02',
+    sport: 'running',
+    priority: 'secondary_goal',
+    targetDistanceMeters: 10000,
+    targetDurationSeconds: 2520,
+    targetPaceSecPerKm: 252,
+    description: 'Use a late-summer 10K as a controlled run fitness checkpoint without compromising triathlon preparation.',
+    isActive: true,
+    createdAt: '2026-06-01T08:00:00.000Z',
+    updatedAt: now,
+  },
+  {
+    id: 'goal-swim-consistency',
+    athleteProfileId: prototypeAthleteProfile.id,
+    title: 'Consistent open-water swim rhythm',
+    goalType: 'fitness',
+    targetDate: '2026-07-19',
+    sport: 'swimming',
+    priority: 'watchlist',
+    targetDistanceMeters: 1900,
+    targetSwimPaceSecPer100m: 108,
+    description: 'Keep swim confidence and pacing visible, but do not let it drive dedicated training load decisions.',
+    isActive: true,
+    createdAt: '2026-06-01T08:00:00.000Z',
+    updatedAt: now,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -243,18 +274,24 @@ export const prototypeTrainingGoals: TrainingGoal[] = [
 // ---------------------------------------------------------------------------
 
 export const prototypeTrainingZoneSets: TrainingZoneSet[] = [
-  { id: 'zone-set-heart-rate', athleteProfileId: prototypeAthleteProfile.id, zoneType: 'heart_rate', name: 'Heart Rate Zones', basedOn: 'Max heart rate 194 bpm', isActive: true, createdAt: '2026-06-01T08:00:00.000Z', updatedAt: now },
+  { id: 'zone-set-hr-cycling', athleteProfileId: prototypeAthleteProfile.id, sport: 'cycling', zoneType: 'heart_rate', name: 'Cycling HR Zones', basedOn: 'Max heart rate 194 bpm · cycling', isActive: true, createdAt: '2026-06-01T08:00:00.000Z', updatedAt: now },
+  { id: 'zone-set-hr-running', athleteProfileId: prototypeAthleteProfile.id, sport: 'running', zoneType: 'heart_rate', name: 'Running HR Zones', basedOn: 'Max heart rate 194 bpm · running', isActive: true, createdAt: '2026-06-01T08:00:00.000Z', updatedAt: now },
   { id: 'zone-set-cycling-power', athleteProfileId: prototypeAthleteProfile.id, sport: 'cycling', zoneType: 'cycling_power', name: 'Cycling Power Zones', basedOn: 'FTP 285 W', isActive: true, createdAt: '2026-06-01T08:00:00.000Z', updatedAt: now },
   { id: 'zone-set-running-pace', athleteProfileId: prototypeAthleteProfile.id, sport: 'running', zoneType: 'running_pace', name: 'Running Pace Zones', basedOn: 'Threshold pace 4:18 min/km', isActive: true, createdAt: '2026-06-01T08:00:00.000Z', updatedAt: now },
   { id: 'zone-set-swimming-pace', athleteProfileId: prototypeAthleteProfile.id, sport: 'swimming', zoneType: 'swimming_pace', name: 'Swimming Pace Zones', basedOn: 'Threshold pace 1:45 min/100m', isActive: true, createdAt: '2026-06-01T08:00:00.000Z', updatedAt: now },
 ];
 
 export const prototypeTrainingZones: TrainingZone[] = [
-  { id: 'hr-z1', trainingZoneSetId: 'zone-set-heart-rate', zoneNumber: 1, name: 'Recovery', lowerBound: 95, upperBound: 124, unit: 'bpm' },
-  { id: 'hr-z2', trainingZoneSetId: 'zone-set-heart-rate', zoneNumber: 2, name: 'Endurance', lowerBound: 125, upperBound: 145, unit: 'bpm' },
-  { id: 'hr-z3', trainingZoneSetId: 'zone-set-heart-rate', zoneNumber: 3, name: 'Tempo', lowerBound: 146, upperBound: 165, unit: 'bpm' },
-  { id: 'hr-z4', trainingZoneSetId: 'zone-set-heart-rate', zoneNumber: 4, name: 'Threshold', lowerBound: 166, upperBound: 181, unit: 'bpm' },
-  { id: 'hr-z5', trainingZoneSetId: 'zone-set-heart-rate', zoneNumber: 5, name: 'VO2 Max', lowerBound: 182, upperBound: 194, unit: 'bpm' },
+  { id: 'hr-cycling-z1', trainingZoneSetId: 'zone-set-hr-cycling', zoneNumber: 1, name: 'Recovery', lowerBound: 95, upperBound: 120, unit: 'bpm' },
+  { id: 'hr-cycling-z2', trainingZoneSetId: 'zone-set-hr-cycling', zoneNumber: 2, name: 'Endurance', lowerBound: 121, upperBound: 141, unit: 'bpm' },
+  { id: 'hr-cycling-z3', trainingZoneSetId: 'zone-set-hr-cycling', zoneNumber: 3, name: 'Tempo', lowerBound: 142, upperBound: 160, unit: 'bpm' },
+  { id: 'hr-cycling-z4', trainingZoneSetId: 'zone-set-hr-cycling', zoneNumber: 4, name: 'Threshold', lowerBound: 161, upperBound: 175, unit: 'bpm' },
+  { id: 'hr-cycling-z5', trainingZoneSetId: 'zone-set-hr-cycling', zoneNumber: 5, name: 'VO2 Max', lowerBound: 176, upperBound: 194, unit: 'bpm' },
+  { id: 'hr-running-z1', trainingZoneSetId: 'zone-set-hr-running', zoneNumber: 1, name: 'Easy', lowerBound: 97, upperBound: 128, unit: 'bpm' },
+  { id: 'hr-running-z2', trainingZoneSetId: 'zone-set-hr-running', zoneNumber: 2, name: 'Endurance', lowerBound: 129, upperBound: 149, unit: 'bpm' },
+  { id: 'hr-running-z3', trainingZoneSetId: 'zone-set-hr-running', zoneNumber: 3, name: 'Tempo', lowerBound: 150, upperBound: 168, unit: 'bpm' },
+  { id: 'hr-running-z4', trainingZoneSetId: 'zone-set-hr-running', zoneNumber: 4, name: 'Threshold', lowerBound: 169, upperBound: 182, unit: 'bpm' },
+  { id: 'hr-running-z5', trainingZoneSetId: 'zone-set-hr-running', zoneNumber: 5, name: 'VO2 Max', lowerBound: 183, upperBound: 194, unit: 'bpm' },
   { id: 'bike-pz1', trainingZoneSetId: 'zone-set-cycling-power', zoneNumber: 1, name: 'Active Recovery', lowerBound: 0, upperBound: 157, unit: 'watts' },
   { id: 'bike-pz2', trainingZoneSetId: 'zone-set-cycling-power', zoneNumber: 2, name: 'Endurance', lowerBound: 158, upperBound: 213, unit: 'watts' },
   { id: 'bike-pz3', trainingZoneSetId: 'zone-set-cycling-power', zoneNumber: 3, name: 'Tempo', lowerBound: 214, upperBound: 256, unit: 'watts' },
@@ -267,6 +304,7 @@ export const prototypeTrainingZones: TrainingZone[] = [
   { id: 'swim-pace-z1', trainingZoneSetId: 'zone-set-swimming-pace', zoneNumber: 1, name: 'Easy', lowerBound: 118, upperBound: 135, unit: 'sec_per_100m' },
   { id: 'swim-pace-z2', trainingZoneSetId: 'zone-set-swimming-pace', zoneNumber: 2, name: 'Steady', lowerBound: 108, upperBound: 117, unit: 'sec_per_100m' },
   { id: 'swim-pace-z3', trainingZoneSetId: 'zone-set-swimming-pace', zoneNumber: 3, name: 'Threshold', lowerBound: 100, upperBound: 107, unit: 'sec_per_100m' },
+  { id: 'swim-pace-z4', trainingZoneSetId: 'zone-set-swimming-pace', zoneNumber: 4, name: 'VO2 Max', lowerBound: 92, upperBound: 99, unit: 'sec_per_100m' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1320,14 +1358,30 @@ const racePredictions: RacePrediction[] = [
 
 export const prototypePerformanceStats: PerformanceStats = {
   athleteProfileId: prototypeAthleteProfile.id,
-  vo2maxEstimate: 54.2,
-  vo2maxEstimatedAt: '2026-06-03T18:45:00.000Z',
-  runningThresholdPaceSecPerKm: 258,
-  runningThresholdEstimatedAt: '2026-06-09T07:30:00.000Z',
-  cyclingFtpWatts: 285,
-  cyclingFtpEstimatedAt: '2026-05-28T09:00:00.000Z',
-  swimmingThresholdPaceSecPer100m: 105,
-  swimmingThresholdEstimatedAt: '2026-06-07T09:20:00.000Z',
+  bySport: {
+    running: {
+      vo2maxEstimate: 54.2,
+      vo2maxEstimatedAt: '2026-06-03T18:45:00.000Z',
+      thresholdHeartRateBpm: 169,
+      thresholdHeartRateEstimatedAt: '2026-06-09T07:30:00.000Z',
+      thresholdPaceSecPerKm: 258,
+      thresholdPaceEstimatedAt: '2026-06-09T07:30:00.000Z',
+    },
+    cycling: {
+      vo2maxEstimate: 52.8,
+      vo2maxEstimatedAt: '2026-05-28T09:00:00.000Z',
+      thresholdHeartRateBpm: 161,
+      thresholdHeartRateEstimatedAt: '2026-05-28T09:00:00.000Z',
+      ftpWatts: 285,
+      ftpEstimatedAt: '2026-05-28T09:00:00.000Z',
+    },
+    swimming: {
+      thresholdHeartRateBpm: 158,
+      thresholdHeartRateEstimatedAt: '2026-06-07T09:20:00.000Z',
+      thresholdPaceSecPer100m: 105,
+      thresholdPaceEstimatedAt: '2026-06-07T09:20:00.000Z',
+    },
+  },
   racePredictions,
   updatedAt: now,
 };
