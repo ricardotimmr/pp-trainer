@@ -2446,6 +2446,22 @@ button:focus-visible {
   letter-spacing: 0.1em;
 }
 
+/* Goal context: coaching priority, quieter than sport/intensity */
+.badge--goal {
+  background: none;
+  letter-spacing: 0.1em;
+}
+
+.badge--goal-secondary {
+  border: 1.5px solid var(--color-ink);
+  color: var(--color-ink);
+}
+
+.badge--goal-watchlist {
+  border: 1.5px dashed var(--color-line-strong);
+  color: var(--color-muted);
+}
+
 /* Status: dot + tinted border */
 .badge--status {
   border: 1.5px solid var(--badge-color);
@@ -3647,6 +3663,47 @@ button:focus-visible {
   font-size: 0.85rem;
   color: var(--color-muted);
   font-family: var(--font-mono);
+}
+
+.ai-context-goal-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-context-goal-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: baseline;
+  border-top: 1px solid var(--color-line);
+  padding-top: 8px;
+}
+
+.ai-context-goal-list li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.ai-context-goal-list span {
+  min-width: 0;
+  color: var(--color-ink);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.ai-context-goal-list em {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.ai-context-goal-list--muted span {
+  color: var(--color-muted);
 }
 
 .ai-context-availability {

@@ -66,8 +66,20 @@ export const getTrainingZones = (): TrainingZone[] => [
   ...prototypeTrainingZones,
 ];
 
+export const getActiveTrainingGoals = (): TrainingGoal[] =>
+  prototypeTrainingGoals.filter((goal) => goal.isActive);
+
+export const getMainTrainingGoal = (): TrainingGoal | undefined =>
+  getActiveTrainingGoals().find((goal) => goal.priority === 'main_goal');
+
+export const getSecondaryTrainingGoals = (): TrainingGoal[] =>
+  getActiveTrainingGoals().filter((goal) => goal.priority === 'secondary_goal');
+
+export const getWatchlistTrainingGoals = (): TrainingGoal[] =>
+  getActiveTrainingGoals().filter((goal) => goal.priority === 'watchlist');
+
 export const getActiveTrainingGoal = (): TrainingGoal | undefined =>
-  prototypeTrainingGoals.find((goal) => goal.isActive);
+  getMainTrainingGoal();
 
 export const getWeeklySummary = (): WeeklySummary => prototypeWeeklySummary;
 

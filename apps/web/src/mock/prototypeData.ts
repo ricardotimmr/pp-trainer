@@ -304,6 +304,7 @@ export const prototypeTrainingZones: TrainingZone[] = [
   { id: 'swim-pace-z1', trainingZoneSetId: 'zone-set-swimming-pace', zoneNumber: 1, name: 'Easy', lowerBound: 118, upperBound: 135, unit: 'sec_per_100m' },
   { id: 'swim-pace-z2', trainingZoneSetId: 'zone-set-swimming-pace', zoneNumber: 2, name: 'Steady', lowerBound: 108, upperBound: 117, unit: 'sec_per_100m' },
   { id: 'swim-pace-z3', trainingZoneSetId: 'zone-set-swimming-pace', zoneNumber: 3, name: 'Threshold', lowerBound: 100, upperBound: 107, unit: 'sec_per_100m' },
+  { id: 'swim-pace-z4', trainingZoneSetId: 'zone-set-swimming-pace', zoneNumber: 4, name: 'VO2 Max', lowerBound: 92, upperBound: 99, unit: 'sec_per_100m' },
 ];
 
 // ---------------------------------------------------------------------------

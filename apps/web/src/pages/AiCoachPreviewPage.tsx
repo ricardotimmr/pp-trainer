@@ -5,7 +5,6 @@ import { PageShell } from '../layout/PageShell';
 import {
   prototypeAthleteProfile,
   prototypeAiCoachPreview,
-  prototypeTrainingGoals,
 } from '../mock/prototypeData';
 import {
   getWeeklySummary,
@@ -13,6 +12,9 @@ import {
   getCurrentTrainingPlan,
   getWorkoutById,
   getWorkoutSteps,
+  getMainTrainingGoal,
+  getSecondaryTrainingGoals,
+  getWatchlistTrainingGoals,
 } from '../mock/prototypeData.helpers';
 import {
   formatDuration,
@@ -74,7 +76,9 @@ export function AiCoachPreviewPage({ navigate }: PageComponentProps) {
 
   const profile = prototypeAthleteProfile;
   const preview = prototypeAiCoachPreview;
-  const mainGoal = prototypeTrainingGoals.find((g) => g.isActive);
+  const mainGoal = getMainTrainingGoal();
+  const secondaryGoals = getSecondaryTrainingGoals();
+  const watchlistGoals = getWatchlistTrainingGoals();
   const weeklySummary = getWeeklySummary();
 
   const trainingPlan = getCurrentTrainingPlan();
@@ -176,6 +180,41 @@ export function AiCoachPreviewPage({ navigate }: PageComponentProps) {
                   }).format(new Date(`${mainGoal.targetDate}T12:00:00Z`))}
                 </p>
               )}
+            </section>
+          )}
+
+          {secondaryGoals.length > 0 && (
+            <section className="ai-context-section">
+              <p className="ai-context-section__label">Secondary goals</p>
+              <ul className="ai-context-goal-list">
+                {secondaryGoals.map((goal) => (
+                  <li key={goal.id}>
+                    <span>{goal.title}</span>
+                    {goal.targetDate ? (
+                      <em>
+                        {new Intl.DateTimeFormat('en', {
+                          month: 'short',
+                          day: 'numeric',
+                        }).format(new Date(`${goal.targetDate}T12:00:00Z`))}
+                      </em>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {watchlistGoals.length > 0 && (
+            <section className="ai-context-section">
+              <p className="ai-context-section__label">Watchlist</p>
+              <ul className="ai-context-goal-list ai-context-goal-list--muted">
+                {watchlistGoals.map((goal) => (
+                  <li key={goal.id}>
+                    <span>{goal.title}</span>
+                    <em>tracked only</em>
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
 

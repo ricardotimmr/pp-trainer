@@ -8,7 +8,11 @@ import {
   WorkoutCard,
 } from '../components';
 import { PageShell } from '../layout/PageShell';
-import { getDashboardSummary } from '../mock/prototypeData.helpers';
+import {
+  getDashboardSummary,
+  getSecondaryTrainingGoals,
+  getWatchlistTrainingGoals,
+} from '../mock/prototypeData.helpers';
 import type { SportType } from '../mock/prototypeData.types';
 import type { PageComponentProps } from '../routes/routeTypes';
 import {
@@ -94,6 +98,8 @@ function WeekBalancePanel({
 
 export function DashboardPage({ navigate }: PageComponentProps) {
   const dashboard = getDashboardSummary();
+  const secondaryGoals = getSecondaryTrainingGoals();
+  const watchlistGoals = getWatchlistTrainingGoals();
   const isLoading = false;
   const week = dashboard.currentWeek;
   const plannedSeconds = week.plannedDurationSeconds ?? 0;
@@ -300,6 +306,16 @@ export function DashboardPage({ navigate }: PageComponentProps) {
                       <span className="badge badge--source">
                         {goalPriorityLabels[dashboard.activeGoal.priority]}
                       </span>
+                      {secondaryGoals.length > 0 ? (
+                        <span className="badge badge--goal badge--goal-secondary">
+                          {secondaryGoals.length} secondary
+                        </span>
+                      ) : null}
+                      {watchlistGoals.length > 0 ? (
+                        <span className="badge badge--goal badge--goal-watchlist">
+                          {watchlistGoals.length} watchlist
+                        </span>
+                      ) : null}
                     </div>
                     <h3>{dashboard.activeGoal.title}</h3>
                     {dashboard.activeGoal.description ? (

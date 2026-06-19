@@ -140,7 +140,13 @@ function ZoneBar({ zoneSet, zones }: { zoneSet: TrainingZoneSet; zones: Training
         </div>
         {zoneSet.basedOn ? <span>{zoneSet.basedOn}</span> : null}
       </div>
-      <div className="performance-zone-band" aria-hidden="true">
+      <div
+        className="performance-zone-band"
+        style={{
+          gridTemplateColumns: `repeat(${zones.length}, minmax(0, 1fr))`,
+        }}
+        aria-hidden="true"
+      >
         {zones.map((zone, index) => (
           <span
             key={zone.id}
