@@ -3,9 +3,10 @@ import { SportBadge } from '../components';
 import { usePrototypeAthleteContext } from '../context/prototypeAthleteContextValue';
 import { PageShell } from '../layout/PageShell';
 import {
-  prototypeTrainingZoneSets,
-} from '../mock/prototypeData';
-import { getTrainingZones } from '../mock/prototypeData.helpers';
+  getActiveTrainingZoneSets,
+  getActiveTrainingZoneSetsByType,
+  getTrainingZonesBySetId,
+} from '../mock/prototypeData.helpers';
 import {
   formatDuration,
   formatPace,
@@ -152,17 +153,16 @@ export function SettingsPage() {
     };
   }, [closeSettingsMenus, openGoalMenu, openPriorityMenu, openSportsMenu]);
 
-  const allZones = getTrainingZones();
   const availableGoalOptions = allGoals.filter(
     (goal) => !visibleGoalIds.includes(goal.id),
   );
 
-  const hrZoneSets = prototypeTrainingZoneSets.filter((zs) => zs.zoneType === 'heart_rate');
-  const otherZoneSets = prototypeTrainingZoneSets.filter((zs) => zs.zoneType !== 'heart_rate');
+  const hrZoneSets = getActiveTrainingZoneSetsByType('heart_rate');
+  const otherZoneSets = getActiveTrainingZoneSets().filter(
+    (zoneSet) => zoneSet.zoneType !== 'heart_rate',
+  );
   const activeHrZoneSet = hrZoneSets.find((zs) => zs.sport === hrSport) ?? hrZoneSets[0];
-  const hrZones = activeHrZoneSet
-    ? allZones.filter((z) => z.trainingZoneSetId === activeHrZoneSet.id)
-    : [];
+  const hrZones = activeHrZoneSet ? getTrainingZonesBySetId(activeHrZoneSet.id) : [];
 
   const age = profile.birthYear
     ? new Date().getFullYear() - profile.birthYear
@@ -635,7 +635,7 @@ export function SettingsPage() {
             )}
 
             {otherZoneSets.map((zoneSet) => {
-              const zones = allZones.filter((z) => z.trainingZoneSetId === zoneSet.id);
+              const zones = getTrainingZonesBySetId(zoneSet.id);
               if (zones.length === 0) return null;
               return (
                 <section key={zoneSet.id} className="settings-zone-card">

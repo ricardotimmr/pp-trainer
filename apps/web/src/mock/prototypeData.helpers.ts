@@ -13,6 +13,8 @@ import {
 } from './prototypeData';
 import type {
   Activity,
+  AiCoachPreview,
+  AthleteProfile,
   DashboardSummary,
   PerformanceStats,
   PlannedWorkout,
@@ -22,6 +24,7 @@ import type {
   TrainingPlan,
   TrainingZoneSet,
   TrainingZone,
+  TrainingZoneType,
   WeeklySummary,
   WorkoutStep,
 } from './prototypeData.types';
@@ -40,6 +43,8 @@ const compareByScheduledTimeAscending = (
 
   return new Date(firstTime).getTime() - new Date(secondTime).getTime();
 };
+
+export const getAthleteProfile = (): AthleteProfile => prototypeAthleteProfile;
 
 export const getActivities = (): Activity[] =>
   [...prototypeActivities].sort(compareByStartTimeDescending);
@@ -76,10 +81,23 @@ export const getTrainingZoneSets = (): TrainingZoneSet[] => [
   ...prototypeTrainingZoneSets,
 ];
 
+export const getActiveTrainingZoneSets = (): TrainingZoneSet[] =>
+  getTrainingZoneSets().filter((zoneSet) => zoneSet.isActive);
+
 export const getTrainingZoneSetsBySport = (
   sport: SportType,
 ): TrainingZoneSet[] =>
   getTrainingZoneSets().filter((zoneSet) => zoneSet.sport === sport);
+
+export const getTrainingZoneSetsByType = (
+  zoneType: TrainingZoneType,
+): TrainingZoneSet[] =>
+  getTrainingZoneSets().filter((zoneSet) => zoneSet.zoneType === zoneType);
+
+export const getActiveTrainingZoneSetsByType = (
+  zoneType: TrainingZoneType,
+): TrainingZoneSet[] =>
+  getActiveTrainingZoneSets().filter((zoneSet) => zoneSet.zoneType === zoneType);
 
 export const getTrainingZonesBySetId = (zoneSetId: string): TrainingZone[] =>
   getTrainingZones()
@@ -96,8 +114,14 @@ export const getPerformanceRacePredictionsBySport = (
     (prediction) => prediction.sport === sport,
   );
 
+export const getAiCoachPreview = (): AiCoachPreview => prototypeAiCoachPreview;
+
+export const getTrainingGoals = (): TrainingGoal[] => [
+  ...prototypeTrainingGoals,
+];
+
 export const getActiveTrainingGoals = (): TrainingGoal[] =>
-  prototypeTrainingGoals.filter((goal) => goal.isActive);
+  getTrainingGoals().filter((goal) => goal.isActive);
 
 export const getMainTrainingGoal = (): TrainingGoal | undefined =>
   getActiveTrainingGoals().find((goal) => goal.priority === 'main_goal');
@@ -114,11 +138,11 @@ export const getActiveTrainingGoal = (): TrainingGoal | undefined =>
 export const getWeeklySummary = (): WeeklySummary => prototypeWeeklySummary;
 
 export const getDashboardSummary = (): DashboardSummary => ({
-  athleteProfile: prototypeAthleteProfile,
+  athleteProfile: getAthleteProfile(),
   activeGoal: getActiveTrainingGoal(),
-  currentWeek: prototypeWeeklySummary,
-  currentTrainingPlan: prototypeTrainingPlan,
+  currentWeek: getWeeklySummary(),
+  currentTrainingPlan: getCurrentTrainingPlan(),
   recentActivities: getRecentActivities(4),
   upcomingWorkouts: getUpcomingWorkouts(3),
-  aiCoachPreview: prototypeAiCoachPreview,
+  aiCoachPreview: getAiCoachPreview(),
 });

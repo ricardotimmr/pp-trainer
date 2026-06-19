@@ -4,9 +4,7 @@ import { stepTypeLabels } from '../components/data/workoutStepLabels';
 import { usePrototypeAthleteContext } from '../context/prototypeAthleteContextValue';
 import { PageShell } from '../layout/PageShell';
 import {
-  prototypeAiCoachPreview,
-} from '../mock/prototypeData';
-import {
+  getAiCoachPreview,
   getWeeklySummary,
   getPlannedWorkouts,
   getCurrentTrainingPlan,
@@ -73,7 +71,7 @@ export function AiCoachPreviewPage({ navigate }: PageComponentProps) {
   const { mainGoal, profile, secondaryGoals, watchlistGoals } =
     usePrototypeAthleteContext();
 
-  const preview = prototypeAiCoachPreview;
+  const preview = getAiCoachPreview();
   const weeklySummary = getWeeklySummary();
 
   const trainingPlan = getCurrentTrainingPlan();
