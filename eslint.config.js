@@ -40,6 +40,13 @@ export default [
     },
   },
 
+  {
+    files: ['apps/api/**/*.ts'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+
   // Turn off rules that conflict with Prettier formatting
   prettierConfig,
 ];
