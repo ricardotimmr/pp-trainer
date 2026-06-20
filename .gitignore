@@ -13,6 +13,7 @@ dist-ssr
 playwright-report
 test-results
 *.local
+.env
 docs/local/
 docs/pp-brand/
 docs/precision-pacers-mockup_4.html
