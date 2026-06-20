@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: pp-trainer-db
+    environment:
+      POSTGRES_DB: pp_trainer
+      POSTGRES_USER: pp_trainer
+      POSTGRES_PASSWORD: pp_trainer
+    ports:
+      - "5432:5432"
+    volumes:
+      - pp_trainer_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pp_trainer -d pp_trainer"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pp_trainer_postgres_data:
