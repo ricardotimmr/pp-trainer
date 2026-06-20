@@ -20,12 +20,21 @@
     "preview": "npm --workspace @pp-trainer/web run preview",
     "preview:web": "npm --workspace @pp-trainer/web run preview",
     "typecheck:api": "npm --workspace @pp-trainer/api run typecheck",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose stop db",
+    "db:reset": "docker compose down -v && docker compose up -d db && prisma migrate dev",
+    "db:format": "prisma format",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "db:validate": "prisma validate",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "format": "prettier . --write",
     "format:check": "prettier . --check"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.0"
+    "@playwright/test": "^1.61.0",
+    "prisma": "^7.8.0"
   }
 }

@@ -87,6 +87,38 @@ cp .env.example .env
 
 Only placeholder values are committed. Real secrets must stay out of Git.
 
+## Local Database
+
+The local PostgreSQL database runs via Docker Compose.
+
+Start PostgreSQL:
+
+```bash
+npm run db:up
+```
+
+Run Prisma migrations:
+
+```bash
+npm run db:migrate
+```
+
+Stop PostgreSQL without deleting data:
+
+```bash
+npm run db:down
+```
+
+Reset PostgreSQL and re-run migrations:
+
+```bash
+npm run db:reset
+```
+
+Database data is stored in a named Docker volume. Stopping the API or stopping
+the container does not delete data. `db:reset` removes the volume and starts
+from a clean database.
+
 ## Roadmap
 
 ```txt

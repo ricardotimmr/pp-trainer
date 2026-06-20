@@ -1,1 +1,781 @@
+generator client {
+  provider = "prisma-client-js"
+}
 
+datasource db {
+  provider = "postgresql"
+}
+
+enum SportType {
+  Cycling  @map("cycling")
+  Running  @map("running")
+  Swimming @map("swimming")
+  Strength @map("strength")
+  Mobility @map("mobility")
+  Other    @map("other")
+}
+
+enum DataSourceType {
+  Mock             @map("mock")
+  ManualFitUpload  @map("manual_fit_upload")
+  ManualGpxUpload  @map("manual_gpx_upload")
+  ManualTcxUpload  @map("manual_tcx_upload")
+  ManualJsonImport @map("manual_json_import")
+  ManualCsvImport  @map("manual_csv_import")
+  GarminOfficial   @map("garmin_official")
+  GarminUnofficial @map("garmin_unofficial")
+  GarminExport     @map("garmin_export")
+  Strava           @map("strava")
+  Aggregator       @map("aggregator")
+}
+
+enum Weekday {
+  Monday    @map("monday")
+  Tuesday   @map("tuesday")
+  Wednesday @map("wednesday")
+  Thursday  @map("thursday")
+  Friday    @map("friday")
+  Saturday  @map("saturday")
+  Sunday    @map("sunday")
+}
+
+enum TrainingGoalType {
+  Race        @map("race")
+  Performance @map("performance")
+  Volume      @map("volume")
+  Fitness     @map("fitness")
+  General     @map("general")
+}
+
+enum GoalPriority {
+  MainGoal      @map("main_goal")
+  SecondaryGoal @map("secondary_goal")
+  Watchlist     @map("watchlist")
+}
+
+enum TrainingZoneType {
+  HeartRate       @map("heart_rate")
+  CyclingPower    @map("cycling_power")
+  RunningPace     @map("running_pace")
+  SwimmingPace    @map("swimming_pace")
+  PerceivedEffort @map("perceived_effort")
+}
+
+enum TrainingZoneUnit {
+  Bpm        @map("bpm")
+  Watts      @map("watts")
+  SecPerKm   @map("sec_per_km")
+  SecPer100m @map("sec_per_100m")
+  Rpe        @map("rpe")
+}
+
+enum ActivityType {
+  Easy      @map("easy")
+  Long      @map("long")
+  Tempo     @map("tempo")
+  Threshold @map("threshold")
+  Vo2Max    @map("vo2max")
+  Race      @map("race")
+  Recovery  @map("recovery")
+  Strength  @map("strength")
+  Technical @map("technical")
+  Other     @map("other")
+}
+
+enum SwimStrokeType {
+  Freestyle    @map("freestyle")
+  Backstroke   @map("backstroke")
+  Breaststroke @map("breaststroke")
+  Butterfly    @map("butterfly")
+  Mixed        @map("mixed")
+  Drill        @map("drill")
+}
+
+enum TrainingPlanStatus {
+  Draft     @map("draft")
+  Active    @map("active")
+  Completed @map("completed")
+  Archived  @map("archived")
+}
+
+enum TrainingPlanSource {
+  Manual      @map("manual")
+  AiGenerated @map("ai_generated")
+  Template    @map("template")
+  Imported    @map("imported")
+}
+
+enum WorkoutType {
+  Endurance    @map("endurance")
+  Recovery     @map("recovery")
+  Tempo        @map("tempo")
+  Threshold    @map("threshold")
+  Vo2Max       @map("vo2max")
+  Long         @map("long")
+  RaceSpecific @map("race_specific")
+  Technique    @map("technique")
+  Strength     @map("strength")
+  Mobility     @map("mobility")
+  Rest         @map("rest")
+  Other        @map("other")
+}
+
+enum WorkoutIntensity {
+  Rest      @map("rest")
+  Recovery  @map("recovery")
+  Easy      @map("easy")
+  Moderate  @map("moderate")
+  Tempo     @map("tempo")
+  Threshold @map("threshold")
+  Vo2Max    @map("vo2max")
+  Race      @map("race")
+  Strength  @map("strength")
+}
+
+enum WorkoutStatus {
+  Planned   @map("planned")
+  Completed @map("completed")
+  Missed    @map("missed")
+  Moved     @map("moved")
+  Adjusted  @map("adjusted")
+  Cancelled @map("cancelled")
+}
+
+enum PlannedWorkoutSource {
+  Manual      @map("manual")
+  AiGenerated @map("ai_generated")
+  Template    @map("template")
+  Imported    @map("imported")
+}
+
+enum WorkoutStepType {
+  Warmup           @map("warmup")
+  Main             @map("main")
+  Interval         @map("interval")
+  Recovery         @map("recovery")
+  Cooldown         @map("cooldown")
+  Technique        @map("technique")
+  StrengthExercise @map("strength_exercise")
+  Rest             @map("rest")
+  Other            @map("other")
+}
+
+enum ImportedFileType {
+  Fit     @map("fit")
+  Gpx     @map("gpx")
+  Tcx     @map("tcx")
+  Json    @map("json")
+  Csv     @map("csv")
+  Unknown @map("unknown")
+}
+
+enum ImportStatus {
+  Pending           @map("pending")
+  Processing        @map("processing")
+  Success           @map("success")
+  Failed            @map("failed")
+  Duplicate         @map("duplicate")
+  PartiallyImported @map("partially_imported")
+}
+
+enum RawDataFormat {
+  Fit           @map("fit")
+  Gpx           @map("gpx")
+  Tcx           @map("tcx")
+  Json          @map("json")
+  Csv           @map("csv")
+  GarminApi     @map("garmin_api")
+  StravaApi     @map("strava_api")
+  AggregatorApi @map("aggregator_api")
+}
+
+enum AiCoachOutputType {
+  WeekPlan       @map("week_plan")
+  SingleWorkout  @map("single_workout")
+  WeekAnalysis   @map("week_analysis")
+  PlanAdjustment @map("plan_adjustment")
+  Recommendation @map("recommendation")
+  TextAnswer     @map("text_answer")
+}
+
+enum AiCoachOutputStatus {
+  Draft    @map("draft")
+  Accepted @map("accepted")
+  Rejected @map("rejected")
+  Archived @map("archived")
+}
+
+enum AiOutputValidationStatus {
+  NotValidated   @map("not_validated")
+  Valid          @map("valid")
+  Invalid        @map("invalid")
+  PartiallyValid @map("partially_valid")
+}
+
+model AthleteProfile {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  displayName  String
+  birthYear    Int?
+  bodyWeightKg Decimal? @db.Decimal(5, 2)
+  heightCm     Int?
+
+  primarySports SportType[]
+
+  currentFtpWatts                 Int?
+  maxHeartRateBpm                 Int?
+  restingHeartRateBpm             Int?
+  runningThresholdPaceSecPerKm    Int?
+  swimmingThresholdPaceSecPer100m Int?
+
+  notes String?
+
+  trainingGoals           TrainingGoal[]
+  trainingAvailability    TrainingAvailability[]
+  trainingZoneSets        TrainingZoneSet[]
+  activities              Activity[]
+  trainingPlans           TrainingPlan[]
+  plannedWorkouts         PlannedWorkout[]
+  performanceMetrics      PerformanceSportMetric[]
+  racePredictions         RacePrediction[]
+  importedFiles           ImportedFile[]
+  rawActivityData         RawActivityData[]
+  athleteContextSnapshots AthleteContextSnapshot[]
+  aiCoachOutputs          AiCoachOutput[]
+}
+
+model TrainingGoal {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  title      String
+  goalType   TrainingGoalType
+  targetDate DateTime?
+  sport      SportType?
+  priority   GoalPriority
+
+  targetDistanceMeters     Int?
+  targetDurationSeconds    Int?
+  targetPaceSecPerKm       Int?
+  targetPowerWatts         Int?
+  targetSwimPaceSecPer100m Int?
+
+  description String?
+  isActive    Boolean @default(true)
+
+  trainingPlans TrainingPlan[]
+
+  @@index([athleteProfileId, isActive, priority])
+  @@index([athleteProfileId, targetDate])
+}
+
+model TrainingAvailability {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  weekday            Weekday
+  available          Boolean     @default(true)
+  maxDurationMinutes Int?
+  preferredSports    SportType[]
+  notes              String?
+
+  @@unique([athleteProfileId, weekday])
+  @@index([athleteProfileId, available])
+}
+
+model TrainingZoneSet {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  sport    SportType?
+  zoneType TrainingZoneType
+  name     String
+  basedOn  String?
+  isActive Boolean          @default(true)
+
+  zones TrainingZone[]
+
+  @@index([athleteProfileId, isActive, zoneType])
+  @@index([athleteProfileId, sport, zoneType])
+}
+
+model TrainingZone {
+  id String @id @default(cuid())
+
+  trainingZoneSetId String
+  trainingZoneSet   TrainingZoneSet @relation(fields: [trainingZoneSetId], references: [id], onDelete: Cascade)
+
+  zoneNumber  Int
+  name        String
+  lowerBound  Int?
+  upperBound  Int?
+  unit        TrainingZoneUnit
+  description String?
+
+  @@unique([trainingZoneSetId, zoneNumber])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  sourceType        DataSourceType
+  externalId        String?
+  importedFileId    String?
+  importedFile      ImportedFile?    @relation("ActivityImportedFile", fields: [importedFileId], references: [id], onDelete: SetNull)
+  rawActivityDataId String?
+  rawActivityData   RawActivityData? @relation("ActivityRawActivityData", fields: [rawActivityDataId], references: [id], onDelete: SetNull)
+
+  title        String?
+  sport        SportType
+  activityType ActivityType?
+  startTime    DateTime
+  timezone     String?
+
+  durationSeconds       Int
+  movingDurationSeconds Int?
+  distanceMeters        Int?
+  elevationGainMeters   Int?
+  elevationLossMeters   Int?
+
+  averageHeartRateBpm Int?
+  maxHeartRateBpm     Int?
+
+  averagePowerWatts    Int?
+  maxPowerWatts        Int?
+  normalizedPowerWatts Int?
+  intensityFactor      Decimal? @db.Decimal(4, 3)
+  trainingStressScore  Decimal? @db.Decimal(6, 2)
+
+  averagePaceSecPerKm Int?
+  bestPaceSecPerKm    Int?
+  averageSpeedKmh     Decimal? @db.Decimal(6, 2)
+  maxSpeedKmh         Decimal? @db.Decimal(6, 2)
+  averageCadence      Decimal? @db.Decimal(6, 2)
+
+  calories          Int?
+  perceivedExertion Int?
+  notes             String?
+
+  totalSets     Int?
+  totalReps     Int?
+  totalVolumeKg Decimal? @db.Decimal(9, 2)
+
+  poolLengthMeters   Int?
+  dominantStrokeType SwimStrokeType?
+  totalStrokeCount   Int?
+  averageSwolfScore  Decimal?        @db.Decimal(5, 2)
+
+  laps                     ActivityLap[]
+  swimLaps                 ActivitySwimLap[]
+  metricSamples            ActivityMetricSample[]
+  timeInZones              ActivityTimeInZone[]
+  strengthSets             ActivityStrengthSet[]
+  strengthExercises        ActivityStrengthExercise[]
+  createdFromImportedFiles ImportedFile[]             @relation("ImportedFileCreatedActivity")
+
+  @@index([athleteProfileId, startTime])
+  @@index([athleteProfileId, sport, startTime, durationSeconds, distanceMeters])
+  @@index([athleteProfileId, sourceType, externalId])
+  @@index([sport, startTime])
+  @@index([sourceType, externalId])
+  @@index([importedFileId])
+  @@index([rawActivityDataId])
+}
+
+model ActivityLap {
+  id String @id @default(cuid())
+
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  lapNumber       Int
+  distanceMeters  Int
+  durationSeconds Int
+
+  averageHeartRateBpm Int?
+  maxHeartRateBpm     Int?
+  averagePaceSecPerKm Int?
+  averageSpeedKmh     Decimal? @db.Decimal(6, 2)
+  averagePowerWatts   Int?
+  averageCadence      Decimal? @db.Decimal(6, 2)
+  elevationGainMeters Int?
+
+  @@unique([activityId, lapNumber])
+}
+
+model ActivitySwimLap {
+  id String @id @default(cuid())
+
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  lapNumber       Int
+  distanceMeters  Int
+  durationSeconds Int
+
+  strokeType            SwimStrokeType?
+  strokeCount           Int?
+  swolfScore            Int?
+  averagePaceSecPer100m Int?
+  averageHeartRateBpm   Int?
+
+  @@unique([activityId, lapNumber])
+}
+
+model ActivityMetricSample {
+  id String @id @default(cuid())
+
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  offsetSeconds Int
+
+  heartRateBpm       Int?
+  powerWatts         Int?
+  paceSecPerKm       Int?
+  swimPaceSecPer100m Int?
+  speedKmh           Decimal? @db.Decimal(6, 2)
+  cadenceRpm         Decimal? @db.Decimal(6, 2)
+  elevationMeters    Decimal? @db.Decimal(7, 2)
+  latitude           Decimal? @db.Decimal(9, 6)
+  longitude          Decimal? @db.Decimal(9, 6)
+
+  @@unique([activityId, offsetSeconds])
+}
+
+model ActivityTimeInZone {
+  id String @id @default(cuid())
+
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  zoneNumber      Int
+  zoneName        String
+  durationSeconds Int
+  percentage      Decimal @db.Decimal(5, 2)
+
+  @@unique([activityId, zoneNumber])
+}
+
+model ActivityStrengthSet {
+  id String @id @default(cuid())
+
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  externalSetId    String?
+  setNumber        Int
+  exerciseName     String?
+  exerciseCategory String?
+  muscleGroup      String?
+  reps             Int?
+  weightKg         Decimal? @db.Decimal(7, 2)
+  durationSeconds  Int?
+  restSeconds      Int?
+  notes            String?
+
+  @@index([activityId, setNumber])
+  @@index([activityId, externalSetId])
+}
+
+model ActivityStrengthExercise {
+  id String @id @default(cuid())
+
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  exerciseName     String
+  exerciseCategory String?
+  muscleGroup      String?
+  sets             Int
+  reps             Int?
+  volumeKg         Decimal? @db.Decimal(9, 2)
+  bestWeightKg     Decimal? @db.Decimal(7, 2)
+
+  @@unique([activityId, exerciseName])
+}
+
+model TrainingPlan {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  status      TrainingPlanStatus
+  source      TrainingPlanSource
+
+  goalId          String?
+  goal            TrainingGoal?  @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  aiCoachOutputId String?
+  aiCoachOutput   AiCoachOutput? @relation("AiCoachOutputTrainingPlans", fields: [aiCoachOutputId], references: [id], onDelete: SetNull)
+
+  plannedWorkouts         PlannedWorkout[]
+  createdByAiCoachOutputs AiCoachOutput[]  @relation("AiCoachOutputCreatedTrainingPlan")
+
+  @@index([athleteProfileId, startDate, endDate])
+  @@index([athleteProfileId, status])
+  @@index([goalId])
+  @@index([aiCoachOutputId])
+}
+
+model PlannedWorkout {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  trainingPlanId String?
+  trainingPlan   TrainingPlan? @relation(fields: [trainingPlanId], references: [id], onDelete: SetNull)
+
+  title                  String
+  sport                  SportType
+  workoutType            WorkoutType
+  scheduledDate          DateTime
+  scheduledStartTime     DateTime?
+  plannedDurationSeconds Int?
+  plannedDistanceMeters  Int?
+  intensity              WorkoutIntensity
+  status                 WorkoutStatus
+
+  objective   String?
+  description String?
+  coachNotes  String?
+  source      PlannedWorkoutSource
+
+  aiCoachOutputId String?
+  aiCoachOutput   AiCoachOutput? @relation("AiCoachOutputPlannedWorkouts", fields: [aiCoachOutputId], references: [id], onDelete: SetNull)
+
+  steps                   WorkoutStep[]
+  createdByAiCoachOutputs AiCoachOutput[] @relation("AiCoachOutputCreatedPlannedWorkout")
+
+  @@index([athleteProfileId, scheduledDate])
+  @@index([athleteProfileId, status, scheduledDate])
+  @@index([trainingPlanId, scheduledDate])
+  @@index([status])
+  @@index([aiCoachOutputId])
+}
+
+model WorkoutStep {
+  id String @id @default(cuid())
+
+  plannedWorkoutId String
+  plannedWorkout   PlannedWorkout @relation(fields: [plannedWorkoutId], references: [id], onDelete: Cascade)
+
+  stepIndex   Int
+  stepType    WorkoutStepType
+  title       String?
+  instruction String
+
+  durationSeconds Int?
+  distanceMeters  Int?
+  repetitions     Int?
+
+  targetPowerLowerWatts         Int?
+  targetPowerUpperWatts         Int?
+  targetHeartRateZoneId         String?
+  targetPowerZoneId             String?
+  targetPaceZoneId              String?
+  targetPaceLowerSecPerKm       Int?
+  targetPaceUpperSecPerKm       Int?
+  targetSwimPaceLowerSecPer100m Int?
+  targetSwimPaceUpperSecPer100m Int?
+
+  restSeconds Int?
+  notes       String?
+
+  @@unique([plannedWorkoutId, stepIndex])
+  @@index([targetHeartRateZoneId])
+  @@index([targetPowerZoneId])
+  @@index([targetPaceZoneId])
+}
+
+model PerformanceSportMetric {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  sport SportType
+
+  vo2maxEstimate    Decimal?  @db.Decimal(5, 2)
+  vo2maxEstimatedAt DateTime?
+
+  thresholdHeartRateBpm         Int?
+  thresholdHeartRateEstimatedAt DateTime?
+
+  thresholdPaceSecPerKm    Int?
+  thresholdPaceSecPer100m  Int?
+  thresholdPaceEstimatedAt DateTime?
+
+  ftpWatts       Int?
+  ftpEstimatedAt DateTime?
+
+  @@unique([athleteProfileId, sport])
+}
+
+model RacePrediction {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  sport                    SportType
+  distanceLabel            String
+  distanceMeters           Int
+  predictedDurationSeconds Int
+  predictedPaceSecPerKm    Int?
+  predictedSpeedKmh        Decimal?  @db.Decimal(6, 2)
+  estimatedAt              DateTime
+
+  @@unique([athleteProfileId, sport, distanceMeters])
+}
+
+model ImportedFile {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  sourceType    DataSourceType
+  fileName      String
+  fileType      ImportedFileType
+  fileSizeBytes Int?
+  fileHash      String?
+
+  importStatus ImportStatus
+  errorMessage String?
+
+  createdActivityId String?
+  createdActivity   Activity? @relation("ImportedFileCreatedActivity", fields: [createdActivityId], references: [id], onDelete: SetNull)
+
+  uploadedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  activities      Activity[]        @relation("ActivityImportedFile")
+  rawActivityData RawActivityData[]
+
+  @@unique([athleteProfileId, fileHash])
+  @@index([athleteProfileId, uploadedAt])
+  @@index([sourceType, importStatus])
+  @@index([createdActivityId])
+}
+
+model RawActivityData {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  sourceType     DataSourceType
+  importedFileId String?
+  importedFile   ImportedFile?  @relation(fields: [importedFileId], references: [id], onDelete: SetNull)
+  externalId     String?
+
+  rawFormat   RawDataFormat
+  rawPayload  Json?
+  rawFilePath String?
+
+  parsedAt DateTime?
+
+  activities Activity[] @relation("ActivityRawActivityData")
+
+  @@index([athleteProfileId, createdAt])
+  @@index([athleteProfileId, sourceType, externalId])
+  @@index([sourceType, externalId])
+  @@index([importedFileId])
+}
+
+model AthleteContextSnapshot {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  contextVersion String
+  generatedAt    DateTime @default(now())
+
+  goalSummary           String?
+  recentTrainingSummary String?
+  availabilitySummary   String?
+  zoneSummary           String?
+  recoverySummary       String?
+
+  structuredContext Json
+
+  aiCoachOutputs AiCoachOutput[]
+
+  @@index([athleteProfileId, generatedAt])
+}
+
+model AiCoachOutput {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  athleteContextSnapshotId String?
+  athleteContextSnapshot   AthleteContextSnapshot? @relation(fields: [athleteContextSnapshotId], references: [id], onDelete: SetNull)
+
+  outputType AiCoachOutputType
+  status     AiCoachOutputStatus
+
+  summary          String?
+  rawText          String?
+  structuredOutput Json?
+
+  validationStatus AiOutputValidationStatus
+  validationErrors Json?
+
+  createdTrainingPlanId String?
+  createdTrainingPlan   TrainingPlan? @relation("AiCoachOutputCreatedTrainingPlan", fields: [createdTrainingPlanId], references: [id], onDelete: SetNull)
+
+  createdPlannedWorkoutId String?
+  createdPlannedWorkout   PlannedWorkout? @relation("AiCoachOutputCreatedPlannedWorkout", fields: [createdPlannedWorkoutId], references: [id], onDelete: SetNull)
+
+  trainingPlans   TrainingPlan[]   @relation("AiCoachOutputTrainingPlans")
+  plannedWorkouts PlannedWorkout[] @relation("AiCoachOutputPlannedWorkouts")
+
+  @@index([athleteProfileId, createdAt])
+  @@index([athleteContextSnapshotId])
+  @@index([outputType, status])
+  @@index([createdTrainingPlanId])
+  @@index([createdPlannedWorkoutId])
+}
