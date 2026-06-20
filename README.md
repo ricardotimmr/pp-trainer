@@ -103,6 +103,27 @@ Run Prisma migrations:
 npm run db:migrate
 ```
 
+Seed the default Phase 2 prototype baseline:
+
+```bash
+npm run db:seed
+```
+
+The default seed inserts the rich prototype dataset: athlete profile, goals,
+training availability, training zones, activities with detail data, performance
+metrics, import placeholders, AI Coach foundation data, the active training plan,
+planned workouts and workout steps.
+
+Seed the empty-current-plan scenario:
+
+```bash
+PP_SEED_SCENARIO=no-active-plan npm run db:seed
+```
+
+This keeps athlete, goals, zones, activities, performance, import placeholders
+and AI foundation data, but omits active training plan, planned workout and
+workout step records. Use it for backend DTO/API empty-state checks.
+
 Stop PostgreSQL without deleting data:
 
 ```bash
@@ -115,9 +136,18 @@ Reset PostgreSQL and re-run migrations:
 npm run db:reset
 ```
 
+Reset PostgreSQL, re-run migrations and seed the default baseline:
+
+```bash
+npm run db:reset:seed
+```
+
 Database data is stored in a named Docker volume. Stopping the API or stopping
 the container does not delete data. `db:reset` removes the volume and starts
 from a clean database.
+
+`db:seed` truncates app tables with PostgreSQL `TRUNCATE ... CASCADE` before
+inserting seed data. Use it only against the local development database.
 
 ## Roadmap
 
