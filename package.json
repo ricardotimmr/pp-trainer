@@ -32,6 +32,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:validate": "prisma validate",
+    "test:api": "npm --workspace @pp-trainer/api run test",
+    "test:api:watch": "npm --workspace @pp-trainer/api run test:watch",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "format": "prettier . --write",
