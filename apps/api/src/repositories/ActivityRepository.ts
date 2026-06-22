@@ -29,6 +29,7 @@ export type ActivityListFilters = {
 export async function findActivities(
   athleteProfileId: string,
   filters: ActivityListFilters = {},
+  limit?: number,
 ): Promise<Activity[]> {
   return prisma.activity.findMany({
     where: {
@@ -42,6 +43,7 @@ export async function findActivities(
       }),
     },
     orderBy: { startTime: 'desc' },
+    ...(limit != null && { take: limit }),
   });
 }
 
