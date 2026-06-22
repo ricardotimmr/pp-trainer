@@ -36,6 +36,14 @@ export const ImportHistoryResponseDtoSchema = z.object({
   imports: z.array(ImportHistoryItemDtoSchema),
 });
 
+export const ImportResultDtoSchema = z.object({
+  importId: IdSchema,
+  status: ImportStatusSchema,
+  activityId: z.string().optional(),
+  errors: z.array(z.string()),
+  warnings: z.array(z.string()),
+});
+
 export type ImportHistoryItemDto = z.infer<typeof ImportHistoryItemDtoSchema>;
 export type RawActivityDataReferenceDto = z.infer<
   typeof RawActivityDataReferenceDtoSchema
@@ -43,3 +51,4 @@ export type RawActivityDataReferenceDto = z.infer<
 export type ImportHistoryResponseDto = z.infer<
   typeof ImportHistoryResponseDtoSchema
 >;
+export type ImportResultDto = z.infer<typeof ImportResultDtoSchema>;

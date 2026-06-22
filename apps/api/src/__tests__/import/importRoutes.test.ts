@@ -113,3 +113,45 @@ describe('POST /api/import/upload', () => {
     expect(res.statusCode).toBe(501);
   });
 });
+
+describe('POST /api/imports/activity-json', () => {
+  it('returns 501 with NOT_IMPLEMENTED error body', async () => {
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'POST', url: '/api/imports/activity-json' });
+    expect(res.statusCode).toBe(501);
+    const body = res.json<{ error: { code: string; message: string } }>();
+    expect(body.error.code).toBe('NOT_IMPLEMENTED');
+    expect(body.error.message).toContain('P4-003');
+  });
+
+  it('returns 501 regardless of request payload', async () => {
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/imports/activity-json',
+      payload: { sport: 'Running', startTime: '2026-06-22T08:00:00Z' },
+    });
+    expect(res.statusCode).toBe(501);
+  });
+});
+
+describe('POST /api/imports/activity-file', () => {
+  it('returns 501 with NOT_IMPLEMENTED error body', async () => {
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'POST', url: '/api/imports/activity-file' });
+    expect(res.statusCode).toBe(501);
+    const body = res.json<{ error: { code: string; message: string } }>();
+    expect(body.error.code).toBe('NOT_IMPLEMENTED');
+    expect(body.error.message).toContain('P4-006');
+  });
+
+  it('returns 501 regardless of request payload', async () => {
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/imports/activity-file',
+      payload: { fileName: 'run.fit' },
+    });
+    expect(res.statusCode).toBe(501);
+  });
+});
