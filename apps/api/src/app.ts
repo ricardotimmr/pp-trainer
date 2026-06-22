@@ -3,6 +3,8 @@ import Fastify from 'fastify';
 
 import { getApiConfig, type ApiConfig } from './config/env.js';
 import { setupErrorHandling } from './errors/errorHandler.js';
+import { activityRoutes } from './routes/activityRoutes.js';
+import { athleteRoutes } from './routes/athleteRoutes.js';
 
 export async function buildApp(config: ApiConfig = getApiConfig()) {
   const app = Fastify({
@@ -24,6 +26,9 @@ export async function buildApp(config: ApiConfig = getApiConfig()) {
     status: 'ok',
     service: 'pp-trainer-api',
   }));
+
+  await app.register(athleteRoutes);
+  await app.register(activityRoutes);
 
   return app;
 }
