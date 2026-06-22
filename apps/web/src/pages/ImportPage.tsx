@@ -1,8 +1,13 @@
 import { useRef, useState } from 'react';
 
-import { EmptyState, SourceBadge } from '../components';
+import type { ImportDetailDto, ImportSummaryDto } from '@pp-trainer/shared';
+
+import { EmptyState, ErrorState, LoadingState, SourceBadge } from '../components';
 import { DATA_MODE } from '../config/dataMode';
+import { formatDate } from '../components/prototypeFormatters';
+import { getImportDetail } from '../api/importApi';
 import { useImport } from '../hooks/useImport';
+import { useImportHistory } from '../hooks/useImportHistory';
 import { PageShell } from '../layout/PageShell';
 import { getImportHistoryRows } from '../mock/prototypeImportData';
 import type { PageComponentProps } from '../routes/routeTypes';
@@ -90,6 +95,218 @@ const validationExamples = [
     detail: 'Activities without start time, sport type or duration cannot enter the internal model.',
   },
 ];
+
+const STATUS_LABELS: Record<string, string> = {
+  success: 'Success',
+  failed: 'Failed',
+  duplicate: 'Duplicate',
+  processing: 'Processing',
+  pending: 'Pending',
+  partially_imported: 'Partial',
+};
+
+type FilterTab = { label: string; value: string | undefined };
+const FILTER_TABS: FilterTab[] = [
+  { label: 'All', value: undefined },
+  { label: 'Success', value: 'success' },
+  { label: 'Failed', value: 'failed' },
+  { label: 'Duplicate', value: 'duplicate' },
+];
+
+function ImportStatusBadge({ status }: { status: string }) {
+  return (
+    <span className={`import-status-badge import-status-badge--${status}`}>
+      {STATUS_LABELS[status] ?? status}
+    </span>
+  );
+}
+
+type ImportHistoryRowProps = {
+  item: ImportSummaryDto;
+  expanded: boolean;
+  detail: ImportDetailDto | undefined;
+  loadingDetail: boolean;
+  onShowError: (id: string) => void;
+  navigate: (path: string) => void;
+};
+
+function ImportHistoryRow({
+  item,
+  expanded,
+  detail,
+  loadingDetail,
+  onShowError,
+  navigate,
+}: ImportHistoryRowProps) {
+  return (
+    <div className="import-history-row">
+      <div className="import-history-row__main">
+        <div className="import-history-row__meta">
+          <span className="import-history-row__date">{formatDate(item.createdAt)}</span>
+          <span className="import-history-row__source">{item.sourceLabel}</span>
+        </div>
+        <ImportStatusBadge status={item.status} />
+        <div className="import-history-row__action">
+          {item.status === 'success' && item.activityId != null && (
+            <button
+              type="button"
+              className="import-history-link"
+              onClick={() => navigate(`/activities/${item.activityId}`)}
+            >
+              View Activity
+            </button>
+          )}
+          {item.status === 'duplicate' && item.activityId != null && (
+            <button
+              type="button"
+              className="import-history-link"
+              onClick={() => navigate(`/activities/${item.activityId}`)}
+            >
+              View existing
+            </button>
+          )}
+          {(item.status === 'processing' || item.status === 'pending') && (
+            <span className="import-spinner" aria-label="In progress" />
+          )}
+          {item.status === 'failed' && (
+            <button
+              type="button"
+              className="import-history-link import-history-link--error"
+              onClick={() => onShowError(item.id)}
+            >
+              {expanded ? 'Hide error' : 'Show error'}
+            </button>
+          )}
+        </div>
+      </div>
+      {expanded && (
+        <div className="import-history-row__detail">
+          {loadingDetail && <span className="import-spinner" />}
+          {item.errorMessage != null && (
+            <p className="import-history-row__error">{item.errorMessage}</p>
+          )}
+          {detail != null && detail.warningMessages.length > 0 && (
+            <ul className="import-history-row__warnings">
+              {detail.warningMessages.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ImportHistorySection({ navigate }: { navigate: (path: string) => void }) {
+  const [filterStatus, setFilterStatus] = useState<string | undefined>(undefined);
+  const { phase, items, hasMore, loadingMore, errorMessage, loadMore } =
+    useImportHistory(filterStatus);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [detailCache, setDetailCache] = useState<Record<string, ImportDetailDto>>({});
+  const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
+
+  function handleShowError(id: string): void {
+    if (expandedId === id) {
+      setExpandedId(null);
+      return;
+    }
+    if (detailCache[id] != null) {
+      setExpandedId(id);
+      return;
+    }
+    setLoadingDetailId(id);
+    setExpandedId(id);
+    getImportDetail(id)
+      .then((d) => {
+        setDetailCache((prev) => ({ ...prev, [id]: d }));
+      })
+      .catch(() => {
+        // errorMessage already in summary; expand shows what we have
+      })
+      .finally(() => {
+        setLoadingDetailId(null);
+      });
+  }
+
+  return (
+    <section className="import-section">
+      <header className="import-section__head">
+        <div>
+          <p>Import history</p>
+          <h2>Recent import attempts</h2>
+        </div>
+      </header>
+
+      <div className="import-history-filters" role="tablist" aria-label="Filter by status">
+        {FILTER_TABS.map((tab) => (
+          <button
+            key={tab.label}
+            type="button"
+            role="tab"
+            aria-selected={filterStatus === tab.value}
+            className={`import-history-filter${filterStatus === tab.value ? ' is-active' : ''}`}
+            onClick={() => setFilterStatus(tab.value)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {phase === 'loading' && (
+        <LoadingState
+          title="Loading import history"
+          description="Fetching from local backend..."
+          variant="inline"
+        />
+      )}
+
+      {phase === 'error' && (
+        <ErrorState
+          title="Could not load history"
+          description={errorMessage}
+          variant="inline"
+        />
+      )}
+
+      {phase === 'success' && items.length === 0 && (
+        <EmptyState
+          title="No imports yet"
+          description="Upload your first activity above."
+          variant="inline"
+        />
+      )}
+
+      {phase === 'success' && items.length > 0 && (
+        <>
+          <div className="import-history-list">
+            {items.map((item) => (
+              <ImportHistoryRow
+                key={item.id}
+                item={item}
+                expanded={expandedId === item.id}
+                detail={detailCache[item.id]}
+                loadingDetail={loadingDetailId === item.id}
+                onShowError={handleShowError}
+                navigate={navigate}
+              />
+            ))}
+          </div>
+          {hasMore && (
+            <button
+              type="button"
+              className="import-load-more"
+              onClick={loadMore}
+              disabled={loadingMore}
+            >
+              {loadingMore ? 'Loading…' : 'Load more'}
+            </button>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
 
 const ACCEPTED_EXTENSIONS = ['.fit', '.gpx', '.tcx'];
 
@@ -308,6 +525,8 @@ function ImportApiMode({ navigate }: PageComponentProps) {
             </div>
           </aside>
         </section>
+
+        <ImportHistorySection navigate={navigate} />
 
         <InformationalSections />
       </div>

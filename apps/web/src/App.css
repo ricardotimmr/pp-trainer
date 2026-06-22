@@ -5151,6 +5151,197 @@ button:focus-visible {
   font-family: var(--font-mono);
 }
 
+/* ── Import history ─────────────────────────────────────────────────────── */
+
+.import-history-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.import-history-filter {
+  padding: 5px 14px;
+  border-radius: 99px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.import-history-filter:hover {
+  border-color: var(--color-text);
+  color: var(--color-text);
+}
+
+.import-history-filter.is-active {
+  border-color: var(--color-text);
+  background: var(--color-text);
+  color: var(--color-bg);
+}
+
+.import-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.import-history-row {
+  border-bottom: 1px solid var(--color-border);
+  padding: 14px 18px;
+}
+
+.import-history-row:last-child {
+  border-bottom: none;
+}
+
+.import-history-row__main {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.import-history-row__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.import-history-row__date {
+  font-size: 0.82rem;
+  color: var(--color-muted);
+}
+
+.import-history-row__source {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.import-history-row__action {
+  display: flex;
+  align-items: center;
+}
+
+.import-history-link {
+  font-size: 0.82rem;
+  font-family: var(--font-sans);
+  background: none;
+  border: none;
+  padding: 4px 0;
+  cursor: pointer;
+  color: var(--color-accent, #6366f1);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.import-history-link:hover {
+  opacity: 0.75;
+}
+
+.import-history-link--error {
+  color: #ef4444;
+}
+
+.import-history-row__detail {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.import-history-row__error {
+  font-size: 0.84rem;
+  color: #ef4444;
+  font-family: var(--font-mono);
+  word-break: break-word;
+}
+
+.import-history-row__warnings {
+  list-style: disc;
+  padding-left: 18px;
+  font-size: 0.82rem;
+  color: var(--color-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.import-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.import-status-badge--success {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.import-status-badge--failed {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.import-status-badge--duplicate {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.import-status-badge--processing,
+.import-status-badge--pending {
+  background: var(--color-surface, #f4f4f5);
+  color: var(--color-muted);
+}
+
+.import-status-badge--partially_imported {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.import-load-more {
+  display: block;
+  width: 100%;
+  padding: 11px;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.import-load-more:hover:not(:disabled) {
+  border-color: var(--color-text);
+  color: var(--color-text);
+}
+
+.import-load-more:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ── Settings Page ──────────────────────────────────────────────────────── */
 
 .settings__prototype-notice {

@@ -1,4 +1,4 @@
-import type { ImportResultDto } from '@pp-trainer/shared';
+import type { ImportDetailDto, ImportListResponseDto, ImportResultDto } from '@pp-trainer/shared';
 
 import { apiFetch } from './apiClient';
 
@@ -20,4 +20,21 @@ export async function importActivityJson(payload: unknown): Promise<ImportResult
     body: JSON.stringify(payload),
     acceptedStatuses: [422],
   });
+}
+
+export async function getImportHistory(params?: {
+  status?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<ImportListResponseDto> {
+  const q = new URLSearchParams();
+  if (params?.status) q.set('status', params.status);
+  if (params?.limit != null) q.set('limit', String(params.limit));
+  if (params?.offset != null) q.set('offset', String(params.offset));
+  const qs = q.toString();
+  return apiFetch<ImportListResponseDto>(`/api/imports${qs ? `?${qs}` : ''}`);
+}
+
+export async function getImportDetail(importId: string): Promise<ImportDetailDto> {
+  return apiFetch<ImportDetailDto>(`/api/imports/${encodeURIComponent(importId)}`);
 }
