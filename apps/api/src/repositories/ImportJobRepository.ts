@@ -1,6 +1,8 @@
-import type { DataSourceType, ImportJob, ImportStatus } from '@prisma/client';
+import type { DataSourceType, ImportedFile, ImportJob, ImportStatus } from '@prisma/client';
 
 import { prisma } from '../lib/prisma.js';
+
+export type ImportJobWithFile = ImportJob & { importedFile: ImportedFile | null };
 
 export type CreateImportJobInput = {
   athleteProfileId: string;
@@ -30,6 +32,13 @@ export async function createImportJob(data: CreateImportJobInput): Promise<Impor
 
 export async function findImportJobById(id: string): Promise<ImportJob | null> {
   return prisma.importJob.findUnique({ where: { id } });
+}
+
+export async function findImportJobWithFile(id: string): Promise<ImportJobWithFile | null> {
+  return prisma.importJob.findUnique({
+    where: { id },
+    include: { importedFile: true },
+  });
 }
 
 export type FindImportJobsFilter = {

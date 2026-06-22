@@ -3,11 +3,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as ImportJobService from '../../services/ImportJobService.js';
 
+vi.mock('../../lib/prisma.js', () => ({
+  prisma: {},
+  disconnectPrisma: vi.fn(),
+}));
+
 vi.mock('../../repositories/ImportJobRepository.js', () => ({
   createImportJob: vi.fn(),
   findImportJobById: vi.fn(),
+  findImportJobWithFile: vi.fn(),
   findImportJobs: vi.fn(),
   updateImportJob: vi.fn(),
+}));
+
+vi.mock('../../repositories/AthleteRepository.js', () => ({
+  findFirstAthleteProfile: vi.fn(),
 }));
 
 const { createImportJob, findImportJobById, findImportJobs, updateImportJob } = await import(

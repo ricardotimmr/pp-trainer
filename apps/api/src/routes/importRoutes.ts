@@ -5,6 +5,8 @@ import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 
 import { ApiError } from '../errors/ApiError.js';
+import { DTO_TO_PRISMA_IMPORT_STATUS_MAP } from '../mappers/enumMaps.js';
+import * as ImportJobService from '../services/ImportJobService.js';
 
 function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) {
@@ -49,6 +51,29 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // ── Phase 4 ──────────────────────────────────────────────────────────────────
+
+  app.get('/api/imports', async (request) => {
+    const query = request.query as {
+      status?: string;
+      limit?: string;
+      offset?: string;
+    };
+
+    const status =
+      query.status != null && query.status in DTO_TO_PRISMA_IMPORT_STATUS_MAP
+        ? DTO_TO_PRISMA_IMPORT_STATUS_MAP[query.status as keyof typeof DTO_TO_PRISMA_IMPORT_STATUS_MAP]
+        : undefined;
+
+    const limit = query.limit != null ? Math.min(parseInt(query.limit, 10) || 20, 100) : 20;
+    const offset = query.offset != null ? parseInt(query.offset, 10) || 0 : 0;
+
+    return ImportJobService.getImports({ status, limit, offset });
+  });
+
+  app.get('/api/imports/:id', async (request) => {
+    const { id } = request.params as { id: string };
+    return ImportJobService.getImportById(id);
+  });
 
   app.post('/api/imports/activity-json', async (request, reply) => {
     let body: unknown = request.body;

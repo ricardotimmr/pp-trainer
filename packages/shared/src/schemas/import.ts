@@ -144,6 +144,37 @@ export const ImportResultDtoSchema = z.object({
   warnings: z.array(z.string()),
 });
 
+// ── ImportJob read DTOs (P4-005) ──────────────────────────────────────────────
+
+export const ImportedFileRefDtoSchema = z.object({
+  id: IdSchema,
+  originalName: z.string(),
+  fileSize: z.number().nullable(),
+  mimeType: z.string(),
+  fileType: ImportedFileTypeSchema,
+});
+
+export const ImportSummaryDtoSchema = z.object({
+  id: IdSchema,
+  status: ImportStatusSchema,
+  sourceType: DataSourceTypeSchema,
+  sourceLabel: z.string(),
+  createdAt: IsoDateTimeStringSchema,
+  activityId: z.string().nullable(),
+  errorMessage: z.string().nullable(),
+});
+
+export const ImportDetailDtoSchema = ImportSummaryDtoSchema.extend({
+  updatedAt: IsoDateTimeStringSchema,
+  rawPayloadHash: z.string().nullable(),
+  warningMessages: z.array(z.string()),
+  importedFile: ImportedFileRefDtoSchema.nullable(),
+});
+
+export const ImportListResponseDtoSchema = z.object({
+  imports: z.array(ImportSummaryDtoSchema),
+});
+
 export type ImportHistoryItemDto = z.infer<typeof ImportHistoryItemDtoSchema>;
 export type RawActivityDataReferenceDto = z.infer<
   typeof RawActivityDataReferenceDtoSchema
@@ -152,3 +183,7 @@ export type ImportHistoryResponseDto = z.infer<
   typeof ImportHistoryResponseDtoSchema
 >;
 export type ImportResultDto = z.infer<typeof ImportResultDtoSchema>;
+export type ImportedFileRefDto = z.infer<typeof ImportedFileRefDtoSchema>;
+export type ImportSummaryDto = z.infer<typeof ImportSummaryDtoSchema>;
+export type ImportDetailDto = z.infer<typeof ImportDetailDtoSchema>;
+export type ImportListResponseDto = z.infer<typeof ImportListResponseDtoSchema>;

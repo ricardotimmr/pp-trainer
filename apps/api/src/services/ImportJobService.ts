@@ -1,5 +1,9 @@
-import type { DataSourceType, ImportJob } from '@prisma/client';
+import type { DataSourceType, ImportJob, ImportStatus } from '@prisma/client';
+import type { ImportDetailDto, ImportListResponseDto } from '@pp-trainer/shared';
 
+import { mapImportDetail, mapImportSummary } from '../mappers/mapImportJob.js';
+import { ApiError } from '../errors/ApiError.js';
+import * as AthleteRepository from '../repositories/AthleteRepository.js';
 import * as ImportJobRepository from '../repositories/ImportJobRepository.js';
 
 export type StartJobParams = {
@@ -60,4 +64,28 @@ export async function getJobs(
   filter: GetJobsFilter = {},
 ): Promise<ImportJob[]> {
   return ImportJobRepository.findImportJobs(athleteProfileId, filter);
+}
+
+export type GetImportsFilter = {
+  status?: ImportStatus;
+  limit?: number;
+  offset?: number;
+};
+
+export async function getImports(filter: GetImportsFilter = {}): Promise<ImportListResponseDto> {
+  const profile = await AthleteRepository.findFirstAthleteProfile();
+  if (profile == null) {
+    return { imports: [] };
+  }
+
+  const jobs = await ImportJobRepository.findImportJobs(profile.id, filter);
+  return { imports: jobs.map(mapImportSummary) };
+}
+
+export async function getImportById(id: string): Promise<ImportDetailDto> {
+  const job = await ImportJobRepository.findImportJobWithFile(id);
+  if (job == null) {
+    throw ApiError.notFound(`Import job '${id}' not found`);
+  }
+  return mapImportDetail(job);
 }

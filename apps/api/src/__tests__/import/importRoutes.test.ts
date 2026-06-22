@@ -13,9 +13,11 @@ vi.mock('../../lib/prisma.js', () => ({
 vi.mock('../../services/ImportService.js');
 vi.mock('../../repositories/AthleteRepository.js');
 vi.mock('../../import/pipeline/runImportPipeline.js');
+vi.mock('../../services/ImportJobService.js');
 
 const { findFirstAthleteProfile } = await import('../../repositories/AthleteRepository.js');
 const { runImportPipeline } = await import('../../import/pipeline/runImportPipeline.js');
+const { getImports, getImportById } = await import('../../services/ImportJobService.js');
 
 function buildTestApp() {
   const app = Fastify({ logger: false });
@@ -348,6 +350,145 @@ describe('POST /api/imports/activity-json', () => {
     const hashWith = vi.mocked(runImportPipeline).mock.calls[0][0].rawPayloadHash;
 
     expect(hashWithout).toBe(hashWith);
+  });
+});
+
+describe('GET /api/imports', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  const mockSummary = {
+    id: 'job-1',
+    status: 'success',
+    sourceType: 'manual_json_import',
+    sourceLabel: 'JSON Import',
+    createdAt: '2026-06-22T10:00:00.000Z',
+    activityId: 'act-1',
+    errorMessage: null,
+  };
+
+  it('returns 200 with imports array', async () => {
+    vi.mocked(getImports).mockResolvedValue({ imports: [mockSummary as never] });
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/imports' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ imports: unknown[] }>();
+    expect(body.imports).toHaveLength(1);
+  });
+
+  it('returns 200 with empty array when no jobs', async () => {
+    vi.mocked(getImports).mockResolvedValue({ imports: [] });
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/imports' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json<{ imports: unknown[] }>().imports).toEqual([]);
+  });
+
+  it('passes valid status filter to service', async () => {
+    vi.mocked(getImports).mockResolvedValue({ imports: [] });
+    const app = buildTestApp();
+    await app.inject({ method: 'GET', url: '/api/imports?status=failed' });
+    expect(getImports).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'Failed' }),
+    );
+  });
+
+  it('ignores invalid status filter', async () => {
+    vi.mocked(getImports).mockResolvedValue({ imports: [] });
+    const app = buildTestApp();
+    await app.inject({ method: 'GET', url: '/api/imports?status=badvalue' });
+    expect(getImports).toHaveBeenCalledWith(
+      expect.objectContaining({ status: undefined }),
+    );
+  });
+
+  it('passes limit and offset to service', async () => {
+    vi.mocked(getImports).mockResolvedValue({ imports: [] });
+    const app = buildTestApp();
+    await app.inject({ method: 'GET', url: '/api/imports?limit=5&offset=10' });
+    expect(getImports).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 5, offset: 10 }),
+    );
+  });
+
+  it('caps limit at 100', async () => {
+    vi.mocked(getImports).mockResolvedValue({ imports: [] });
+    const app = buildTestApp();
+    await app.inject({ method: 'GET', url: '/api/imports?limit=999' });
+    expect(getImports).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 100 }),
+    );
+  });
+
+  it('returns 500 on unexpected error', async () => {
+    vi.mocked(getImports).mockRejectedValue(new Error('DB error'));
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/imports' });
+    expect(res.statusCode).toBe(500);
+  });
+});
+
+describe('GET /api/imports/:id', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  const mockDetail = {
+    id: 'job-1',
+    status: 'success',
+    sourceType: 'manual_json_import',
+    sourceLabel: 'JSON Import',
+    createdAt: '2026-06-22T10:00:00.000Z',
+    updatedAt: '2026-06-22T10:01:00.000Z',
+    activityId: 'act-1',
+    errorMessage: null,
+    rawPayloadHash: 'abc123',
+    warningMessages: [],
+    importedFile: null,
+  };
+
+  it('returns 200 with import detail', async () => {
+    vi.mocked(getImportById).mockResolvedValue(mockDetail as never);
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/imports/job-1' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<typeof mockDetail>();
+    expect(body.id).toBe('job-1');
+    expect(body.rawPayloadHash).toBe('abc123');
+    expect(body.warningMessages).toEqual([]);
+    expect(body.importedFile).toBeNull();
+  });
+
+  it('returns detail with nested importedFile', async () => {
+    vi.mocked(getImportById).mockResolvedValue({
+      ...mockDetail,
+      importedFile: {
+        id: 'file-1',
+        originalName: 'run.fit',
+        fileSize: 204800,
+        mimeType: 'application/octet-stream',
+        fileType: 'fit',
+      },
+    } as never);
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/imports/job-1' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ importedFile: { originalName: string } }>();
+    expect(body.importedFile?.originalName).toBe('run.fit');
+  });
+
+  it('returns 404 for unknown id', async () => {
+    const { ApiError } = await import('../../errors/ApiError.js');
+    vi.mocked(getImportById).mockRejectedValue(ApiError.notFound("Import job 'unknown' not found"));
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/imports/unknown' });
+    expect(res.statusCode).toBe(404);
+    const body = res.json<{ error: { code: string } }>();
+    expect(body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns 500 on unexpected error', async () => {
+    vi.mocked(getImportById).mockRejectedValue(new Error('DB down'));
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/imports/job-1' });
+    expect(res.statusCode).toBe(500);
   });
 });
 

@@ -228,3 +228,12 @@ export const IMPORT_STATUS_MAP: Record<ImportStatus, ImportStatusDto> = {
   Duplicate: 'duplicate',
   PartiallyImported: 'partially_imported',
 };
+
+export const DTO_TO_PRISMA_IMPORT_STATUS_MAP: Record<ImportStatusDto, ImportStatus> = {
+  pending: 'Pending',
+  processing: 'Processing',
+  success: 'Success',
+  failed: 'Failed',
+  duplicate: 'Duplicate',
+  partially_imported: 'PartiallyImported',
+};
