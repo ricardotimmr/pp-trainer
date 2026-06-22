@@ -147,7 +147,7 @@ All endpoints return `{ error: { code, message } }` on failure.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/activities` | Activity list (summary). Query params: `sport`, `activityType`, `from`, `to` |
+| `GET` | `/api/activities` | Activity list (summary). Query params: `sport`, `dateFrom`, `dateTo` |
 | `GET` | `/api/activities/:id` | Full activity detail with laps, zones and metric samples |
 
 ### Training
