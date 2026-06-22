@@ -62,9 +62,10 @@ describe('ActivityNormalizer', () => {
   });
 
   describe('optional scalar fields', () => {
-    it('omits undefined optional fields', () => {
+    it('generates a fallback title and omits other undefined optional fields', () => {
       const result = normalizeActivity(PROFILE_ID, minimalParsed);
-      expect('title' in result).toBe(false);
+      expect(typeof result.title).toBe('string');
+      expect((result.title as string).length).toBeGreaterThan(0);
       expect('notes' in result).toBe(false);
       expect('distanceMeters' in result).toBe(false);
       expect('averageHeartRateBpm' in result).toBe(false);

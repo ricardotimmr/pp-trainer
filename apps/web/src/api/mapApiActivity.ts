@@ -1,4 +1,4 @@
-import type { ActivitySummaryDto } from '@pp-trainer/shared';
+import type { ActivityDetailDto, ActivitySummaryDto } from '@pp-trainer/shared';
 import type { Activity } from '../mock/prototypeData.types';
 
 export function mapApiActivity(dto: ActivitySummaryDto): Activity {
@@ -26,5 +26,28 @@ export function mapApiActivity(dto: ActivitySummaryDto): Activity {
     averageCadence: dto.metrics.averageCadence,
     createdAt: dto.startTime,
     updatedAt: dto.startTime,
+  };
+}
+
+export function mapApiActivityDetail(dto: ActivityDetailDto): Activity {
+  return {
+    ...mapApiActivity(dto),
+    notes: dto.notes,
+    perceivedExertion: dto.perceivedExertion,
+    intensityFactor: dto.intensityFactor,
+    trainingStressScore: dto.trainingStressScore,
+    poolLengthMeters: dto.poolLengthMeters,
+    dominantStrokeType: dto.dominantStrokeType,
+    totalStrokeCount: dto.totalStrokeCount,
+    avgSwolfScore: dto.averageSwolfScore,
+    totalSets: dto.totalSets,
+    totalReps: dto.totalReps,
+    totalVolumeKg: dto.totalVolumeKg,
+    laps: dto.laps.length > 0 ? dto.laps : undefined,
+    swimLaps: dto.swimLaps.length > 0 ? dto.swimLaps : undefined,
+    timeSeries: dto.metricSamples.length > 0 ? dto.metricSamples : undefined,
+    timeInHrZones: dto.timeInZones.length > 0 ? dto.timeInZones : undefined,
+    strengthSets: dto.strengthSets.length > 0 ? dto.strengthSets : undefined,
+    strengthExercises: dto.strengthExercises.length > 0 ? dto.strengthExercises : undefined,
   };
 }

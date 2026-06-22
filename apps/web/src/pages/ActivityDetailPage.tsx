@@ -1,7 +1,8 @@
-import { useState, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useState, type PointerEvent, type ReactNode } from 'react';
 
 import {
   ErrorState,
+  LoadingState,
   SourceBadge,
   SportBadge,
 } from '../components';
@@ -13,6 +14,9 @@ import {
   sourceLabels,
   sportLabels,
 } from '../components/prototypeFormatters';
+import { DATA_MODE } from '../config/dataMode';
+import { fetchActivityById } from '../api/activitiesApi';
+import { mapApiActivityDetail } from '../api/mapApiActivity';
 import { PageShell } from '../layout/PageShell';
 import {
   getActivityById,
@@ -1036,7 +1040,57 @@ function SourceMetadata({ activity }: { activity: Activity }) {
   );
 }
 
-export function ActivityDetailPage({ params, navigate }: PageComponentProps) {
+function ActivityDetailApiMode({ params, navigate }: PageComponentProps) {
+  const [state, setState] = useState<
+    { status: 'loading' } | { status: 'success'; activity: Activity } | { status: 'error'; message: string }
+  >({ status: 'loading' });
+
+  useEffect(() => {
+    if (!params.id) {
+      setState({ status: 'error', message: 'No activity ID provided' });
+      return;
+    }
+    let cancelled = false;
+    fetchActivityById(params.id)
+      .then((dto) => {
+        if (!cancelled) setState({ status: 'success', activity: mapApiActivityDetail(dto) });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled)
+          setState({ status: 'error', message: err instanceof Error ? err.message : 'Failed to load activity' });
+      });
+    return () => { cancelled = true; };
+  }, [params.id]);
+
+  if (state.status === 'loading') {
+    return (
+      <PageShell title="Loading…" eyebrow="Activity detail" description="">
+        <LoadingState title="Loading activity" description="Fetching from local backend…" />
+      </PageShell>
+    );
+  }
+
+  if (state.status === 'error') {
+    return (
+      <PageShell
+        title="Activity not found"
+        eyebrow="Activity detail"
+        description="Could not load the activity."
+        actions={
+          <button type="button" className="button button--secondary" onClick={() => navigate('/activities')}>
+            Back to activities
+          </button>
+        }
+      >
+        <ErrorState title="Activity not found" description={state.message} />
+      </PageShell>
+    );
+  }
+
+  return <ActivityDetailContent activity={state.activity} navigate={navigate} />;
+}
+
+function ActivityDetailMockMode({ params, navigate }: PageComponentProps) {
   const activity = params.id ? getActivityById(params.id) : undefined;
 
   if (!activity) {
@@ -1066,6 +1120,16 @@ export function ActivityDetailPage({ params, navigate }: PageComponentProps) {
       </PageShell>
     );
   }
+
+  return <ActivityDetailContent activity={activity} navigate={navigate} />;
+}
+
+export function ActivityDetailPage(props: PageComponentProps) {
+  if (DATA_MODE === 'api') return <ActivityDetailApiMode {...props} />;
+  return <ActivityDetailMockMode {...props} />;
+}
+
+function ActivityDetailContent({ activity, navigate }: { activity: Activity; navigate: PageComponentProps['navigate'] }) {
 
   const baseKeyMetrics: DetailMetric[] = [
     {

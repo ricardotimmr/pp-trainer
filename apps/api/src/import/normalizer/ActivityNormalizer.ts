@@ -5,6 +5,22 @@ import type { ParsedActivity } from '../types.js';
 
 export type NormalizedActivity = Prisma.ActivityUncheckedCreateInput;
 
+const SPORT_DEFAULT_TITLE: Record<string, string> = {
+  running: 'Run',
+  cycling: 'Bike Ride',
+  swimming: 'Swim',
+  strength: 'Strength Training',
+  mobility: 'Mobility',
+  other: 'Activity',
+};
+
+function generateTitle(sport: string, startTime: Date): string {
+  const hour = startTime.getUTCHours();
+  const timeOfDay = hour < 11 ? 'Morning' : hour < 15 ? 'Afternoon' : hour < 20 ? 'Evening' : 'Night';
+  const sportLabel = SPORT_DEFAULT_TITLE[sport] ?? 'Activity';
+  return `${timeOfDay} ${sportLabel}`;
+}
+
 export function normalizeActivity(
   athleteProfileId: string,
   parsed: ParsedActivity,
@@ -21,7 +37,7 @@ export function normalizeActivity(
     sport,
     startTime: parsed.startTime,
     durationSeconds: parsed.durationSeconds,
-    ...(parsed.title != null && { title: parsed.title }),
+    title: parsed.title?.trim() || generateTitle(parsed.sport, parsed.startTime),
     ...(parsed.notes != null && { notes: parsed.notes }),
     ...(parsed.distanceMeters != null && { distanceMeters: parsed.distanceMeters }),
     ...(parsed.elevationGainMeters != null && { elevationGainMeters: parsed.elevationGainMeters }),

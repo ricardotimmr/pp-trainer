@@ -1,8 +1,9 @@
-import { buildApp } from './app.js';
-import { getApiConfig } from './config/env.js';
 import { loadLocalEnvFiles } from './config/loadEnv.js';
 
 loadLocalEnvFiles();
+
+const { buildApp } = await import('./app.js');
+const { getApiConfig } = await import('./config/env.js');
 
 const config = getApiConfig();
 const app = await buildApp(config);

@@ -14,6 +14,7 @@ type FitSession = {
   start_time: string;
   sport?: string;
   sub_sport?: string;
+  name?: string;
   total_timer_time?: number;
   total_elapsed_time?: number;
   total_distance?: number;
@@ -161,6 +162,7 @@ export class FitParser implements ActivityImporter {
       source: 'ManualFitUpload',
       sport,
       startTime,
+      ...(session.name != null && session.name.trim() !== '' && { title: session.name.trim() }),
       durationSeconds,
       distanceMeters: session.total_distance != null ? Math.round(session.total_distance) : undefined,
       elevationGainMeters: session.total_ascent != null ? Math.round(session.total_ascent) : undefined,

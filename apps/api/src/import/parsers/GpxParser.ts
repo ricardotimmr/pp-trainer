@@ -51,7 +51,7 @@ type GpxTrkpt = {
 };
 
 type GpxTrkseg = { trkpt?: GpxTrkpt | GpxTrkpt[] };
-type GpxTrk = { type?: string; trkseg?: GpxTrkseg | GpxTrkseg[] };
+type GpxTrk = { name?: string; type?: string; trkseg?: GpxTrkseg | GpxTrkseg[] };
 type GpxDoc = { gpx?: { trk?: GpxTrk | GpxTrk[] } };
 
 const SAMPLE_INTERVAL_S = 5;
@@ -151,6 +151,7 @@ export class GpxParser implements ActivityImporter {
       source: 'ManualGpxUpload',
       sport,
       startTime,
+      ...(trk.name != null && trk.name.trim() !== '' && { title: trk.name.trim() }),
       durationSeconds,
       distanceMeters: distanceMeters > 0 ? Math.round(distanceMeters) : undefined,
       elevationGainMeters: elevationGainMeters > 0 ? Math.round(elevationGainMeters) : undefined,
