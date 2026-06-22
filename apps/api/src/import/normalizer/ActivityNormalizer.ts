@@ -17,7 +17,7 @@ export function normalizeActivity(
 
   return {
     athleteProfileId,
-    sourceType: 'ManualJsonImport',
+    sourceType: parsed.source,
     sport,
     startTime: parsed.startTime,
     durationSeconds: parsed.durationSeconds,

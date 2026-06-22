@@ -84,14 +84,14 @@ describe('FitParser – sport mapping', () => {
     expect(result.sport).toBe('swimming');
   });
 
-  it('maps fitness_equipment + strength_training to strength_training', async () => {
+  it('maps fitness_equipment + strength_training to strength', async () => {
     mockParseAsync.mockResolvedValueOnce(
       makeFitData({
         sessions: [makeSession({ sport: 'fitness_equipment', sub_sport: 'strength_training' })],
       }),
     );
     const result = await new FitParser().parse(VALID_BUFFER);
-    expect(result.sport).toBe('strength_training');
+    expect(result.sport).toBe('strength');
   });
 
   it('maps unknown sport code to other', async () => {

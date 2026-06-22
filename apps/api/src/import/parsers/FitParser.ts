@@ -78,7 +78,7 @@ const FIT_SPORT_MAP: Record<string, string> = {
 };
 
 function mapFitSport(sport?: string, subSport?: string): string {
-  if (sport === 'fitness_equipment' && subSport === 'strength_training') return 'strength_training';
+  if (sport === 'fitness_equipment' && subSport === 'strength_training') return 'strength';
   return FIT_SPORT_MAP[sport ?? ''] ?? 'other';
 }
 
@@ -162,8 +162,8 @@ export class FitParser implements ActivityImporter {
       sport,
       startTime,
       durationSeconds,
-      distanceMeters: session.total_distance,
-      elevationGainMeters: session.total_ascent,
+      distanceMeters: session.total_distance != null ? Math.round(session.total_distance) : undefined,
+      elevationGainMeters: session.total_ascent != null ? Math.round(session.total_ascent) : undefined,
       averageHeartRate: session.avg_heart_rate,
       maxHeartRate: session.max_heart_rate,
       averagePowerWatts: session.avg_power,
@@ -184,18 +184,19 @@ export class FitParser implements ActivityImporter {
 function extractLaps(fitLaps: FitLap[]): ParsedLap[] {
   return fitLaps.map((lap, i) => {
     const speedKmh = lap.avg_speed;
-    const paceSecPerKm = speedKmh != null && speedKmh > 0 ? 3600 / speedKmh : undefined;
+    const paceSecPerKm =
+      speedKmh != null && speedKmh > 0 ? Math.round(3600 / speedKmh) : undefined;
     return {
       lapNumber: i + 1,
       durationSeconds: Math.round(lap.total_timer_time ?? lap.total_elapsed_time ?? 0),
-      distanceMeters: lap.total_distance ?? 0,
+      distanceMeters: Math.round(lap.total_distance ?? 0),
       averageHeartRateBpm: lap.avg_heart_rate,
       maxHeartRateBpm: lap.max_heart_rate,
       averagePaceSecPerKm: paceSecPerKm,
       averageSpeedKmh: speedKmh,
       averagePowerWatts: lap.avg_power,
       averageCadence: lap.avg_cadence,
-      elevationGainMeters: lap.total_ascent,
+      elevationGainMeters: lap.total_ascent != null ? Math.round(lap.total_ascent) : undefined,
     };
   });
 }
@@ -209,7 +210,7 @@ function extractSwimLaps(fitLengths: FitLength[], poolLength?: number): ParsedSw
       const durationSeconds = Math.round(len.total_timer_time ?? len.total_elapsed_time ?? 0);
       const paceSecPer100m =
         durationSeconds > 0 && distanceMeters > 0
-          ? (durationSeconds / distanceMeters) * 100
+          ? Math.round((durationSeconds / distanceMeters) * 100)
           : undefined;
       const swolfScore =
         len.total_strokes != null && durationSeconds > 0
@@ -241,7 +242,8 @@ function extractMetricSamples(records: FitRecord[], sessionStart: Date): ParsedM
     if (offsetS - lastOffsetS < SAMPLE_INTERVAL_S) continue;
 
     const speedKmh = rec.speed;
-    const paceSecPerKm = speedKmh != null && speedKmh > 0 ? 3600 / speedKmh : undefined;
+    const paceSecPerKm =
+      speedKmh != null && speedKmh > 0 ? Math.round(3600 / speedKmh) : undefined;
 
     samples.push({
       offsetSeconds: offsetS,

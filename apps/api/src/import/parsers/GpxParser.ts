@@ -31,7 +31,7 @@ const SPORT_MAP: Record<string, string> = {
   bike: 'cycling',
   swimming: 'swimming',
   swim: 'swimming',
-  strength_training: 'strength_training',
+  strength_training: 'strength',
 };
 
 function mapGpxSport(raw?: string): string {
@@ -152,8 +152,8 @@ export class GpxParser implements ActivityImporter {
       sport,
       startTime,
       durationSeconds,
-      distanceMeters: distanceMeters > 0 ? distanceMeters : undefined,
-      elevationGainMeters: elevationGainMeters > 0 ? elevationGainMeters : undefined,
+      distanceMeters: distanceMeters > 0 ? Math.round(distanceMeters) : undefined,
+      elevationGainMeters: elevationGainMeters > 0 ? Math.round(elevationGainMeters) : undefined,
       averageHeartRate,
       maxHeartRate,
       averageSpeedKmh: avgSpeedKmh,

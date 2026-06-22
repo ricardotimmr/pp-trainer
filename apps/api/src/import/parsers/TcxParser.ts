@@ -130,7 +130,7 @@ export class TcxParser implements ActivityImporter {
       sport,
       startTime,
       durationSeconds: Math.round(totalDuration),
-      distanceMeters: totalDistance > 0 ? totalDistance : undefined,
+      distanceMeters: totalDistance > 0 ? Math.round(totalDistance) : undefined,
       averageHeartRate: avgHr,
       maxHeartRate: maxHr,
       averagePowerWatts: avgPower,
@@ -188,11 +188,11 @@ function computeAvgCadence(laps: TcxLap[]): number | undefined {
 function extractLaps(fitLaps: TcxLap[]): ParsedLap[] {
   return fitLaps.map((lap, i) => {
     const durationSeconds = Math.round(lap.TotalTimeSeconds ?? 0);
-    const distanceMeters = lap.DistanceMeters ?? 0;
+    const distanceMeters = Math.round(lap.DistanceMeters ?? 0);
     const avgSpeedKmh =
       durationSeconds > 0 ? (distanceMeters / 1000) / (durationSeconds / 3600) : undefined;
     const paceSecPerKm =
-      avgSpeedKmh != null && avgSpeedKmh > 0 ? 3600 / avgSpeedKmh : undefined;
+      avgSpeedKmh != null && avgSpeedKmh > 0 ? Math.round(3600 / avgSpeedKmh) : undefined;
 
     return {
       lapNumber: i + 1,
@@ -223,15 +223,12 @@ function extractTcxSamples(
     if (offsetS - lastOffsetS < SAMPLE_INTERVAL_S) continue;
 
     const watts = tp.Extensions?.TPX?.Watts;
-    const paceSecPerKm =
-      watts == null && tp.HeartRateBpm == null && tp.Cadence == null ? undefined : undefined;
 
     samples.push({
       offsetSeconds: offsetS,
       heartRateBpm: tp.HeartRateBpm?.Value,
       powerWatts: watts,
       cadenceRpm: tp.Cadence,
-      paceSecPerKm,
     });
 
     lastOffsetS = offsetS;
