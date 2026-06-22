@@ -12,10 +12,16 @@ export class ApiClientError extends Error {
   }
 }
 
-export async function apiFetch<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`);
+type ApiFetchInit = RequestInit & {
+  // Status codes that should not throw even when !response.ok
+  acceptedStatuses?: number[];
+};
 
-  if (!response.ok) {
+export async function apiFetch<T>(path: string, init?: ApiFetchInit): Promise<T> {
+  const { acceptedStatuses, ...fetchInit } = init ?? {};
+  const response = await fetch(`${API_BASE_URL}${path}`, fetchInit);
+
+  if (!response.ok && !acceptedStatuses?.includes(response.status)) {
     let code = 'UNKNOWN_ERROR';
     let message = `HTTP ${response.status}`;
     try {

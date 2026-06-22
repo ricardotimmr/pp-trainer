@@ -1,6 +1,11 @@
+import { useRef, useState } from 'react';
+
 import { EmptyState, SourceBadge } from '../components';
+import { DATA_MODE } from '../config/dataMode';
+import { useImport } from '../hooks/useImport';
 import { PageShell } from '../layout/PageShell';
 import { getImportHistoryRows } from '../mock/prototypeImportData';
+import type { PageComponentProps } from '../routes/routeTypes';
 import type { DataSourceType } from '../mock/prototypeData.types';
 
 type ImportSourceStatus = 'Prototype' | 'Planned' | 'Future' | 'Fallback';
@@ -86,7 +91,231 @@ const validationExamples = [
   },
 ];
 
-export function ImportPage() {
+const ACCEPTED_EXTENSIONS = ['.fit', '.gpx', '.tcx'];
+
+function ImportApiMode({ navigate }: PageComponentProps) {
+  const { state, startFileUpload, startJsonImport, reset } = useImport();
+  const [isDragging, setIsDragging] = useState(false);
+  const [jsonText, setJsonText] = useState('');
+  const [jsonParseError, setJsonParseError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isUploading = state.status === 'uploading';
+
+  function pickFile(files: FileList | null): void {
+    if (!files || files.length === 0) return;
+    startFileUpload(files[0]);
+  }
+
+  function handleDragOver(e: React.DragEvent): void {
+    e.preventDefault();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(): void {
+    setIsDragging(false);
+  }
+
+  function handleDrop(e: React.DragEvent): void {
+    e.preventDefault();
+    setIsDragging(false);
+    if (isUploading) return;
+    pickFile(e.dataTransfer.files);
+  }
+
+  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>): void {
+    pickFile(e.target.files);
+    e.target.value = '';
+  }
+
+  function handleJsonSubmit(): void {
+    setJsonParseError(null);
+    let payload: unknown;
+    try {
+      payload = JSON.parse(jsonText);
+    } catch {
+      setJsonParseError('Invalid JSON — check the syntax and try again');
+      return;
+    }
+    startJsonImport(payload);
+  }
+
+  function zoneClasses(): string {
+    const base = 'import-upload-zone';
+    if (isUploading) return `${base} ${base}--uploading`;
+    if (isDragging) return `${base} ${base}--dragging`;
+    return base;
+  }
+
+  return (
+    <PageShell
+      title="Import"
+      eyebrow="Data sources · Phase 4"
+      description="Upload FIT, GPX or TCX files from your Garmin device, or submit an activity via JSON for testing."
+    >
+      <div className="import-page">
+        <section className="import-hero">
+          <div>
+            <div
+              className={zoneClasses()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => !isUploading && fileInputRef.current?.click()}
+              aria-label="Drop a FIT, GPX or TCX file here, or click to browse"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && !isUploading && fileInputRef.current?.click()}
+            >
+              <div className="import-dropzone__mark" aria-hidden="true">
+                {isUploading ? <span className="import-spinner" /> : '+'}
+              </div>
+
+              <div className="import-upload-zone__body">
+                <p className="import-section-label">Upload activity file</p>
+                <h2>{isUploading ? 'Importing…' : 'Drop activity files here'}</h2>
+                <p>
+                  {isUploading
+                    ? 'Processing your file through the import pipeline.'
+                    : `Accepted: ${ACCEPTED_EXTENSIONS.join(', ')} — or click to browse.`}
+                </p>
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_EXTENSIONS.join(',')}
+                style={{ display: 'none' }}
+                onChange={handleFileInput}
+                aria-hidden="true"
+              />
+
+              {!isUploading && (
+                <button
+                  type="button"
+                  className="import-upload-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  Browse files
+                </button>
+              )}
+            </div>
+
+            {state.status === 'success' && (
+              <div className="import-result import-result--success" role="status">
+                <span className="import-result__icon" aria-hidden="true">✓</span>
+                <div>
+                  <p className="import-result__title">Activity imported successfully</p>
+                  <p className="import-result__message">Import ID: {state.importId}</p>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    className="import-result__link"
+                    onClick={() => navigate(`/activities/${state.activityId}`)}
+                  >
+                    View Activity
+                  </button>
+                  <button type="button" className="import-result__reset" onClick={reset}>
+                    Import another
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {state.status === 'error' && (
+              <div className="import-result import-result--error" role="alert">
+                <span className="import-result__icon" aria-hidden="true">!</span>
+                <div>
+                  <p className="import-result__title">Import failed</p>
+                  <p className="import-result__message">{state.message}</p>
+                </div>
+                <button type="button" className="import-result__reset" onClick={reset}>
+                  Try again
+                </button>
+              </div>
+            )}
+
+            {state.status === 'duplicate' && (
+              <div className="import-result import-result--duplicate" role="status">
+                <span className="import-result__icon" aria-hidden="true">≈</span>
+                <div>
+                  <p className="import-result__title">Already imported</p>
+                  <p className="import-result__message">
+                    This activity was detected as a duplicate of an existing entry.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    className="import-result__link"
+                    onClick={() => navigate(`/activities/${state.existingActivityId}`)}
+                  >
+                    View existing activity
+                  </button>
+                  <button type="button" className="import-result__reset" onClick={reset}>
+                    Import another
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <details className="import-json-details">
+              <summary>Import via JSON (Development)</summary>
+              <div className="import-json-details__body">
+                <textarea
+                  className="import-json-textarea"
+                  value={jsonText}
+                  onChange={(e) => setJsonText(e.target.value)}
+                  placeholder={`{\n  "athleteProfileId": "...",\n  "sport": "running",\n  "startTime": "2026-06-22T07:00:00Z",\n  "durationSeconds": 3600\n}`}
+                  disabled={isUploading}
+                  spellCheck={false}
+                />
+                {jsonParseError != null && (
+                  <p className="import-json-error">{jsonParseError}</p>
+                )}
+                <button
+                  type="button"
+                  className="import-json-submit"
+                  onClick={handleJsonSubmit}
+                  disabled={isUploading || jsonText.trim() === ''}
+                >
+                  Submit JSON
+                </button>
+              </div>
+            </details>
+          </div>
+
+          <aside className="import-format-panel">
+            <div>
+              <p className="import-section-label">Supported file formats</p>
+              <div className="import-format-list">
+                {futureFormats.map((format) => (
+                  <span key={format}>{format}</span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="import-section-label">Development inputs</p>
+              <div className="import-format-list import-format-list--muted">
+                {developmentFormats.map((format) => (
+                  <span key={format}>{format}</span>
+                ))}
+              </div>
+            </div>
+          </aside>
+        </section>
+
+        <InformationalSections />
+      </div>
+    </PageShell>
+  );
+}
+
+function ImportMockMode() {
   const historyRows = getImportHistoryRows();
 
   return (
@@ -132,51 +361,63 @@ export function ImportPage() {
           </aside>
         </section>
 
-        <section className="import-section">
-          <header className="import-section__head">
-            <div>
-              <p>Import pipeline</p>
-              <h2>External sources normalize into one Activity model</h2>
-            </div>
-            <span>Source agnostic</span>
-          </header>
-          <ol className="import-pipeline">
-            {pipelineSteps.map((step) => (
-              <li key={step.label}>
-                <span>{step.label}</span>
-                <h3>{step.title}</h3>
-                <p>{step.description}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
+        <InformationalSections historyRows={historyRows} />
+      </div>
+    </PageShell>
+  );
+}
 
-        <section className="import-section">
-          <header className="import-section__head">
-            <div>
-              <p>Source strategy</p>
-              <h2>Garmin is important, but replaceable</h2>
-            </div>
-          </header>
-          <div className="import-source-grid">
-            {importSources.map((source) => (
-              <article key={source.title} className="import-source-card">
-                <div className="import-source-card__top">
-                  <SourceBadge source={source.source} />
-                  <span>{source.status}</span>
-                </div>
-                <h3>{source.title}</h3>
-                <p>{source.description}</p>
-                <div className="import-source-card__details">
-                  {source.details.map((detail) => (
-                    <span key={detail}>{detail}</span>
-                  ))}
-                </div>
-              </article>
-            ))}
+type HistoryRow = ReturnType<typeof getImportHistoryRows>[number];
+
+function InformationalSections({ historyRows }: { historyRows?: HistoryRow[] }) {
+  return (
+    <>
+      <section className="import-section">
+        <header className="import-section__head">
+          <div>
+            <p>Import pipeline</p>
+            <h2>External sources normalize into one Activity model</h2>
           </div>
-        </section>
+          <span>Source agnostic</span>
+        </header>
+        <ol className="import-pipeline">
+          {pipelineSteps.map((step) => (
+            <li key={step.label}>
+              <span>{step.label}</span>
+              <h3>{step.title}</h3>
+              <p>{step.description}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
 
+      <section className="import-section">
+        <header className="import-section__head">
+          <div>
+            <p>Source strategy</p>
+            <h2>Garmin is important, but replaceable</h2>
+          </div>
+        </header>
+        <div className="import-source-grid">
+          {importSources.map((source) => (
+            <article key={source.title} className="import-source-card">
+              <div className="import-source-card__top">
+                <SourceBadge source={source.source} />
+                <span>{source.status}</span>
+              </div>
+              <h3>{source.title}</h3>
+              <p>{source.description}</p>
+              <div className="import-source-card__details">
+                {source.details.map((detail) => (
+                  <span key={detail}>{detail}</span>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {historyRows != null && (
         <section className="import-lower-grid">
           <div className="import-section import-section--compact">
             <header className="import-section__head">
@@ -247,7 +488,14 @@ export function ImportPage() {
             </p>
           </aside>
         </section>
-      </div>
-    </PageShell>
+      )}
+    </>
   );
+}
+
+export function ImportPage({ navigate, params }: PageComponentProps) {
+  if (DATA_MODE === 'api') {
+    return <ImportApiMode navigate={navigate} params={params} />;
+  }
+  return <ImportMockMode />;
 }
