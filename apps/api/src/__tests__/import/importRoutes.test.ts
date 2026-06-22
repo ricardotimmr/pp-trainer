@@ -11,6 +11,11 @@ vi.mock('../../lib/prisma.js', () => ({
 }));
 
 vi.mock('../../services/ImportService.js');
+vi.mock('../../repositories/AthleteRepository.js');
+vi.mock('../../import/pipeline/runImportPipeline.js');
+
+const { findFirstAthleteProfile } = await import('../../repositories/AthleteRepository.js');
+const { runImportPipeline } = await import('../../import/pipeline/runImportPipeline.js');
 
 function buildTestApp() {
   const app = Fastify({ logger: false });
@@ -18,6 +23,17 @@ function buildTestApp() {
   void app.register(importRoutes);
   return app;
 }
+
+const mockProfile = { id: 'profile-1', displayName: 'Ricardo' };
+
+const validJsonBody = {
+  athleteProfileId: 'profile-1',
+  sport: 'running',
+  startTime: '2026-06-22T07:30:00Z',
+  durationSeconds: 3600,
+  distanceMeters: 12000,
+  averageHeartRate: 148,
+};
 
 const mockImportItem = {
   id: 'file-1',
@@ -115,23 +131,168 @@ describe('POST /api/import/upload', () => {
 });
 
 describe('POST /api/imports/activity-json', () => {
-  it('returns 501 with NOT_IMPLEMENTED error body', async () => {
-    const app = buildTestApp();
-    const res = await app.inject({ method: 'POST', url: '/api/imports/activity-json' });
-    expect(res.statusCode).toBe(501);
-    const body = res.json<{ error: { code: string; message: string } }>();
-    expect(body.error.code).toBe('NOT_IMPLEMENTED');
-    expect(body.error.message).toContain('P4-003');
-  });
+  beforeEach(() => vi.resetAllMocks());
 
-  it('returns 501 regardless of request payload', async () => {
+  it('returns 201 with ImportResultDto on success', async () => {
+    vi.mocked(findFirstAthleteProfile).mockResolvedValue(mockProfile as never);
+    vi.mocked(runImportPipeline).mockResolvedValue({
+      status: 'success',
+      importJobId: 'job-1',
+      activityId: 'act-1',
+    });
+
     const app = buildTestApp();
     const res = await app.inject({
       method: 'POST',
       url: '/api/imports/activity-json',
-      payload: { sport: 'Running', startTime: '2026-06-22T08:00:00Z' },
+      payload: validJsonBody,
     });
-    expect(res.statusCode).toBe(501);
+
+    expect(res.statusCode).toBe(201);
+    const body = res.json<{
+      importId: string;
+      status: string;
+      activityId: string;
+      errors: string[];
+      warnings: string[];
+    }>();
+    expect(body.importId).toBe('job-1');
+    expect(body.status).toBe('success');
+    expect(body.activityId).toBe('act-1');
+    expect(body.errors).toEqual([]);
+    expect(body.warnings).toEqual([]);
+  });
+
+  it('returns 200 with duplicate status', async () => {
+    vi.mocked(findFirstAthleteProfile).mockResolvedValue(mockProfile as never);
+    vi.mocked(runImportPipeline).mockResolvedValue({
+      status: 'duplicate',
+      importJobId: 'job-2',
+      activityId: 'act-existing',
+      reason: 'Same startTime and duration detected',
+    });
+
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/imports/activity-json',
+      payload: validJsonBody,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ status: string; activityId: string; warnings: string[] }>();
+    expect(body.status).toBe('duplicate');
+    expect(body.activityId).toBe('act-existing');
+    expect(body.warnings).toContain('Same startTime and duration detected');
+  });
+
+  it('returns 422 with error detail on failed pipeline', async () => {
+    vi.mocked(findFirstAthleteProfile).mockResolvedValue(mockProfile as never);
+    vi.mocked(runImportPipeline).mockResolvedValue({
+      status: 'failed',
+      importJobId: 'job-3',
+      errorMessage: 'Normalization failed',
+    });
+
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/imports/activity-json',
+      payload: validJsonBody,
+    });
+
+    expect(res.statusCode).toBe(422);
+    const body = res.json<{ status: string; errors: string[] }>();
+    expect(body.status).toBe('failed');
+    expect(body.errors).toContain('Normalization failed');
+  });
+
+  it('returns 400 for missing required fields', async () => {
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/imports/activity-json',
+      payload: { sport: 'running' },
+    });
+
+    expect(res.statusCode).toBe(400);
+    const body = res.json<{ error: { code: string; message: string } }>();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('returns 400 for invalid sport value', async () => {
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/imports/activity-json',
+      payload: { ...validJsonBody, sport: 'yoga' },
+    });
+
+    expect(res.statusCode).toBe(400);
+    const body = res.json<{ error: { code: string } }>();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('returns 400 for invalid perceivedExertion > 10', async () => {
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/imports/activity-json',
+      payload: { ...validJsonBody, perceivedExertion: 11 },
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('returns 403 when athleteProfileId does not match active profile', async () => {
+    vi.mocked(findFirstAthleteProfile).mockResolvedValue({ id: 'profile-2' } as never);
+
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/imports/activity-json',
+      payload: { ...validJsonBody, athleteProfileId: 'profile-1' },
+    });
+
+    expect(res.statusCode).toBe(403);
+    const body = res.json<{ error: { code: string } }>();
+    expect(body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('returns 404 when no profile exists', async () => {
+    vi.mocked(findFirstAthleteProfile).mockResolvedValue(null);
+
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/imports/activity-json',
+      payload: validJsonBody,
+    });
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('passes rawPayloadHash to pipeline', async () => {
+    vi.mocked(findFirstAthleteProfile).mockResolvedValue(mockProfile as never);
+    vi.mocked(runImportPipeline).mockResolvedValue({
+      status: 'success',
+      importJobId: 'job-1',
+      activityId: 'act-1',
+    });
+
+    const app = buildTestApp();
+    await app.inject({
+      method: 'POST',
+      url: '/api/imports/activity-json',
+      payload: validJsonBody,
+    });
+
+    expect(runImportPipeline).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: 'ManualJsonImport',
+        rawPayloadHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      }),
+    );
   });
 });
 

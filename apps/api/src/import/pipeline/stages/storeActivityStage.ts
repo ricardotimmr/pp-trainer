@@ -1,9 +1,12 @@
-import { ImportNotImplementedError } from '../../ActivityImporter.js';
+import { prisma } from '../../../lib/prisma.js';
+import type { NormalizedActivity } from '../../normalizer/ActivityNormalizer.js';
 
-// Implemented in P4-005 once ActivityNormalizer produces a Prisma write input.
 export async function storeActivityStage(_input: {
   athleteProfileId: string;
-  normalized: unknown;
+  normalized: NormalizedActivity;
 }): Promise<{ id: string }> {
-  throw new ImportNotImplementedError('storeActivity');
+  return prisma.activity.create({
+    data: _input.normalized,
+    select: { id: true },
+  });
 }

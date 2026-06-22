@@ -102,6 +102,6 @@ export type ImportPipelineContext = {
 };
 
 export type ImportPipelineResult =
-  | { status: 'success'; activityId: string }
-  | { status: 'duplicate'; activityId: string; reason: string }
-  | { status: 'failed'; errorMessage: string; warningMessages?: string[] };
+  | { status: 'success'; importJobId: string; activityId: string }
+  | { status: 'duplicate'; importJobId: string; activityId: string; reason: string }
+  | { status: 'failed'; importJobId: string; errorMessage: string; warningMessages?: string[] };

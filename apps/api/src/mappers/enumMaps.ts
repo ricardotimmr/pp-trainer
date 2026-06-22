@@ -93,6 +93,15 @@ export const SWIM_STROKE_TYPE_MAP: Record<SwimStrokeType, SwimStrokeTypeDto> = {
   Drill: 'drill',
 };
 
+export const DTO_TO_PRISMA_SWIM_STROKE_MAP: Record<SwimStrokeTypeDto, SwimStrokeType> = {
+  freestyle: 'Freestyle',
+  backstroke: 'Backstroke',
+  breaststroke: 'Breaststroke',
+  butterfly: 'Butterfly',
+  mixed: 'Mixed',
+  drill: 'Drill',
+};
+
 export const GOAL_PRIORITY_MAP: Record<GoalPriority, GoalPriorityDto> = {
   MainGoal: 'main_goal',
   SecondaryGoal: 'secondary_goal',

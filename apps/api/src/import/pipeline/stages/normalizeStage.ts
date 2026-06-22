@@ -1,4 +1,4 @@
-import { ImportNotImplementedError } from '../../ActivityImporter.js';
+import { normalizeActivity, type NormalizedActivity } from '../../normalizer/ActivityNormalizer.js';
 import type { ParsedActivity } from '../../types.js';
 
 export type NormalizedActivityInput = {
@@ -6,7 +6,6 @@ export type NormalizedActivityInput = {
   parsed: ParsedActivity;
 };
 
-// Implemented in P4-003 via ActivityNormalizer.
-export async function normalizeStage(_input: NormalizedActivityInput): Promise<never> {
-  throw new ImportNotImplementedError('normalizer');
+export async function normalizeStage(input: NormalizedActivityInput): Promise<NormalizedActivity> {
+  return normalizeActivity(input.athleteProfileId, input.parsed);
 }
