@@ -1,4 +1,4 @@
-import type { PlannedWorkout, TrainingPlan, WorkoutStep } from '@prisma/client';
+import type { WorkoutStep } from '@prisma/client';
 import type {
   PlannedWorkoutDto,
   TrainingPlanDto,

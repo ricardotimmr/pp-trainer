@@ -4,158 +4,242 @@
 
 ## Current Status
 
-**Phase 2: Frontend Prototype with Mock Data — in progress**
+**Phase 3: Backend and Database Foundation — complete**
 
-A fully navigable frontend prototype is being built with static mock data. No backend, database, or real data sources are connected yet. The goal is to validate screens, data flows, and UI components before implementing the backend stack.
+The backend API, PostgreSQL database, migrations, and seed layer are fully operational. The frontend prototype from Phase 2 remains the default experience (mock mode) while the backend matures.
 
-Pages currently implemented:
+**What Phase 3 delivered:**
 
-- **Home** — landing and entry point
-- **Dashboard** — weekly summary, upcoming workouts, recent activities
-- **Training Plan** — full week view with planned workouts
-- **Workout Detail** — session structure, steps, intensity breakdown
-- **Activities** — activity list with filters
-- **Activity Detail** — laps, zones, charts, performance breakdown
-- **Performance** — stats, race predictions, trends
-- **AI Coach Preview** — two-column layout with athlete context and generated output
-- **Import** — data source status, pipeline overview, import history
-- **Settings** — athlete profile, performance baselines, training zones
+- Fastify v5 REST API (`apps/api/`) with TypeScript and ESM
+- PostgreSQL database via Prisma v7 and Docker Compose
+- Full migration history and rich seed dataset (athlete, goals, zones, activities, training plan, performance stats, import placeholders, AI coach foundation)
+- Zod DTO schemas in `packages/shared/` shared across API and frontend
+- Read endpoints for all Phase 2 data domains
+- Import metadata foundation (history read, upload placeholder returning 501 until Phase 4)
+- Athlete context builder (`GET /api/athlete/context`, `POST /api/athlete/context/snapshot`)
+- Frontend API client layer with explicit `VITE_DATA_MODE=mock|api` switch
+- Activities page migrated to optional API mode as the first real data proof
+- Quality gate: `npm run check` covers shared build, API typecheck, lint, tests and seed validation
+- GitHub Actions CI (no database required — all API tests use in-process mocks)
 
-A `/dev/ui-showcase` route exposes the component library for design review.
+**What is still mock-only (Phase 4+):**
 
-All data is served from `apps/web/src/mock/`. An env-gated fixture system (`VITE_ENABLE_PROTOTYPE_FIXTURES`) allows route-level empty-state testing via query parameter.
+All pages except Activities read from `apps/web/src/mock/` prototype helpers. No real file import or AI generation exists yet.
 
 ## Repository Structure
 
 ```txt
 pp-trainer/
 ├── apps/
-│   ├── web/          React + Vite + TypeScript frontend
-│   └── api/          Backend area (Phase 3+)
+│   ├── api/          Fastify v5 REST API (Phase 3+, active)
+│   └── web/          React + Vite + TypeScript frontend
 ├── packages/
-│   └── shared/       Shared TypeScript package (Phase 3+)
+│   └── shared/       Shared Zod schemas and TypeScript DTO types
 ├── docs/             Product docs, ADRs, brand assets
-├── prisma/           Schema prepared for Phase 3
+├── prisma/
+│   ├── schema.prisma
+│   ├── migrations/
+│   ├── seed.ts       Entry point — run via npm run db:seed
+│   └── seed/         Seed mappers and validation script
+├── .github/
+│   └── workflows/ci.yml
 ├── README.md
-├── package.json
-└── .env.example
+└── package.json
 ```
 
 ## Getting Started
 
-Install dependencies from the repository root:
+Install all dependencies from the repository root:
 
 ```bash
 npm install
 ```
 
-Start the frontend dev server:
+### Frontend only (mock mode, no backend needed)
 
 ```bash
 npm run dev
 ```
 
-Build the frontend:
+Open `http://127.0.0.1:5173`. All data comes from `apps/web/src/mock/`. No database or backend required.
 
-```bash
-npm run build
-```
+### Full stack (API + frontend)
 
-Run linting:
-
-```bash
-npm run lint
-```
-
-Check formatting:
-
-```bash
-npm run format:check
-```
-
-Run Playwright e2e tests:
-
-```bash
-npm run test:e2e
-```
-
-## Environment
-
-```bash
-cp .env.example .env
-```
-
-Only placeholder values are committed. Real secrets must stay out of Git.
-
-## Local Database
-
-The local PostgreSQL database runs via Docker Compose.
-
-Start PostgreSQL:
+**1. Start PostgreSQL:**
 
 ```bash
 npm run db:up
 ```
 
-Run Prisma migrations:
+**2. Copy and configure the API environment:**
+
+```bash
+cp apps/api/.env.example apps/api/.env
+```
+
+Edit `apps/api/.env` and set `DATABASE_URL` to point at the running PostgreSQL instance (the default in `.env.example` matches the Docker Compose config).
+
+**3. Run migrations and seed:**
 
 ```bash
 npm run db:migrate
-```
-
-Seed the default Phase 2 prototype baseline:
-
-```bash
 npm run db:seed
 ```
 
-The default seed inserts the rich prototype dataset: athlete profile, goals,
-training availability, training zones, activities with detail data, performance
-metrics, import placeholders, AI Coach foundation data, the active training plan,
-planned workouts and workout steps.
-
-Seed the empty-current-plan scenario:
+**4. Start the API server:**
 
 ```bash
+npm run dev:api
+```
+
+API runs at `http://127.0.0.1:3000`.
+
+**5. Start the frontend in API mode:**
+
+```bash
+cp apps/web/.env.example apps/web/.env
+# Edit apps/web/.env and set VITE_DATA_MODE=api
+npm run dev:web
+```
+
+Open `http://127.0.0.1:5173`. The Activities page now reads from the local backend. All other pages remain in mock mode.
+
+## Environment Variables
+
+### `apps/api/.env`
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATABASE_URL` | yes | — | PostgreSQL connection string |
+| `API_HOST` | no | `127.0.0.1` | Host the API binds to |
+| `API_PORT` | no | `3000` | Port the API listens on |
+| `WEB_ORIGIN` | no | `http://127.0.0.1:5173` | Allowed CORS origin |
+
+### `apps/web/.env`
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `VITE_DATA_MODE` | no | `mock` | `mock` or `api` — controls data source |
+| `VITE_API_BASE_URL` | no | `http://127.0.0.1:3000` | Backend base URL (only used in `api` mode) |
+| `VITE_ENABLE_PROTOTYPE_FIXTURES` | no | `false` | Enables `?fixture=` query param for empty-state testing |
+
+Both `.env` files are git-ignored. Only `.env.example` files are committed.
+
+## API Endpoint Overview
+
+All endpoints return `{ error: { code, message } }` on failure.
+
+### System
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/health` | Liveness check — returns `{ status: "ok" }` |
+
+### Athlete
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/athlete/profile` | Athlete profile with thresholds and availability |
+| `GET` | `/api/athlete/context` | Full structured context object (v1) for AI Coach |
+| `POST` | `/api/athlete/context/snapshot` | Persist current context snapshot — returns 201 |
+
+### Activities
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/activities` | Activity list (summary). Query params: `sport`, `activityType`, `from`, `to` |
+| `GET` | `/api/activities/:id` | Full activity detail with laps, zones and metric samples |
+
+### Training
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/training-plans/current-week` | Active training plan with all planned workouts and steps for the current week |
+| `GET` | `/api/training-plans/:id` | Training plan by ID |
+| `GET` | `/api/workouts/:id` | Planned workout by ID with steps |
+
+### Performance
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/performance` | Sport metrics and race predictions |
+
+### Import
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/import/history` | Import file history with status and activity count |
+| `POST` | `/api/import/upload` | **501 Not Implemented** — placeholder until Phase 4 |
+
+## Mock Mode vs API Mode
+
+The frontend has two data modes controlled by `VITE_DATA_MODE`:
+
+**`mock` (default)** — all pages read from `apps/web/src/mock/prototypeData.helpers.ts`. No backend or database needed. This is the safe default during development.
+
+**`api`** — the Activities page fetches from `GET /api/activities` via the API client in `apps/web/src/api/`. Loading and error states are handled. All other pages still read from mock helpers until they are migrated in a future phase.
+
+The switch is intentionally explicit — setting `VITE_DATA_MODE=api` with no backend running shows a clear error state rather than silently falling back to mock data.
+
+## Database
+
+### Seed scenarios
+
+```bash
+# Default seed — full prototype dataset
+npm run db:seed
+
+# Empty-plan scenario — omits training plan, workouts and steps
 PP_SEED_SCENARIO=no-active-plan npm run db:seed
 ```
 
-This keeps athlete, goals, zones, activities, performance, import placeholders
-and AI foundation data, but omits active training plan, planned workout and
-workout step records. Use it for backend DTO/API empty-state checks.
+The seed truncates all app tables before inserting. Only run against the local development database.
 
-Stop PostgreSQL without deleting data:
+### Reset and reseed
 
 ```bash
-npm run db:down
-```
-
-Reset PostgreSQL and re-run migrations:
-
-```bash
+# Drop volume, restart container, run migrations (data loss)
 npm run db:reset
-```
 
-Reset PostgreSQL, re-run migrations and seed the default baseline:
-
-```bash
+# Same as above plus default seed
 npm run db:reset:seed
 ```
 
-Database data is stored in a named Docker volume. Stopping the API or stopping
-the container does not delete data. `db:reset` removes the volume and starts
-from a clean database.
+### Other database commands
 
-`db:seed` truncates app tables with PostgreSQL `TRUNCATE ... CASCADE` before
-inserting seed data. Use it only against the local development database.
+```bash
+npm run db:up           # Start PostgreSQL container
+npm run db:down         # Stop container (data preserved)
+npm run db:migrate      # Run pending migrations
+npm run db:studio       # Open Prisma Studio
+npm run db:validate     # Validate schema syntax
+npm run db:validate:seed  # Validate seed payload structure (no DB needed)
+```
+
+## Quality Gate
+
+Run the full local quality gate before merging:
+
+```bash
+npm run check
+```
+
+This runs in sequence:
+1. `build:shared` + `typecheck:shared` — shared package compiles cleanly
+2. `typecheck:api` — API TypeScript is clean
+3. `lint:api` — no ESLint errors
+4. `test:api` — all 155 unit tests pass (no database required)
+5. `db:validate:seed` — seed payload structure is internally consistent
+
+CI (GitHub Actions) runs the same steps on every push and pull request to `main`.
 
 ## Roadmap
 
 ```txt
 Phase 0   Project Foundation          done
 Phase 1   Repo and App Foundation     done
-Phase 2   Frontend Prototype          in progress
-Phase 3   Backend and Database        upcoming
+Phase 2   Frontend Prototype          done
+Phase 3   Backend and Database        done
 Phase 4   Activity Import             upcoming
 Phase 5   Training Planning Core      upcoming
 Phase 6   AI Coach MVP                upcoming
@@ -163,3 +247,14 @@ Phase 7   MVP Integration             upcoming
 ```
 
 Full roadmap: `docs/07-roadmap.md`
+
+## What Phase 4 Should Build Next
+
+Phase 4 picks up from the `POST /api/import/upload` placeholder (currently 501):
+
+- Real FIT/GPX/TCX parser writing to `ImportedFile` + `RawActivityData`
+- Activity normaliser writing to `Activity` + related tables
+- Duplicate detection based on `externalId`
+- Garmin or manual upload flow in the frontend
+- Import status polling or webhook
+- Seed dataset replaced or extended by real imported data
