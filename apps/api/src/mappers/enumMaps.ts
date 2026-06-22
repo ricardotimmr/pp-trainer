@@ -2,6 +2,8 @@ import type {
   ActivityType,
   DataSourceType,
   GoalPriority,
+  ImportedFileType,
+  ImportStatus,
   PlannedWorkoutSource,
   SportType,
   SwimStrokeType,
@@ -20,6 +22,8 @@ import type {
   ActivityTypeDto,
   DataSourceTypeDto,
   GoalPriorityDto,
+  ImportedFileTypeDto,
+  ImportStatusDto,
   PlannedWorkoutSourceDto,
   SportTypeDto,
   SwimStrokeTypeDto,
@@ -196,4 +200,22 @@ export const WORKOUT_STEP_TYPE_MAP: Record<WorkoutStepType, WorkoutStepTypeDto> 
   StrengthExercise: 'strength_exercise',
   Rest: 'rest',
   Other: 'other',
+};
+
+export const IMPORTED_FILE_TYPE_MAP: Record<ImportedFileType, ImportedFileTypeDto> = {
+  Fit: 'fit',
+  Gpx: 'gpx',
+  Tcx: 'tcx',
+  Json: 'json',
+  Csv: 'csv',
+  Unknown: 'unknown',
+};
+
+export const IMPORT_STATUS_MAP: Record<ImportStatus, ImportStatusDto> = {
+  Pending: 'pending',
+  Processing: 'processing',
+  Success: 'success',
+  Failed: 'failed',
+  Duplicate: 'duplicate',
+  PartiallyImported: 'partially_imported',
 };
