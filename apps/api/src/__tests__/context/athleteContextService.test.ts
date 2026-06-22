@@ -95,9 +95,6 @@ describe('buildAthleteContext', () => {
 
   it('places main_goal correctly and leaves secondaryGoals and watchlistGoals empty', async () => {
     vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(baseProfile);
-    vi.mocked(AthleteRepository.findAthleteGoals).mockResolvedValue([
-      makeGoal('g1', 'Win Berlin Marathon', 'MainGoal'),
-    ]);
     setupEmptyRepos();
     vi.mocked(AthleteRepository.findAthleteGoals).mockResolvedValue([
       makeGoal('g1', 'Win Berlin Marathon', 'MainGoal'),

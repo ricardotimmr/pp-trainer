@@ -4,7 +4,7 @@ import type { Activity } from '../mock/prototypeData.types';
 export function mapApiActivity(dto: ActivitySummaryDto): Activity {
   return {
     id: dto.id,
-    athleteProfileId: '',
+    athleteProfileId: '', // not exposed in API summary — frontend display only
     sourceType: dto.sourceType,
     externalId: dto.externalId,
     title: dto.title,

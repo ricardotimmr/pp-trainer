@@ -119,9 +119,9 @@ function ActivitiesMockMode({ navigate }: PageComponentProps) {
   );
 }
 
-export function ActivitiesPage({ navigate }: PageComponentProps) {
+export function ActivitiesPage({ navigate, params }: PageComponentProps) {
   if (DATA_MODE === 'api') {
-    return <ActivitiesApiMode navigate={navigate} />;
+    return <ActivitiesApiMode navigate={navigate} params={params} />;
   }
-  return <ActivitiesMockMode navigate={navigate} />;
+  return <ActivitiesMockMode navigate={navigate} params={params} />;
 }

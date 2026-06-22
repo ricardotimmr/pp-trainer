@@ -62,6 +62,20 @@ function validateDefaultPayload(): ValidationError[] {
     errors.push(`${orphanedZones.length} time-in-zone record(s) reference unknown activityId`);
   }
 
+  const orphanedStrengthSets = payload.activityStrengthSets.filter(
+    (s) => !activityIds.has(s.activityId as string),
+  );
+  if (orphanedStrengthSets.length > 0) {
+    errors.push(`${orphanedStrengthSets.length} strength set(s) reference unknown activityId`);
+  }
+
+  const orphanedStrengthExercises = payload.activityStrengthExercises.filter(
+    (e) => !activityIds.has(e.activityId as string),
+  );
+  if (orphanedStrengthExercises.length > 0) {
+    errors.push(`${orphanedStrengthExercises.length} strength exercise(s) reference unknown activityId`);
+  }
+
   const zoneSetIds = new Set(payload.trainingZoneSets.map((s) => s.id as string));
   const orphanedZoneDefinitions = payload.trainingZones.filter(
     (z) => !zoneSetIds.has(z.trainingZoneSetId as string),

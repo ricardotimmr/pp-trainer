@@ -22,6 +22,7 @@
     "preview:web": "npm --workspace @pp-trainer/web run preview",
     "typecheck:api": "npm --workspace @pp-trainer/api run typecheck",
     "typecheck:shared": "npm --workspace @pp-trainer/shared run typecheck",
+    "typecheck:web": "npm --workspace @pp-trainer/web run typecheck",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose stop db",
     "db:reset": "docker compose down -v && docker compose up -d db && prisma migrate dev",
