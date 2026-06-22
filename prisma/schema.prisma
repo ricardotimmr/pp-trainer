@@ -212,6 +212,34 @@ enum AiOutputValidationStatus {
   PartiallyValid @map("partially_valid")
 }
 
+model ImportJob {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  importedFileId String?
+  importedFile   ImportedFile? @relation(fields: [importedFileId], references: [id], onDelete: SetNull)
+
+  status         ImportStatus
+  sourceType     DataSourceType
+  rawPayloadHash String?
+
+  activityId String?
+  activity   Activity? @relation(fields: [activityId], references: [id], onDelete: SetNull)
+
+  errorMessage    String?
+  warningMessages String[]
+
+  @@index([athleteProfileId, createdAt])
+  @@index([status])
+  @@index([rawPayloadHash])
+  @@index([activityId])
+  @@index([importedFileId])
+}
+
 model AthleteProfile {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -242,6 +270,7 @@ model AthleteProfile {
   racePredictions         RacePrediction[]
   importedFiles           ImportedFile[]
   rawActivityData         RawActivityData[]
+  importJobs              ImportJob[]
   athleteContextSnapshots AthleteContextSnapshot[]
   aiCoachOutputs          AiCoachOutput[]
 }
@@ -391,6 +420,7 @@ model Activity {
   strengthSets             ActivityStrengthSet[]
   strengthExercises        ActivityStrengthExercise[]
   createdFromImportedFiles ImportedFile[]             @relation("ImportedFileCreatedActivity")
+  importJobs               ImportJob[]
 
   @@index([athleteProfileId, startTime])
   @@index([athleteProfileId, sport, startTime, durationSeconds, distanceMeters])
@@ -686,6 +716,7 @@ model ImportedFile {
 
   activities      Activity[]        @relation("ActivityImportedFile")
   rawActivityData RawActivityData[]
+  importJobs      ImportJob[]
 
   @@unique([athleteProfileId, fileHash])
   @@index([athleteProfileId, uploadedAt])
