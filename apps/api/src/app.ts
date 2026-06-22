@@ -1,8 +1,10 @@
 import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
 import Fastify from 'fastify';
 
 import { getApiConfig, type ApiConfig } from './config/env.js';
 import { setupErrorHandling } from './errors/errorHandler.js';
+import { ensureStorageDir } from './lib/fileStorage.js';
 import { activityRoutes } from './routes/activityRoutes.js';
 import { athleteRoutes } from './routes/athleteRoutes.js';
 import { contextRoutes } from './routes/contextRoutes.js';
@@ -25,6 +27,12 @@ export async function buildApp(config: ApiConfig = getApiConfig()) {
   await app.register(cors, {
     origin: config.webOrigin,
   });
+
+  await app.register(multipart, {
+    limits: { fileSize: config.importMaxFileSizeMb * 1024 * 1024 },
+  });
+
+  await ensureStorageDir(config.importStoragePath);
 
   app.get('/api/health', async () => ({
     status: 'ok',

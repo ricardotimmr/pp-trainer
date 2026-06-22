@@ -3,6 +3,8 @@ export type ApiConfig = {
   port: number;
   webOrigin: string;
   nodeEnv: 'development' | 'test' | 'production';
+  importMaxFileSizeMb: number;
+  importStoragePath: string;
 };
 
 const validNodeEnvs = ['development', 'test', 'production'] as const;
@@ -39,5 +41,7 @@ export function getApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     port: parsePort(env.API_PORT),
     webOrigin: env.WEB_ORIGIN ?? 'http://127.0.0.1:5173',
     nodeEnv: parseNodeEnv(env.NODE_ENV),
+    importMaxFileSizeMb: Number(env.IMPORT_MAX_FILE_SIZE_MB ?? 20),
+    importStoragePath: env.IMPORT_STORAGE_PATH ?? './storage/imports',
   };
 }
