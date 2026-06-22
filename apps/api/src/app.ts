@@ -5,6 +5,7 @@ import { getApiConfig, type ApiConfig } from './config/env.js';
 import { setupErrorHandling } from './errors/errorHandler.js';
 import { activityRoutes } from './routes/activityRoutes.js';
 import { athleteRoutes } from './routes/athleteRoutes.js';
+import { trainingRoutes } from './routes/trainingRoutes.js';
 
 export async function buildApp(config: ApiConfig = getApiConfig()) {
   const app = Fastify({
@@ -29,6 +30,7 @@ export async function buildApp(config: ApiConfig = getApiConfig()) {
 
   await app.register(athleteRoutes);
   await app.register(activityRoutes);
+  await app.register(trainingRoutes);
 
   return app;
 }

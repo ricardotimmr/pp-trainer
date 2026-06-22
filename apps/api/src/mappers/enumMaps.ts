@@ -2,23 +2,37 @@ import type {
   ActivityType,
   DataSourceType,
   GoalPriority,
+  PlannedWorkoutSource,
   SportType,
   SwimStrokeType,
   TrainingGoalType,
+  TrainingPlanSource,
+  TrainingPlanStatus,
   TrainingZoneType,
   TrainingZoneUnit,
   Weekday,
+  WorkoutIntensity,
+  WorkoutStatus,
+  WorkoutStepType,
+  WorkoutType,
 } from '@prisma/client';
 import type {
   ActivityTypeDto,
   DataSourceTypeDto,
   GoalPriorityDto,
+  PlannedWorkoutSourceDto,
   SportTypeDto,
   SwimStrokeTypeDto,
   TrainingGoalTypeDto,
+  TrainingPlanSourceDto,
+  TrainingPlanStatusDto,
   TrainingZoneTypeDto,
   TrainingZoneUnitDto,
   WeekdayDto,
+  WorkoutIntensityDto,
+  WorkoutStatusDto,
+  WorkoutStepTypeDto,
+  WorkoutTypeDto,
 } from '@pp-trainer/shared';
 
 export const SPORT_TYPE_MAP: Record<SportType, SportTypeDto> = {
@@ -113,4 +127,73 @@ export const ZONE_UNIT_MAP: Record<TrainingZoneUnit, TrainingZoneUnitDto> = {
   SecPerKm: 'sec_per_km',
   SecPer100m: 'sec_per_100m',
   Rpe: 'rpe',
+};
+
+export const TRAINING_PLAN_STATUS_MAP: Record<TrainingPlanStatus, TrainingPlanStatusDto> = {
+  Draft: 'draft',
+  Active: 'active',
+  Completed: 'completed',
+  Archived: 'archived',
+};
+
+export const TRAINING_PLAN_SOURCE_MAP: Record<TrainingPlanSource, TrainingPlanSourceDto> = {
+  Manual: 'manual',
+  AiGenerated: 'ai_generated',
+  Template: 'template',
+  Imported: 'imported',
+};
+
+export const WORKOUT_TYPE_MAP: Record<WorkoutType, WorkoutTypeDto> = {
+  Endurance: 'endurance',
+  Recovery: 'recovery',
+  Tempo: 'tempo',
+  Threshold: 'threshold',
+  Vo2Max: 'vo2max',
+  Long: 'long',
+  RaceSpecific: 'race_specific',
+  Technique: 'technique',
+  Strength: 'strength',
+  Mobility: 'mobility',
+  Rest: 'rest',
+  Other: 'other',
+};
+
+export const WORKOUT_INTENSITY_MAP: Record<WorkoutIntensity, WorkoutIntensityDto> = {
+  Rest: 'rest',
+  Recovery: 'recovery',
+  Easy: 'easy',
+  Moderate: 'moderate',
+  Tempo: 'tempo',
+  Threshold: 'threshold',
+  Vo2Max: 'vo2max',
+  Race: 'race',
+  Strength: 'strength',
+};
+
+export const WORKOUT_STATUS_MAP: Record<WorkoutStatus, WorkoutStatusDto> = {
+  Planned: 'planned',
+  Completed: 'completed',
+  Missed: 'missed',
+  Moved: 'moved',
+  Adjusted: 'adjusted',
+  Cancelled: 'cancelled',
+};
+
+export const PLANNED_WORKOUT_SOURCE_MAP: Record<PlannedWorkoutSource, PlannedWorkoutSourceDto> = {
+  Manual: 'manual',
+  AiGenerated: 'ai_generated',
+  Template: 'template',
+  Imported: 'imported',
+};
+
+export const WORKOUT_STEP_TYPE_MAP: Record<WorkoutStepType, WorkoutStepTypeDto> = {
+  Warmup: 'warmup',
+  Main: 'main',
+  Interval: 'interval',
+  Recovery: 'recovery',
+  Cooldown: 'cooldown',
+  Technique: 'technique',
+  StrengthExercise: 'strength_exercise',
+  Rest: 'rest',
+  Other: 'other',
 };
