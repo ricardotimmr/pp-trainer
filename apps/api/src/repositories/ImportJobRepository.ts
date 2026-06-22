@@ -53,6 +53,21 @@ export async function findImportJobs(
   });
 }
 
+export async function findImportJobByHash(
+  rawPayloadHash: string,
+  athleteProfileId: string,
+): Promise<Pick<ImportJob, 'activityId'> | null> {
+  return prisma.importJob.findFirst({
+    where: {
+      rawPayloadHash,
+      athleteProfileId,
+      status: 'Success',
+      activityId: { not: null },
+    },
+    select: { activityId: true },
+  });
+}
+
 export async function updateImportJob(id: string, data: UpdateImportJobInput): Promise<ImportJob> {
   return prisma.importJob.update({
     where: { id },

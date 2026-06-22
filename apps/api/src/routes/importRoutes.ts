@@ -5,6 +5,19 @@ import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 
 import { ApiError } from '../errors/ApiError.js';
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return '[' + value.map(canonicalJson).join(',') + ']';
+  }
+  if (value !== null && typeof value === 'object') {
+    const sorted = Object.keys(value as object)
+      .sort()
+      .map((k) => `"${k}":${canonicalJson((value as Record<string, unknown>)[k])}`);
+    return '{' + sorted.join(',') + '}';
+  }
+  return JSON.stringify(value);
+}
 import { runImportPipeline } from '../import/pipeline/runImportPipeline.js';
 import * as AthleteRepository from '../repositories/AthleteRepository.js';
 import * as ImportService from '../services/ImportService.js';
@@ -70,8 +83,11 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
+    // Canonical JSON (sorted keys, no whitespace) — excludes forceImport so the
+    // hash represents only the activity content regardless of the bypass flag
+    const { forceImport, ...activityFields } = parsed;
     const rawPayloadHash = createHash('sha256')
-      .update(JSON.stringify(request.body))
+      .update(canonicalJson(activityFields))
       .digest('hex');
 
     const result = await runImportPipeline({
@@ -79,6 +95,7 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
       source: 'ManualJsonImport',
       input: parsed,
       rawPayloadHash,
+      forceImport: forceImport === true,
     });
 
     const dto: ImportResultDto = {

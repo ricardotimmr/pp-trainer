@@ -272,7 +272,7 @@ describe('POST /api/imports/activity-json', () => {
     expect(res.statusCode).toBe(404);
   });
 
-  it('passes rawPayloadHash to pipeline', async () => {
+  it('passes rawPayloadHash (sha256 hex) to pipeline', async () => {
     vi.mocked(findFirstAthleteProfile).mockResolvedValue(mockProfile as never);
     vi.mocked(runImportPipeline).mockResolvedValue({
       status: 'success',
@@ -293,6 +293,61 @@ describe('POST /api/imports/activity-json', () => {
         rawPayloadHash: expect.stringMatching(/^[a-f0-9]{64}$/),
       }),
     );
+  });
+
+  it('passes forceImport: true to pipeline when set', async () => {
+    vi.mocked(findFirstAthleteProfile).mockResolvedValue(mockProfile as never);
+    vi.mocked(runImportPipeline).mockResolvedValue({
+      status: 'success',
+      importJobId: 'job-1',
+      activityId: 'act-1',
+    });
+
+    const app = buildTestApp();
+    await app.inject({
+      method: 'POST',
+      url: '/api/imports/activity-json',
+      payload: { ...validJsonBody, forceImport: true },
+    });
+
+    expect(runImportPipeline).toHaveBeenCalledWith(
+      expect.objectContaining({ forceImport: true }),
+    );
+  });
+
+  it('excludes forceImport from the payload hash', async () => {
+    vi.mocked(findFirstAthleteProfile).mockResolvedValue(mockProfile as never);
+    vi.mocked(runImportPipeline).mockResolvedValue({
+      status: 'success',
+      importJobId: 'job-1',
+      activityId: 'act-1',
+    });
+
+    const app = buildTestApp();
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/imports/activity-json',
+      payload: validJsonBody,
+    });
+    const hashWithout = vi.mocked(runImportPipeline).mock.calls[0][0].rawPayloadHash;
+
+    vi.resetAllMocks();
+    vi.mocked(findFirstAthleteProfile).mockResolvedValue(mockProfile as never);
+    vi.mocked(runImportPipeline).mockResolvedValue({
+      status: 'success',
+      importJobId: 'job-1',
+      activityId: 'act-1',
+    });
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/imports/activity-json',
+      payload: { ...validJsonBody, forceImport: true },
+    });
+    const hashWith = vi.mocked(runImportPipeline).mock.calls[0][0].rawPayloadHash;
+
+    expect(hashWithout).toBe(hashWith);
   });
 });
 

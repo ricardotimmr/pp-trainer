@@ -1,8 +1,12 @@
-// Implemented in P4-004 via deduplicateActivity.
-// Returns isDuplicate: false as a pass-through until P4-004.
-export async function deduplicateStage(_input: {
+import { deduplicateActivity, type DeduplicateResult } from '../../dedup/deduplicateActivity.js';
+import type { ParsedActivity } from '../../types.js';
+
+export type DeduplicateStageInput = {
   athleteProfileId: string;
+  parsed: ParsedActivity;
   rawPayloadHash?: string;
-}): Promise<{ isDuplicate: false }> {
-  return { isDuplicate: false };
+};
+
+export async function deduplicateStage(input: DeduplicateStageInput): Promise<DeduplicateResult> {
+  return deduplicateActivity(input.athleteProfileId, input.parsed, input.rawPayloadHash);
 }

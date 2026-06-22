@@ -17,28 +17,13 @@ export type RunImportPipelineParams = {
   input: unknown;
   rawPayloadHash?: string;
   importedFileId?: string;
+  forceImport?: boolean;
 };
 
-/**
- * Import pipeline orchestrator.
- *
- * Stages:
- *   1. validate  — schema/type check (pass-through until parsers implement it)
- *   2. parse     — source-specific parser → ParsedActivity
- *   3. store-raw — persist ImportedFile + RawActivityData before normalization
- *   4. normalize — ParsedActivity → Prisma Activity write shape
- *   5. dedup     — hash + similarity check; short-circuits on duplicate
- *   6. store     — write Activity + relations to DB
- *   7. complete  — update ImportJob to success with activityId
- *
- * Any stage that throws ImportNotImplementedError causes the job to fail with
- * a clear 'not_implemented' message. Other errors are caught and stored as
- * errorMessage on the ImportJob.
- */
 export async function runImportPipeline(
   params: RunImportPipelineParams,
 ): Promise<ImportPipelineResult> {
-  const { athleteProfileId, source, input, rawPayloadHash, importedFileId } = params;
+  const { athleteProfileId, source, input, rawPayloadHash, importedFileId, forceImport } = params;
 
   const job = await ImportJobService.startJob({
     athleteProfileId,
@@ -67,12 +52,17 @@ export async function runImportPipeline(
     // 4. normalize
     const normalized = await normalizeStage({ athleteProfileId, parsed });
 
-    // 5. deduplicate
-    const dedup = await deduplicateStage({ athleteProfileId, rawPayloadHash });
-    if (dedup.isDuplicate) {
-      // deduplicateStage will return the existingActivityId once implemented (P4-004)
-      const updatedJob = await ImportJobService.markDuplicate(job.id, '');
-      return buildResultStage(updatedJob);
+    // 5. deduplicate (skipped when forceImport: true)
+    if (forceImport !== true) {
+      const dedup = await deduplicateStage({ athleteProfileId, parsed, rawPayloadHash });
+      if (dedup.isDuplicate) {
+        const updatedJob = await ImportJobService.markDuplicate(
+          job.id,
+          dedup.existingActivityId,
+          [dedup.reason],
+        );
+        return buildResultStage(updatedJob);
+      }
     }
 
     // 6. store activity
