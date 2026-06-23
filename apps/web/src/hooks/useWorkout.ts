@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { PlannedWorkoutDto } from '@pp-trainer/shared';
 
@@ -9,7 +9,8 @@ export type WorkoutState =
   | { status: 'success'; workout: PlannedWorkoutDto }
   | { status: 'error'; message: string };
 
-export function useWorkout(id: string): WorkoutState {
+export function useWorkout(id: string): WorkoutState & { refresh: () => void } {
+  const [tick, setTick] = useState(0);
   const [state, setState] = useState<WorkoutState>({ status: 'loading' });
 
   useEffect(() => {
@@ -30,7 +31,8 @@ export function useWorkout(id: string): WorkoutState {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, tick]);
 
-  return state;
+  const refresh = useCallback(() => setTick((t) => t + 1), []);
+  return { ...state, refresh };
 }

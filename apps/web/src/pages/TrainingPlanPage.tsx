@@ -1,12 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 
-import type { PlannedWorkoutDto } from '@pp-trainer/shared';
+import type {
+  CreateTrainingPlanRequest,
+  PlannedWorkoutDto,
+  TrainingPlanSummaryDto,
+  UpdateTrainingPlanRequest,
+} from '@pp-trainer/shared';
 
 import { EmptyState, ErrorState, LoadingState, WorkoutCard } from '../components';
 import type { WorkoutCardData } from '../components';
 import { formatDuration } from '../components/prototypeFormatters';
+import { createTrainingPlan, updateTrainingPlan } from '../api/trainingApi';
 import { DATA_MODE } from '../config/dataMode';
 import { useCurrentWeekPlan } from '../hooks/useCurrentWeekPlan';
+import { useTrainingPlans } from '../hooks/useTrainingPlans';
 import { PageShell } from '../layout/PageShell';
 import {
   getCurrentTrainingPlan,
@@ -59,6 +67,199 @@ function formatWeekRange(startDate: string, endDate: string): string {
   return `${s} – ${e}`;
 }
 
+/* ── Plan status badge ───────────────────────────────────────────────────── */
+
+type TrainingPlanStatus = TrainingPlanSummaryDto['status'];
+
+const planStatusLabels: Record<TrainingPlanStatus, string> = {
+  draft: 'Draft',
+  active: 'Active',
+  completed: 'Completed',
+  archived: 'Archived',
+};
+
+function TrainingPlanStatusBadge({ status }: { status: TrainingPlanStatus }) {
+  return (
+    <span className={`badge badge--plan-status badge--plan-status-${status}`}>
+      {planStatusLabels[status]}
+    </span>
+  );
+}
+
+/* ── Create Plan Modal ───────────────────────────────────────────────────── */
+
+type CreatePlanModalProps = {
+  onClose: () => void;
+  onSuccess: () => void;
+};
+
+function CreatePlanModal({ onClose, onSuccess }: CreatePlanModalProps) {
+  const { weekStart, weekEnd } = getCurrentWeekRange();
+  const [title, setTitle] = useState('');
+  const [startDate, setStartDate] = useState(weekStart);
+  const [endDate, setEndDate] = useState(weekEnd);
+  const [description, setDescription] = useState('');
+  const [status, setStatus] = useState<'draft' | 'active'>('draft');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!title.trim()) { setError('Title is required.'); return; }
+    if (endDate < startDate) { setError('End date must be on or after start date.'); return; }
+
+    const payload: CreateTrainingPlanRequest = {
+      title: title.trim(),
+      startDate,
+      endDate,
+      status,
+    };
+    if (description.trim()) payload.description = description.trim();
+
+    setSubmitting(true);
+    try {
+      await createTrainingPlan(payload);
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create plan.');
+      setSubmitting(false);
+    }
+  }
+
+  return createPortal(
+    <div className="cw-modal-overlay" onPointerDown={onClose}>
+      <div className="cw-modal" onPointerDown={(e) => e.stopPropagation()}>
+        <div className="cw-modal__header">
+          <h3>New Training Plan</h3>
+          <button type="button" className="cw-modal__close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <form className="cw-modal__body" onSubmit={handleSubmit} noValidate>
+          <div className="cw-field cw-field--full">
+            <label className="cw-label cw-label--required" htmlFor="cp-title">Title</label>
+            <input
+              id="cp-title"
+              className="cw-input"
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Week 26 Base Training"
+              disabled={submitting}
+            />
+          </div>
+          <div className="cw-field cw-field--1">
+            <label className="cw-label cw-label--required" htmlFor="cp-start">Start date</label>
+            <input
+              id="cp-start"
+              className="cw-input"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="cw-field cw-field--1">
+            <label className="cw-label cw-label--required" htmlFor="cp-end">End date</label>
+            <input
+              id="cp-end"
+              className="cw-input"
+              type="date"
+              value={endDate}
+              min={startDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="cw-field cw-field--full">
+            <label className="cw-label" htmlFor="cp-desc">Description</label>
+            <textarea
+              id="cp-desc"
+              className="cw-input"
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="cw-field cw-field--full">
+            <span className="cw-label">Status</span>
+            <div className="tp-status-radios">
+              {(['draft', 'active'] as const).map((s) => (
+                <label key={s} className={`tp-status-radio${status === s ? ' is-selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="cp-status"
+                    value={s}
+                    checked={status === s}
+                    onChange={() => setStatus(s)}
+                    disabled={submitting}
+                  />
+                  {planStatusLabels[s]}
+                </label>
+              ))}
+            </div>
+          </div>
+          {error && <p className="cw-form__error">{error}</p>}
+          <div className="cw-modal__footer">
+            <button type="button" className="btn btn--secondary btn--sm" onClick={onClose} disabled={submitting}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn--primary btn--sm" disabled={submitting}>
+              {submitting ? 'Creating…' : 'Create Plan'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/* ── Plan list section ───────────────────────────────────────────────────── */
+
+type PlanListSectionProps = {
+  plans: TrainingPlanSummaryDto[];
+  onActivate: (id: string) => Promise<void>;
+  activating: string | null;
+};
+
+function PlanListSection({ plans, onActivate, activating }: PlanListSectionProps) {
+  if (plans.length === 0) return null;
+
+  return (
+    <section className="tp-plans">
+      <h2 className="tp-plans__heading">All Plans</h2>
+      <ul className="tp-plans__list">
+        {plans.map((plan) => (
+          <li key={plan.id} className="tp-plan-row">
+            <div className="tp-plan-row__info">
+              <span className="tp-plan-row__title">{plan.title}</span>
+              <span className="tp-plan-row__dates">
+                {plan.startDate} – {plan.endDate}
+              </span>
+            </div>
+            <div className="tp-plan-row__right">
+              <TrainingPlanStatusBadge status={plan.status} />
+              {plan.status !== 'active' && (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  disabled={activating !== null}
+                  onClick={() => onActivate(plan.id)}
+                >
+                  {activating === plan.id ? '…' : 'Activate'}
+                </button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/* ── Week plan content ───────────────────────────────────────────────────── */
+
 type WeekPlanContentProps = {
   title: string;
   description?: string;
@@ -68,6 +269,7 @@ type WeekPlanContentProps = {
   summaryItems: { label: string; value: string }[];
   navigate: PageComponentProps['navigate'];
   actions?: React.ReactNode;
+  footer?: React.ReactNode;
 };
 
 function WeekPlanContent({
@@ -79,6 +281,7 @@ function WeekPlanContent({
   summaryItems,
   navigate,
   actions,
+  footer,
 }: WeekPlanContentProps) {
   const weekRange = formatWeekRange(weekStart, weekEnd);
   const weekDates = getWeekDates(weekStart, weekEnd);
@@ -140,6 +343,7 @@ function WeekPlanContent({
           })}
         </ol>
       )}
+      {footer}
     </PageShell>
   );
 }
@@ -203,24 +407,54 @@ function TrainingPlanMockMode({ navigate }: PageComponentProps) {
   );
 }
 
-function CreateWorkoutButton({ navigate }: { navigate: PageComponentProps['navigate'] }) {
-  return (
-    <button
-      type="button"
-      className="btn btn--primary"
-      onClick={() => navigate('/workouts/new')}
-    >
-      + Create Workout
-    </button>
-  );
-}
-
 function TrainingPlanApiMode({ navigate }: PageComponentProps) {
-  const state = useCurrentWeekPlan();
+  const weekPlanState = useCurrentWeekPlan();
+  const plansState = useTrainingPlans();
   const { weekStart, weekEnd } = getCurrentWeekRange();
-  const createBtn = <CreateWorkoutButton navigate={navigate} />;
+  const [showCreatePlan, setShowCreatePlan] = useState(false);
+  const [activating, setActivating] = useState<string | null>(null);
 
-  if (state.status === 'loading') {
+  async function handleActivate(id: string) {
+    setActivating(id);
+    try {
+      const payload: UpdateTrainingPlanRequest = { status: 'active' };
+      await updateTrainingPlan(id, payload);
+      weekPlanState.refresh();
+      plansState.refresh();
+    } catch {
+      // silently fall through — plan list will re-render unchanged
+    } finally {
+      setActivating(null);
+    }
+  }
+
+  function handlePlanCreated() {
+    setShowCreatePlan(false);
+    weekPlanState.refresh();
+    plansState.refresh();
+  }
+
+  const planList =
+    plansState.status === 'success' && plansState.plans.length > 0 ? (
+      <PlanListSection
+        plans={plansState.plans}
+        onActivate={handleActivate}
+        activating={activating}
+      />
+    ) : null;
+
+  const headerActions = (
+    <div className="tp-header-actions">
+      <button type="button" className="btn btn--secondary" onClick={() => setShowCreatePlan(true)}>
+        + New Plan
+      </button>
+      <button type="button" className="btn btn--primary" onClick={() => navigate('/workouts/new')}>
+        + Create Workout
+      </button>
+    </div>
+  );
+
+  if (weekPlanState.status === 'loading') {
     return (
       <PageShell title="Training Plan" eyebrow="Training Plan · Loading...">
         <LoadingState title="Loading training plan" description="Fetching from local backend..." />
@@ -228,42 +462,48 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
     );
   }
 
-  if (state.status === 'error') {
+  if (weekPlanState.status === 'error') {
     return (
-      <PageShell title="Training Plan" eyebrow="Training Plan">
-        <ErrorState title="Could not load training plan" description={state.message} />
+      <PageShell title="Training Plan" eyebrow="Training Plan" actions={headerActions}>
+        <ErrorState title="Could not load training plan" description={weekPlanState.message} />
+        {planList}
       </PageShell>
     );
   }
 
-  if (!state.plan) {
-    return (
-      <PageShell
-        title="Training Plan"
-        eyebrow={`Training Plan · ${formatWeekRange(weekStart, weekEnd)}`}
-        actions={createBtn}
-      >
-        <EmptyState
-          title="No active training plan"
-          description="No training plan for this week. Create one or wait for the AI Coach."
-        />
-      </PageShell>
-    );
-  }
-
-  const { plan } = state;
-
-  return (
+  const rendered = weekPlanState.plan ? (
     <WeekPlanContent
-      title={plan.title}
-      description={plan.description}
+      title={weekPlanState.plan.title}
+      description={weekPlanState.plan.description}
       weekStart={weekStart}
       weekEnd={weekEnd}
-      workouts={plan.plannedWorkouts as WorkoutCardData[]}
-      summaryItems={buildApiSummaryItems(plan.plannedWorkouts)}
+      workouts={weekPlanState.plan.plannedWorkouts as WorkoutCardData[]}
+      summaryItems={buildApiSummaryItems(weekPlanState.plan.plannedWorkouts)}
       navigate={navigate}
-      actions={createBtn}
+      actions={headerActions}
+      footer={planList}
     />
+  ) : (
+    <PageShell
+      title="Training Plan"
+      eyebrow={`Training Plan · ${formatWeekRange(weekStart, weekEnd)}`}
+      actions={headerActions}
+    >
+      <EmptyState
+        title="No active training plan"
+        description="No training plan for this week. Create one or wait for the AI Coach."
+      />
+      {planList}
+    </PageShell>
+  );
+
+  return (
+    <>
+      {rendered}
+      {showCreatePlan && (
+        <CreatePlanModal onClose={() => setShowCreatePlan(false)} onSuccess={handlePlanCreated} />
+      )}
+    </>
   );
 }
 

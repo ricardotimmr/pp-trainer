@@ -1,3 +1,7 @@
+import { useState } from 'react';
+
+import type { PlannedWorkoutDto, UpdateWorkoutStatusRequest } from '@pp-trainer/shared';
+
 import {
   ErrorState,
   IntensityBadge,
@@ -10,6 +14,8 @@ import { WorkoutStatusBadge } from '../components/badges/WorkoutStatusBadge';
 import { stepTypeLabels } from '../components/data/workoutStepLabels';
 import { formatDate, formatDistance, formatDuration } from '../components/prototypeFormatters';
 import { DATA_MODE } from '../config/dataMode';
+import { updateWorkoutStatus } from '../api/trainingApi';
+import { useCurrentWeekPlan } from '../hooks/useCurrentWeekPlan';
 import { useWorkout } from '../hooks/useWorkout';
 import { PageShell } from '../layout/PageShell';
 import { getWorkoutById, getWorkoutSteps } from '../mock/prototypeData.helpers';
@@ -35,12 +41,77 @@ type WorkoutDetailData = {
   coachNotes?: string;
 };
 
+type StatusAction = { label: string; next: WorkoutStatus };
+
+function getStatusActions(status: WorkoutStatus): StatusAction[] {
+  if (status === 'planned') {
+    return [
+      { label: 'Mark as Completed', next: 'completed' },
+      { label: 'Mark as Missed', next: 'missed' },
+      { label: 'Cancel', next: 'cancelled' },
+    ];
+  }
+  if (status === 'completed' || status === 'missed') {
+    return [{ label: 'Reset to Planned', next: 'planned' }];
+  }
+  if (status === 'cancelled') {
+    return [{ label: 'Reopen as Planned', next: 'planned' }];
+  }
+  return [];
+}
+
+type WorkoutStatusActionsProps = {
+  workoutId: string;
+  status: WorkoutStatus;
+  onSuccess: (updated: PlannedWorkoutDto) => void;
+};
+
+function WorkoutStatusActions({ workoutId, status, onSuccess }: WorkoutStatusActionsProps) {
+  const [loading, setLoading] = useState<WorkoutStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const actions = getStatusActions(status);
+  if (actions.length === 0) return null;
+
+  async function handleAction(next: WorkoutStatus) {
+    setError(null);
+    setLoading(next);
+    try {
+      const payload: UpdateWorkoutStatusRequest = { status: next };
+      const updated = await updateWorkoutStatus(workoutId, payload);
+      onSuccess(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update status.');
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  return (
+    <div className="wd-status-actions">
+      {actions.map(({ label, next }) => (
+        <button
+          key={next}
+          type="button"
+          className={`btn btn--sm wd-status-actions__btn wd-status-actions__btn--${next}`}
+          disabled={loading !== null}
+          onClick={() => handleAction(next)}
+        >
+          {loading === next ? '…' : label}
+        </button>
+      ))}
+      {error && <p className="wd-status-actions__error">{error}</p>}
+    </div>
+  );
+}
+
 type WorkoutDetailContentProps = {
   workout: WorkoutDetailData;
   steps: WorkoutStepData[];
+  statusActions?: React.ReactNode;
 };
 
-function WorkoutDetailContent({ workout, steps }: WorkoutDetailContentProps) {
+function WorkoutDetailContent({ workout, steps, statusActions }: WorkoutDetailContentProps) {
   const formattedDate = formatDate(workout.scheduledStartTime ?? workout.scheduledDate);
 
   const stepsWithDuration = steps.filter((s) => s.durationSeconds);
@@ -86,6 +157,8 @@ function WorkoutDetailContent({ workout, steps }: WorkoutDetailContentProps) {
           </dd>
         </div>
       </dl>
+
+      {statusActions}
 
       {workout.coachNotes ? (
         <blockquote className="workout-detail__notes">{workout.coachNotes}</blockquote>
@@ -153,7 +226,9 @@ function WorkoutDetailMockMode({ params }: PageComponentProps) {
 
 function WorkoutDetailApiMode({ params }: PageComponentProps) {
   const id = params.id ?? '';
+  const { refresh: refreshWeekPlan } = useCurrentWeekPlan();
   const state = useWorkout(id);
+  const [workoutOverride, setWorkoutOverride] = useState<PlannedWorkoutDto | null>(null);
 
   if (state.status === 'loading') {
     return (
@@ -179,12 +254,24 @@ function WorkoutDetailApiMode({ params }: PageComponentProps) {
     );
   }
 
-  const { workout } = state;
+  const workout = workoutOverride ?? state.workout;
+
+  function handleStatusSuccess(updated: PlannedWorkoutDto) {
+    setWorkoutOverride(updated);
+    refreshWeekPlan();
+  }
 
   return (
     <WorkoutDetailContent
       workout={workout as WorkoutDetailData}
       steps={workout.steps as WorkoutStepData[]}
+      statusActions={
+        <WorkoutStatusActions
+          workoutId={id}
+          status={workout.status as WorkoutStatus}
+          onSuccess={handleStatusSuccess}
+        />
+      }
     />
   );
 }
