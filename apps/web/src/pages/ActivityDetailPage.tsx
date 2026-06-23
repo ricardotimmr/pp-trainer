@@ -42,6 +42,7 @@ type ChartMetric = {
   getValue: (sample: ActivityTimeSeriesSample) => number | undefined;
   formatValue: (value: number) => string;
   invert?: boolean;
+  summarize?: (values: number[]) => number;
 };
 
 type DetailMetric = {
@@ -250,7 +251,9 @@ function TimeSeriesChart({
   const rawValues = values.map((item) => item.value);
   const minValue = Math.min(...rawValues);
   const maxValue = Math.max(...rawValues);
-  const lastValue = rawValues[rawValues.length - 1] ?? minValue;
+  const lastValue = metric.summarize
+    ? metric.summarize(rawValues)
+    : (rawValues[rawValues.length - 1] ?? minValue);
   const hoveredPoint =
     hoveredIndex !== null ? points[hoveredIndex] : undefined;
   const tooltipAlignment = hoveredPoint
@@ -417,6 +420,7 @@ function ChartSection({ activity }: { activity: Activity }) {
       color: '#1a74e8',
       getValue: (sample) => sample.powerWatts,
       formatValue: (value) => `${Math.round(value)} W`,
+      summarize: (values) => Math.max(...values),
     },
     {
       id: 'cadence',
@@ -426,6 +430,7 @@ function ChartSection({ activity }: { activity: Activity }) {
       color: '#7c3aed',
       getValue: (sample) => sample.cadenceRpm,
       formatValue: (value) => `${Math.round(value)} rpm`,
+      summarize: (values) => Math.max(...values),
     },
   ];
 

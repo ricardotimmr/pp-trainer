@@ -16,6 +16,29 @@ export async function createImportedFile(data: CreateImportedFileInput): Promise
   return prisma.importedFile.create({ data });
 }
 
+export async function findImportedFileByHash(
+  athleteProfileId: string,
+  fileHash: string,
+): Promise<ImportedFile | null> {
+  return prisma.importedFile.findUnique({
+    where: { athleteProfileId_fileHash: { athleteProfileId, fileHash } },
+  });
+}
+
+export async function deleteImportedFile(id: string): Promise<void> {
+  await prisma.importedFile.delete({ where: { id } });
+}
+
+export async function setCreatedActivityId(
+  importedFileId: string,
+  activityId: string,
+): Promise<void> {
+  await prisma.importedFile.update({
+    where: { id: importedFileId },
+    data: { createdActivityId: activityId },
+  });
+}
+
 export type CreateRawActivityDataInput = {
   athleteProfileId: string;
   sourceType: DataSourceType;

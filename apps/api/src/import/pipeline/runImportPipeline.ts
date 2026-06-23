@@ -1,5 +1,6 @@
 import type { DataSourceType } from '@prisma/client';
 
+import * as ImportedFileRepository from '../../repositories/ImportedFileRepository.js';
 import * as ImportJobService from '../../services/ImportJobService.js';
 import { ImportNotImplementedError } from '../ActivityImporter.js';
 import type { ImportPipelineContext, ImportPipelineResult, ImportSourceType } from '../types.js';
@@ -70,6 +71,14 @@ export async function runImportPipeline(
 
     // 7. complete
     const completedJob = await ImportJobService.completeJob(job.id, activity.id);
+
+    // Link ImportedFile → Activity for future duplicate detection
+    if (importedFileId != null) {
+      await ImportedFileRepository.setCreatedActivityId(importedFileId, activity.id).catch(
+        () => {},
+      );
+    }
+
     return buildResultStage(completedJob);
   } catch (error) {
     const message =

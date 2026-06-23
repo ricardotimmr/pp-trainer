@@ -209,6 +209,27 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
       throw ApiError.notFound('No athlete profile found');
     }
 
+    // 4a. Check for existing file with same hash
+    const existingFile = await ImportedFileRepository.findImportedFileByHash(
+      profile.id,
+      fileHash,
+    );
+    if (existingFile != null) {
+      if (existingFile.createdActivityId != null) {
+        // Activity still exists → true duplicate
+        const dto: ImportResultDto = {
+          importId: existingFile.id,
+          status: 'duplicate',
+          activityId: existingFile.createdActivityId,
+          errors: [],
+          warnings: ['This file has already been imported.'],
+        };
+        return reply.status(200).send(dto);
+      }
+      // Activity was deleted → remove stale record and re-import
+      await ImportedFileRepository.deleteImportedFile(existingFile.id);
+    }
+
     // 5. Store file
     const { storedPath } = await writeImportFile(config.importStoragePath, ext.slice(1), buffer);
 

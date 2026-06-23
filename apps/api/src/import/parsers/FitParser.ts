@@ -250,10 +250,10 @@ function extractMetricSamples(records: FitRecord[], sessionStart: Date): ParsedM
     samples.push({
       offsetSeconds: offsetS,
       heartRateBpm: rec.heart_rate,
-      powerWatts: rec.power,
+      ...(rec.power != null && rec.power > 0 && { powerWatts: rec.power }),
       paceSecPerKm,
       speedKmh,
-      cadenceRpm: rec.cadence,
+      ...(rec.cadence != null && rec.cadence > 0 && { cadenceRpm: rec.cadence }),
       elevationMeters: rec.altitude,
       latitude: rec.position_lat,
       longitude: rec.position_long,

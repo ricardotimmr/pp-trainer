@@ -26,11 +26,16 @@ function toArray<T>(val: T | T[] | undefined): T[] {
 const SPORT_MAP: Record<string, string> = {
   running: 'running',
   run: 'running',
+  trail_running: 'running',
   cycling: 'cycling',
   biking: 'cycling',
   bike: 'cycling',
+  road_biking: 'cycling',
+  mountain_biking: 'cycling',
+  road_cycling: 'cycling',
   swimming: 'swimming',
   swim: 'swimming',
+  open_water_swimming: 'swimming',
   strength_training: 'strength',
 };
 
@@ -182,10 +187,11 @@ function extractGpxSamples(
     const p = points[i];
     const ext = p.extensions?.TrackPointExtension;
 
+    const cadenceRpm = ext?.cad;
     samples.push({
       offsetSeconds: offsetS,
       heartRateBpm: ext?.hr,
-      cadenceRpm: ext?.cad,
+      ...(cadenceRpm != null && cadenceRpm > 0 && { cadenceRpm }),
       elevationMeters: p.ele,
       latitude: p['@_lat'],
       longitude: p['@_lon'],

@@ -5063,6 +5063,113 @@ button:focus-visible {
   padding: 2px 0;
 }
 
+.import-file-results {
+  margin-top: 12px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.import-file-result {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  font-size: 0.84rem;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.import-file-result:last-of-type {
+  border-bottom: none;
+}
+
+.import-file-result--success { background: color-mix(in srgb, #16a34a 5%, transparent); }
+.import-file-result--error   { background: color-mix(in srgb, #ef4444 5%, transparent); }
+.import-file-result--duplicate { background: color-mix(in srgb, #d97706 5%, transparent); }
+
+.import-file-result__icon {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.import-file-result--success .import-file-result__icon  { color: #16a34a; }
+.import-file-result--error .import-file-result__icon    { color: #ef4444; }
+.import-file-result--duplicate .import-file-result__icon { color: #d97706; }
+.import-file-result--pending .import-file-result__icon  { color: var(--color-muted); }
+
+.import-file-result__name {
+  color: var(--color-ink);
+  font-size: 0.84rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.import-file-result__action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.import-file-result__link {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 1px solid #16a34a;
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  background: transparent;
+  color: #16a34a;
+  white-space: nowrap;
+}
+
+.import-file-result__link--duplicate {
+  border-color: #d97706;
+  color: #d97706;
+}
+
+.import-file-result__error-msg {
+  font-size: 0.78rem;
+  color: #ef4444;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.import-file-results__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-top: 1px solid var(--color-line-strong);
+  background: var(--color-surface-2);
+}
+
+.import-file-results__summary {
+  display: flex;
+  gap: 12px;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+}
+
+.import-spinner--sm {
+  width: 12px;
+  height: 12px;
+  border-width: 1.5px;
+}
+
 .import-json-details {
   border-top: 1.5px solid var(--color-line-strong);
   padding-top: 16px;

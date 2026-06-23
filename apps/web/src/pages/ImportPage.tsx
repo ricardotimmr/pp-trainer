@@ -7,6 +7,7 @@ import { DATA_MODE } from '../config/dataMode';
 import { formatDate } from '../components/prototypeFormatters';
 import { getImportDetail } from '../api/importApi';
 import { useImport } from '../hooks/useImport';
+import type { FileResult } from '../hooks/useImport';
 import { useImportHistory } from '../hooks/useImportHistory';
 import { PageShell } from '../layout/PageShell';
 import { getImportHistoryRows } from '../mock/prototypeImportData';
@@ -310,18 +311,71 @@ function ImportHistorySection({ navigate }: { navigate: (path: string) => void }
 
 const ACCEPTED_EXTENSIONS = ['.fit', '.gpx', '.tcx'];
 
+const FILE_STATUS_ICON: Record<FileResult['status'], string> = {
+  pending: '·',
+  uploading: '↑',
+  success: '✓',
+  error: '!',
+  duplicate: '≈',
+};
+
+function FileResultRow({
+  result,
+  navigate,
+}: {
+  result: FileResult;
+  navigate: (path: string) => void;
+}) {
+  const s = result.status;
+  return (
+    <div className={`import-file-result import-file-result--${s}`}>
+      <span className="import-file-result__icon" aria-hidden="true">
+        {s === 'uploading' ? <span className="import-spinner import-spinner--sm" /> : FILE_STATUS_ICON[s]}
+      </span>
+      <span className="import-file-result__name">{result.name}</span>
+      <div className="import-file-result__action">
+        {s === 'success' && result.activityId != null && (
+          <button
+            type="button"
+            className="import-file-result__link"
+            onClick={() => navigate(`/activities/${result.activityId}`)}
+          >
+            View
+          </button>
+        )}
+        {s === 'duplicate' && result.activityId != null && (
+          <button
+            type="button"
+            className="import-file-result__link import-file-result__link--duplicate"
+            onClick={() => navigate(`/activities/${result.activityId}`)}
+          >
+            View existing
+          </button>
+        )}
+        {s === 'error' && (
+          <span className="import-file-result__error-msg" title={result.message}>
+            {result.message ?? 'Failed'}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ImportApiMode({ navigate }: PageComponentProps) {
-  const { state, startFileUpload, startJsonImport, reset } = useImport();
+  const { state, startFileUploads, startJsonImport, reset } = useImport();
   const [isDragging, setIsDragging] = useState(false);
   const [jsonText, setJsonText] = useState('');
   const [jsonParseError, setJsonParseError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isUploading = state.status === 'uploading';
+  const isBatchUploading = state.status === 'files-uploading';
+  const isJsonUploading = state.status === 'json-uploading';
+  const isUploading = isBatchUploading || isJsonUploading;
 
-  function pickFile(files: FileList | null): void {
+  function pickFiles(files: FileList | null): void {
     if (!files || files.length === 0) return;
-    startFileUpload(files[0]);
+    startFileUploads(Array.from(files));
   }
 
   function handleDragOver(e: React.DragEvent): void {
@@ -337,11 +391,11 @@ function ImportApiMode({ navigate }: PageComponentProps) {
     e.preventDefault();
     setIsDragging(false);
     if (isUploading) return;
-    pickFile(e.dataTransfer.files);
+    pickFiles(e.dataTransfer.files);
   }
 
   function handleFileInput(e: React.ChangeEvent<HTMLInputElement>): void {
-    pickFile(e.target.files);
+    pickFiles(e.target.files);
     e.target.value = '';
   }
 
@@ -359,10 +413,27 @@ function ImportApiMode({ navigate }: PageComponentProps) {
 
   function zoneClasses(): string {
     const base = 'import-upload-zone';
-    if (isUploading) return `${base} ${base}--uploading`;
+    if (isBatchUploading) return `${base} ${base}--uploading`;
     if (isDragging) return `${base} ${base}--dragging`;
     return base;
   }
+
+  const batchLabel =
+    state.status === 'files-uploading'
+      ? `Importing ${state.completedCount + 1} of ${state.results.length}…`
+      : null;
+
+  const showFileResults =
+    state.status === 'files-uploading' || state.status === 'files-done';
+
+  const fileResults =
+    state.status === 'files-uploading' || state.status === 'files-done'
+      ? state.results
+      : [];
+
+  const doneCount = fileResults.filter((r) => r.status === 'success').length;
+  const dupCount = fileResults.filter((r) => r.status === 'duplicate').length;
+  const errCount = fileResults.filter((r) => r.status === 'error').length;
 
   return (
     <PageShell
@@ -379,28 +450,29 @@ function ImportApiMode({ navigate }: PageComponentProps) {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => !isUploading && fileInputRef.current?.click()}
-              aria-label="Drop a FIT, GPX or TCX file here, or click to browse"
+              aria-label="Drop FIT, GPX or TCX files here, or click to browse"
               role="button"
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && !isUploading && fileInputRef.current?.click()}
             >
               <div className="import-dropzone__mark" aria-hidden="true">
-                {isUploading ? <span className="import-spinner" /> : '+'}
+                {isBatchUploading ? <span className="import-spinner" /> : '+'}
               </div>
 
               <div className="import-upload-zone__body">
-                <p className="import-section-label">Upload activity file</p>
-                <h2>{isUploading ? 'Importing…' : 'Drop activity files here'}</h2>
+                <p className="import-section-label">Upload activity files</p>
+                <h2>{batchLabel ?? 'Drop activity files here'}</h2>
                 <p>
-                  {isUploading
-                    ? 'Processing your file through the import pipeline.'
-                    : `Accepted: ${ACCEPTED_EXTENSIONS.join(', ')} — or click to browse.`}
+                  {isBatchUploading
+                    ? 'Processing files through the import pipeline.'
+                    : `Accepted: ${ACCEPTED_EXTENSIONS.join(', ')} — select multiple or drop a batch.`}
                 </p>
               </div>
 
               <input
                 ref={fileInputRef}
                 type="file"
+                multiple
                 accept={ACCEPTED_EXTENSIONS.join(',')}
                 style={{ display: 'none' }}
                 onChange={handleFileInput}
@@ -421,7 +493,27 @@ function ImportApiMode({ navigate }: PageComponentProps) {
               )}
             </div>
 
-            {state.status === 'success' && (
+            {showFileResults && (
+              <div className="import-file-results" role="status" aria-live="polite">
+                {fileResults.map((result, i) => (
+                  <FileResultRow key={i} result={result} navigate={navigate} />
+                ))}
+                {state.status === 'files-done' && (
+                  <div className="import-file-results__footer">
+                    <span className="import-file-results__summary">
+                      {doneCount > 0 && <span>{doneCount} imported</span>}
+                      {dupCount > 0 && <span>{dupCount} duplicate{dupCount > 1 ? 's' : ''}</span>}
+                      {errCount > 0 && <span>{errCount} failed</span>}
+                    </span>
+                    <button type="button" className="import-result__reset" onClick={reset}>
+                      Import more
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {state.status === 'json-success' && (
               <div className="import-result import-result--success" role="status">
                 <span className="import-result__icon" aria-hidden="true">✓</span>
                 <div>
@@ -443,7 +535,7 @@ function ImportApiMode({ navigate }: PageComponentProps) {
               </div>
             )}
 
-            {state.status === 'error' && (
+            {state.status === 'json-error' && (
               <div className="import-result import-result--error" role="alert">
                 <span className="import-result__icon" aria-hidden="true">!</span>
                 <div>
@@ -456,7 +548,7 @@ function ImportApiMode({ navigate }: PageComponentProps) {
               </div>
             )}
 
-            {state.status === 'duplicate' && (
+            {state.status === 'json-duplicate' && (
               <div className="import-result import-result--duplicate" role="status">
                 <span className="import-result__icon" aria-hidden="true">≈</span>
                 <div>
