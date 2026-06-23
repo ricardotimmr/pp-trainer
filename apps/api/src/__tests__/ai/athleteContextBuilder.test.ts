@@ -249,8 +249,9 @@ describe('buildContext', () => {
   });
 
   it('omits null optional profile fields', async () => {
+    const nullableProfile = mockProfile as Record<string, unknown>;
     vi.mocked(AthleteRepository.findAthleteProfileById).mockResolvedValue({
-      ...mockProfile,
+      ...nullableProfile,
       bodyWeightKg: null,
       heightCm: null,
       currentFtpWatts: null,
