@@ -2879,13 +2879,41 @@ button:focus-visible {
 }
 
 .tp-plan-row {
+  border: 1.5px solid var(--color-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.tp-plan-row.is-expanded {
+  border-color: var(--color-ink);
+}
+
+.tp-plan-row__main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 12px 16px;
-  border: 1.5px solid var(--color-line);
-  border-radius: 10px;
+  gap: 8px;
+  padding: 10px 12px 10px 0;
+}
+
+.tp-plan-row__toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 2px 0 2px 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tp-plan-row__chevron {
+  font-size: 0.7rem;
+  color: var(--color-muted);
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
 }
 
 .tp-plan-row__info {
@@ -2913,8 +2941,170 @@ button:focus-visible {
 .tp-plan-row__right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   flex-shrink: 0;
+}
+
+.tp-plan-row__delete {
+  color: var(--color-muted);
+}
+
+.tp-plan-row__confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.tp-plan-row__workouts {
+  border-top: 1px solid var(--color-line);
+  background: color-mix(in srgb, var(--color-surface) 60%, var(--color-bg));
+  padding: 12px 16px;
+}
+
+.tp-plan-row__workouts-empty {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-muted);
+}
+
+.tp-plan-workouts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tp-plan-workout-row__btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease;
+}
+
+.tp-plan-workout-row__btn:hover {
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+.tp-plan-workout-row__title {
+  flex: 1;
+  font-size: 0.87rem;
+  font-weight: 500;
+  color: var(--color-ink);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tp-plan-workout-row__date {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+/* ── All Workouts section ─────────────────────────────────────────────────── */
+
+.tp-workouts {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1.5px solid var(--color-line);
+}
+
+.tp-workouts__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tp-workout-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--color-line);
+  border-radius: 10px;
+}
+
+.tp-workout-row__btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tp-workout-row__info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.tp-workout-row__title {
+  font-size: 0.87rem;
+  font-weight: 500;
+  color: var(--color-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tp-workout-row__date {
+  font-size: 0.72rem;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+}
+
+.tp-workout-row__plan {
+  flex-shrink: 0;
+}
+
+.tp-workout-row__plan-btn {
+  background: none;
+  border: 1.5px dashed var(--color-line-strong);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.tp-workout-row__plan-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.tp-workout-row__plan-btn.is-assigned {
+  border-style: solid;
+  border-color: var(--color-line);
+  color: var(--color-ink);
+}
+
+.tp-workout-row__select {
+  max-width: 160px;
 }
 
 /* ── Plan creation modal — status radio ───────────────────────────────────── */

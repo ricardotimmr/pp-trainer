@@ -43,6 +43,10 @@ export async function updateTrainingPlan(
   });
 }
 
+export async function fetchWorkouts(): Promise<PlannedWorkoutDto[]> {
+  return apiFetch<PlannedWorkoutDto[]>('/api/workouts');
+}
+
 export async function fetchWorkoutById(id: string): Promise<PlannedWorkoutDto> {
   return apiFetch<PlannedWorkoutDto>(`/api/workouts/${encodeURIComponent(id)}`);
 }
@@ -81,6 +85,13 @@ export async function updateWorkoutStatus(
 
 export async function deleteWorkout(id: string): Promise<void> {
   await apiFetch<void>(`/api/workouts/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    acceptedStatuses: [204],
+  });
+}
+
+export async function deleteTrainingPlan(id: string): Promise<void> {
+  await apiFetch<void>(`/api/training-plans/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     acceptedStatuses: [204],
   });

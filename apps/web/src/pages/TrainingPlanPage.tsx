@@ -4,17 +4,27 @@ import { createPortal } from 'react-dom';
 import type {
   CreateTrainingPlanRequest,
   PlannedWorkoutDto,
+  TrainingPlanDto,
   TrainingPlanSummaryDto,
   UpdateTrainingPlanRequest,
 } from '@pp-trainer/shared';
 
 import { EmptyState, ErrorState, LoadingState, WorkoutCard } from '../components';
 import type { WorkoutCardData } from '../components';
-import { formatDuration } from '../components/prototypeFormatters';
-import { createTrainingPlan, updateTrainingPlan } from '../api/trainingApi';
+import { SportBadge } from '../components';
+import { WorkoutStatusBadge } from '../components/badges/WorkoutStatusBadge';
+import { formatDate, formatDuration } from '../components/prototypeFormatters';
+import {
+  createTrainingPlan,
+  deleteTrainingPlan,
+  fetchTrainingPlanById,
+  updateTrainingPlan,
+  updateWorkout,
+} from '../api/trainingApi';
 import { DATA_MODE } from '../config/dataMode';
 import { useCurrentWeekPlan } from '../hooks/useCurrentWeekPlan';
 import { useTrainingPlans } from '../hooks/useTrainingPlans';
+import { useWorkouts } from '../hooks/useWorkouts';
 import { PageShell } from '../layout/PageShell';
 import {
   getCurrentTrainingPlan,
@@ -86,6 +96,94 @@ function TrainingPlanStatusBadge({ status }: { status: TrainingPlanStatus }) {
   );
 }
 
+/* ── Shared plan form fields (used by Create + Edit modals) ─────────────── */
+
+type PlanFormFields = {
+  title: string;
+  startDate: string;
+  endDate: string;
+  description: string;
+  status: 'draft' | 'active';
+};
+
+type PlanFormProps = {
+  fields: PlanFormFields;
+  onChange: (f: PlanFormFields) => void;
+  disabled: boolean;
+  idPrefix: string;
+};
+
+function PlanForm({ fields, onChange, disabled, idPrefix }: PlanFormProps) {
+  return (
+    <>
+      <div className="cw-field cw-field--full">
+        <label className="cw-label cw-label--required" htmlFor={`${idPrefix}-title`}>Title</label>
+        <input
+          id={`${idPrefix}-title`}
+          className="cw-input"
+          type="text"
+          value={fields.title}
+          onChange={(e) => onChange({ ...fields, title: e.target.value })}
+          placeholder="e.g. Week 26 Base Training"
+          disabled={disabled}
+        />
+      </div>
+      <div className="cw-field cw-field--1">
+        <label className="cw-label cw-label--required" htmlFor={`${idPrefix}-start`}>Start date</label>
+        <input
+          id={`${idPrefix}-start`}
+          className="cw-input"
+          type="date"
+          value={fields.startDate}
+          onChange={(e) => onChange({ ...fields, startDate: e.target.value })}
+          disabled={disabled}
+        />
+      </div>
+      <div className="cw-field cw-field--1">
+        <label className="cw-label cw-label--required" htmlFor={`${idPrefix}-end`}>End date</label>
+        <input
+          id={`${idPrefix}-end`}
+          className="cw-input"
+          type="date"
+          value={fields.endDate}
+          min={fields.startDate}
+          onChange={(e) => onChange({ ...fields, endDate: e.target.value })}
+          disabled={disabled}
+        />
+      </div>
+      <div className="cw-field cw-field--full">
+        <label className="cw-label" htmlFor={`${idPrefix}-desc`}>Description</label>
+        <textarea
+          id={`${idPrefix}-desc`}
+          className="cw-input"
+          rows={2}
+          value={fields.description}
+          onChange={(e) => onChange({ ...fields, description: e.target.value })}
+          disabled={disabled}
+        />
+      </div>
+      <div className="cw-field cw-field--full">
+        <span className="cw-label">Status</span>
+        <div className="tp-status-radios">
+          {(['draft', 'active'] as const).map((s) => (
+            <label key={s} className={`tp-status-radio${fields.status === s ? ' is-selected' : ''}`}>
+              <input
+                type="radio"
+                name={`${idPrefix}-status`}
+                value={s}
+                checked={fields.status === s}
+                onChange={() => onChange({ ...fields, status: s })}
+                disabled={disabled}
+              />
+              {planStatusLabels[s]}
+            </label>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 /* ── Create Plan Modal ───────────────────────────────────────────────────── */
 
 type CreatePlanModalProps = {
@@ -95,27 +193,29 @@ type CreatePlanModalProps = {
 
 function CreatePlanModal({ onClose, onSuccess }: CreatePlanModalProps) {
   const { weekStart, weekEnd } = getCurrentWeekRange();
-  const [title, setTitle] = useState('');
-  const [startDate, setStartDate] = useState(weekStart);
-  const [endDate, setEndDate] = useState(weekEnd);
-  const [description, setDescription] = useState('');
-  const [status, setStatus] = useState<'draft' | 'active'>('draft');
+  const [fields, setFields] = useState<PlanFormFields>({
+    title: '',
+    startDate: weekStart,
+    endDate: weekEnd,
+    description: '',
+    status: 'draft',
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!title.trim()) { setError('Title is required.'); return; }
-    if (endDate < startDate) { setError('End date must be on or after start date.'); return; }
+    if (!fields.title.trim()) { setError('Title is required.'); return; }
+    if (fields.endDate < fields.startDate) { setError('End date must be on or after start date.'); return; }
 
     const payload: CreateTrainingPlanRequest = {
-      title: title.trim(),
-      startDate,
-      endDate,
-      status,
+      title: fields.title.trim(),
+      startDate: fields.startDate,
+      endDate: fields.endDate,
+      status: fields.status,
     };
-    if (description.trim()) payload.description = description.trim();
+    if (fields.description.trim()) payload.description = fields.description.trim();
 
     setSubmitting(true);
     try {
@@ -135,75 +235,10 @@ function CreatePlanModal({ onClose, onSuccess }: CreatePlanModalProps) {
           <button type="button" className="cw-modal__close" onClick={onClose} aria-label="Close">✕</button>
         </div>
         <form className="cw-modal__body" onSubmit={handleSubmit} noValidate>
-          <div className="cw-field cw-field--full">
-            <label className="cw-label cw-label--required" htmlFor="cp-title">Title</label>
-            <input
-              id="cp-title"
-              className="cw-input"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Week 26 Base Training"
-              disabled={submitting}
-            />
-          </div>
-          <div className="cw-field cw-field--1">
-            <label className="cw-label cw-label--required" htmlFor="cp-start">Start date</label>
-            <input
-              id="cp-start"
-              className="cw-input"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-          <div className="cw-field cw-field--1">
-            <label className="cw-label cw-label--required" htmlFor="cp-end">End date</label>
-            <input
-              id="cp-end"
-              className="cw-input"
-              type="date"
-              value={endDate}
-              min={startDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-          <div className="cw-field cw-field--full">
-            <label className="cw-label" htmlFor="cp-desc">Description</label>
-            <textarea
-              id="cp-desc"
-              className="cw-input"
-              rows={2}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-          <div className="cw-field cw-field--full">
-            <span className="cw-label">Status</span>
-            <div className="tp-status-radios">
-              {(['draft', 'active'] as const).map((s) => (
-                <label key={s} className={`tp-status-radio${status === s ? ' is-selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="cp-status"
-                    value={s}
-                    checked={status === s}
-                    onChange={() => setStatus(s)}
-                    disabled={submitting}
-                  />
-                  {planStatusLabels[s]}
-                </label>
-              ))}
-            </div>
-          </div>
+          <PlanForm fields={fields} onChange={setFields} disabled={submitting} idPrefix="cp" />
           {error && <p className="cw-form__error">{error}</p>}
           <div className="cw-modal__footer">
-            <button type="button" className="btn btn--secondary btn--sm" onClick={onClose} disabled={submitting}>
-              Cancel
-            </button>
+            <button type="button" className="btn btn--secondary btn--sm" onClick={onClose} disabled={submitting}>Cancel</button>
             <button type="submit" className="btn btn--primary btn--sm" disabled={submitting}>
               {submitting ? 'Creating…' : 'Create Plan'}
             </button>
@@ -215,15 +250,218 @@ function CreatePlanModal({ onClose, onSuccess }: CreatePlanModalProps) {
   );
 }
 
-/* ── Plan list section ───────────────────────────────────────────────────── */
+/* ── Edit Plan Modal ─────────────────────────────────────────────────────── */
+
+type EditPlanModalProps = {
+  plan: TrainingPlanSummaryDto;
+  onClose: () => void;
+  onSuccess: () => void;
+};
+
+function EditPlanModal({ plan, onClose, onSuccess }: EditPlanModalProps) {
+  const [fields, setFields] = useState<PlanFormFields>({
+    title: plan.title,
+    startDate: plan.startDate,
+    endDate: plan.endDate,
+    description: plan.description ?? '',
+    status: (plan.status === 'draft' || plan.status === 'active') ? plan.status : 'draft',
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!fields.title.trim()) { setError('Title is required.'); return; }
+    if (fields.endDate < fields.startDate) { setError('End date must be on or after start date.'); return; }
+
+    const payload: UpdateTrainingPlanRequest = {
+      title: fields.title.trim(),
+      startDate: fields.startDate,
+      endDate: fields.endDate,
+      status: fields.status,
+      description: fields.description.trim() || undefined,
+    };
+
+    setSubmitting(true);
+    try {
+      await updateTrainingPlan(plan.id, payload);
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update plan.');
+      setSubmitting(false);
+    }
+  }
+
+  return createPortal(
+    <div className="cw-modal-overlay" onPointerDown={onClose}>
+      <div className="cw-modal" onPointerDown={(e) => e.stopPropagation()}>
+        <div className="cw-modal__header">
+          <h3>Edit Plan</h3>
+          <button type="button" className="cw-modal__close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <form className="cw-modal__body" onSubmit={handleSubmit} noValidate>
+          <PlanForm fields={fields} onChange={setFields} disabled={submitting} idPrefix="ep" />
+          {error && <p className="cw-form__error">{error}</p>}
+          <div className="cw-modal__footer">
+            <button type="button" className="btn btn--secondary btn--sm" onClick={onClose} disabled={submitting}>Cancel</button>
+            <button type="submit" className="btn btn--primary btn--sm" disabled={submitting}>
+              {submitting ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/* ── Plan row with accordion ─────────────────────────────────────────────── */
+
+type PlanRowProps = {
+  plan: TrainingPlanSummaryDto;
+  onActivate: (id: string) => Promise<void>;
+  onEdit: (plan: TrainingPlanSummaryDto) => void;
+  onDelete: (id: string) => Promise<void>;
+  activating: string | null;
+  deleting: string | null;
+  navigate: PageComponentProps['navigate'];
+};
+
+function PlanRow({ plan, onActivate, onEdit, onDelete, activating, deleting, navigate }: PlanRowProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [planDetail, setPlanDetail] = useState<TrainingPlanDto | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  async function handleToggle() {
+    if (!expanded && !planDetail) {
+      setLoadingDetail(true);
+      try {
+        const detail = await fetchTrainingPlanById(plan.id);
+        setPlanDetail(detail);
+      } finally {
+        setLoadingDetail(false);
+      }
+    }
+    setExpanded((v) => !v);
+  }
+
+  const isDeleting = deleting === plan.id;
+  const isActivating = activating === plan.id;
+
+  return (
+    <li className={`tp-plan-row${expanded ? ' is-expanded' : ''}`}>
+      <div className="tp-plan-row__main">
+        <button
+          type="button"
+          className="tp-plan-row__toggle"
+          onClick={handleToggle}
+          aria-expanded={expanded}
+        >
+          <span className="tp-plan-row__chevron">{expanded ? '▾' : '▸'}</span>
+          <div className="tp-plan-row__info">
+            <span className="tp-plan-row__title">{plan.title}</span>
+            <span className="tp-plan-row__dates">{plan.startDate} – {plan.endDate}</span>
+          </div>
+        </button>
+        <div className="tp-plan-row__right">
+          <TrainingPlanStatusBadge status={plan.status} />
+          {plan.status !== 'active' && !confirmDelete && (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              disabled={activating !== null || isDeleting}
+              onClick={() => onActivate(plan.id)}
+            >
+              {isActivating ? '…' : 'Activate'}
+            </button>
+          )}
+          {!confirmDelete && (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              disabled={isDeleting}
+              onClick={() => onEdit(plan)}
+            >
+              Edit
+            </button>
+          )}
+          {confirmDelete ? (
+            <span className="tp-plan-row__confirm">
+              Delete?
+              <button
+                type="button"
+                className="btn btn--danger btn--sm"
+                disabled={isDeleting}
+                onClick={async () => { await onDelete(plan.id); }}
+              >
+                {isDeleting ? '…' : 'Yes'}
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={() => setConfirmDelete(false)}
+              >
+                No
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm tp-plan-row__delete"
+              disabled={isDeleting}
+              onClick={() => setConfirmDelete(true)}
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="tp-plan-row__workouts">
+          {loadingDetail ? (
+            <p className="tp-plan-row__workouts-empty">Loading…</p>
+          ) : planDetail && planDetail.plannedWorkouts.length > 0 ? (
+            <ul className="tp-plan-workouts">
+              {planDetail.plannedWorkouts.map((w) => (
+                <li key={w.id} className="tp-plan-workout-row">
+                  <button
+                    type="button"
+                    className="tp-plan-workout-row__btn"
+                    onClick={() => navigate(`/workouts/${w.id}`)}
+                  >
+                    <SportBadge sport={w.sport} />
+                    <span className="tp-plan-workout-row__title">{w.title}</span>
+                    <span className="tp-plan-workout-row__date">{formatDate(w.scheduledDate)}</span>
+                    <WorkoutStatusBadge status={w.status as 'planned'} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="tp-plan-row__workouts-empty">No workouts assigned to this plan.</p>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}
+
+/* ── All Plans section ───────────────────────────────────────────────────── */
 
 type PlanListSectionProps = {
   plans: TrainingPlanSummaryDto[];
   onActivate: (id: string) => Promise<void>;
+  onEdit: (plan: TrainingPlanSummaryDto) => void;
+  onDelete: (id: string) => Promise<void>;
   activating: string | null;
+  deleting: string | null;
+  navigate: PageComponentProps['navigate'];
 };
 
-function PlanListSection({ plans, onActivate, activating }: PlanListSectionProps) {
+function PlanListSection({ plans, onActivate, onEdit, onDelete, activating, deleting, navigate }: PlanListSectionProps) {
   if (plans.length === 0) return null;
 
   return (
@@ -231,28 +469,97 @@ function PlanListSection({ plans, onActivate, activating }: PlanListSectionProps
       <h2 className="tp-plans__heading">All Plans</h2>
       <ul className="tp-plans__list">
         {plans.map((plan) => (
-          <li key={plan.id} className="tp-plan-row">
-            <div className="tp-plan-row__info">
-              <span className="tp-plan-row__title">{plan.title}</span>
-              <span className="tp-plan-row__dates">
-                {plan.startDate} – {plan.endDate}
-              </span>
-            </div>
-            <div className="tp-plan-row__right">
-              <TrainingPlanStatusBadge status={plan.status} />
-              {plan.status !== 'active' && (
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  disabled={activating !== null}
-                  onClick={() => onActivate(plan.id)}
-                >
-                  {activating === plan.id ? '…' : 'Activate'}
-                </button>
-              )}
-            </div>
-          </li>
+          <PlanRow
+            key={plan.id}
+            plan={plan}
+            onActivate={onActivate}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            activating={activating}
+            deleting={deleting}
+            navigate={navigate}
+          />
         ))}
+      </ul>
+    </section>
+  );
+}
+
+/* ── All Workouts section ────────────────────────────────────────────────── */
+
+type AllWorkoutsSectionProps = {
+  workouts: PlannedWorkoutDto[];
+  plans: TrainingPlanSummaryDto[];
+  onAssign: (workoutId: string, planId: string) => Promise<void>;
+  assigning: string | null;
+  navigate: PageComponentProps['navigate'];
+};
+
+function AllWorkoutsSection({ workouts, plans, onAssign, assigning, navigate }: AllWorkoutsSectionProps) {
+  const [assigningFor, setAssigningFor] = useState<string | null>(null);
+
+  if (workouts.length === 0) return null;
+
+  const planById = Object.fromEntries(plans.map((p) => [p.id, p]));
+
+  return (
+    <section className="tp-workouts">
+      <h2 className="tp-plans__heading">All Workouts</h2>
+      <ul className="tp-workouts__list">
+        {workouts.map((w) => {
+          const assignedPlan = w.trainingPlanId ? planById[w.trainingPlanId] : null;
+          const isAssigning = assigning === w.id;
+          const showPicker = assigningFor === w.id;
+
+          return (
+            <li key={w.id} className="tp-workout-row">
+              <button
+                type="button"
+                className="tp-workout-row__btn"
+                onClick={() => navigate(`/workouts/${w.id}`)}
+              >
+                <SportBadge sport={w.sport} />
+                <div className="tp-workout-row__info">
+                  <span className="tp-workout-row__title">{w.title}</span>
+                  <span className="tp-workout-row__date">{formatDate(w.scheduledDate)}</span>
+                </div>
+                <WorkoutStatusBadge status={w.status as 'planned'} />
+              </button>
+              <div className="tp-workout-row__plan">
+                {showPicker ? (
+                  <select
+                    className="cw-input cw-input--sm tp-workout-row__select"
+                    autoFocus
+                    defaultValue={w.trainingPlanId ?? ''}
+                    disabled={isAssigning}
+                    onBlur={() => setAssigningFor(null)}
+                    onChange={async (e) => {
+                      const planId = e.target.value;
+                      if (planId) {
+                        setAssigningFor(null);
+                        await onAssign(w.id, planId);
+                      }
+                    }}
+                  >
+                    <option value="" disabled>Select plan…</option>
+                    {plans.map((p) => (
+                      <option key={p.id} value={p.id}>{p.title}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <button
+                    type="button"
+                    className={`tp-workout-row__plan-btn${assignedPlan ? ' is-assigned' : ''}`}
+                    disabled={isAssigning}
+                    onClick={() => setAssigningFor(w.id)}
+                  >
+                    {isAssigning ? '…' : assignedPlan ? assignedPlan.title : 'Unassigned'}
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
@@ -323,7 +630,6 @@ function WeekPlanContent({
                   <span className="week-day__date">{dateLabel}</span>
                   {isToday && <span className="week-day__today-tag">Today</span>}
                 </div>
-
                 <div className="week-day__content">
                   {dayWorkouts.length === 0 ? (
                     <p className="week-day__rest">Rest day</p>
@@ -362,10 +668,7 @@ function buildMockSummaryItems(
   if (weeklySummary.swimmingDurationSeconds)
     items.push({ label: 'Swim', value: formatDuration(weeklySummary.swimmingDurationSeconds) });
   if (weeklySummary.strengthDurationSeconds)
-    items.push({
-      label: 'Strength',
-      value: formatDuration(weeklySummary.strengthDurationSeconds),
-    });
+    items.push({ label: 'Strength', value: formatDuration(weeklySummary.strengthDurationSeconds) });
   return items;
 }
 
@@ -384,10 +687,11 @@ function buildApiSummaryItems(workouts: PlannedWorkoutDto[]): { label: string; v
   if (bySport['cycling']) items.push({ label: 'Bike', value: formatDuration(bySport['cycling']) });
   if (bySport['running']) items.push({ label: 'Run', value: formatDuration(bySport['running']) });
   if (bySport['swimming']) items.push({ label: 'Swim', value: formatDuration(bySport['swimming']) });
-  if (bySport['strength'])
-    items.push({ label: 'Strength', value: formatDuration(bySport['strength']) });
+  if (bySport['strength']) items.push({ label: 'Strength', value: formatDuration(bySport['strength']) });
   return items;
 }
+
+/* ── Mock mode ───────────────────────────────────────────────────────────── */
 
 function TrainingPlanMockMode({ navigate }: PageComponentProps) {
   const trainingPlan = getCurrentTrainingPlan();
@@ -407,41 +711,79 @@ function TrainingPlanMockMode({ navigate }: PageComponentProps) {
   );
 }
 
+/* ── API mode ────────────────────────────────────────────────────────────── */
+
 function TrainingPlanApiMode({ navigate }: PageComponentProps) {
   const weekPlanState = useCurrentWeekPlan();
   const plansState = useTrainingPlans();
+  const workoutsState = useWorkouts();
   const { weekStart, weekEnd } = getCurrentWeekRange();
+
   const [showCreatePlan, setShowCreatePlan] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<TrainingPlanSummaryDto | null>(null);
   const [activating, setActivating] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState<string | null>(null);
+
+  function refreshAll() {
+    weekPlanState.refresh();
+    plansState.refresh();
+    workoutsState.refresh();
+  }
 
   async function handleActivate(id: string) {
     setActivating(id);
     try {
-      const payload: UpdateTrainingPlanRequest = { status: 'active' };
-      await updateTrainingPlan(id, payload);
-      weekPlanState.refresh();
-      plansState.refresh();
-    } catch {
-      // silently fall through — plan list will re-render unchanged
+      await updateTrainingPlan(id, { status: 'active' } as UpdateTrainingPlanRequest);
+      refreshAll();
     } finally {
       setActivating(null);
     }
   }
 
-  function handlePlanCreated() {
-    setShowCreatePlan(false);
-    weekPlanState.refresh();
-    plansState.refresh();
+  async function handleDelete(id: string) {
+    setDeleting(id);
+    try {
+      await deleteTrainingPlan(id);
+      refreshAll();
+    } finally {
+      setDeleting(null);
+    }
   }
 
-  const planList =
-    plansState.status === 'success' && plansState.plans.length > 0 ? (
+  async function handleAssign(workoutId: string, planId: string) {
+    setAssigning(workoutId);
+    try {
+      await updateWorkout(workoutId, { trainingPlanId: planId });
+      refreshAll();
+    } finally {
+      setAssigning(null);
+    }
+  }
+
+  const plans = plansState.status === 'success' ? plansState.plans : [];
+  const allWorkouts = workoutsState.status === 'success' ? workoutsState.workouts : [];
+
+  const sideContent = (
+    <>
       <PlanListSection
-        plans={plansState.plans}
+        plans={plans}
         onActivate={handleActivate}
+        onEdit={setEditingPlan}
+        onDelete={handleDelete}
         activating={activating}
+        deleting={deleting}
+        navigate={navigate}
       />
-    ) : null;
+      <AllWorkoutsSection
+        workouts={allWorkouts}
+        plans={plans}
+        onAssign={handleAssign}
+        assigning={assigning}
+        navigate={navigate}
+      />
+    </>
+  );
 
   const headerActions = (
     <div className="tp-header-actions">
@@ -466,7 +808,7 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
     return (
       <PageShell title="Training Plan" eyebrow="Training Plan" actions={headerActions}>
         <ErrorState title="Could not load training plan" description={weekPlanState.message} />
-        {planList}
+        {sideContent}
       </PageShell>
     );
   }
@@ -481,7 +823,7 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
       summaryItems={buildApiSummaryItems(weekPlanState.plan.plannedWorkouts)}
       navigate={navigate}
       actions={headerActions}
-      footer={planList}
+      footer={sideContent}
     />
   ) : (
     <PageShell
@@ -493,7 +835,7 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
         title="No active training plan"
         description="No training plan for this week. Create one or wait for the AI Coach."
       />
-      {planList}
+      {sideContent}
     </PageShell>
   );
 
@@ -501,7 +843,17 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
     <>
       {rendered}
       {showCreatePlan && (
-        <CreatePlanModal onClose={() => setShowCreatePlan(false)} onSuccess={handlePlanCreated} />
+        <CreatePlanModal
+          onClose={() => setShowCreatePlan(false)}
+          onSuccess={() => { setShowCreatePlan(false); refreshAll(); }}
+        />
+      )}
+      {editingPlan && (
+        <EditPlanModal
+          plan={editingPlan}
+          onClose={() => setEditingPlan(null)}
+          onSuccess={() => { setEditingPlan(null); refreshAll(); }}
+        />
       )}
     </>
   );

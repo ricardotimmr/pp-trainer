@@ -220,3 +220,16 @@ export async function deleteWorkout(id: string): Promise<void> {
   if (!existing) throw ApiError.notFound('Workout not found');
   await TrainingRepository.deletePlannedWorkout(id);
 }
+
+export async function listWorkouts(): Promise<PlannedWorkoutDto[]> {
+  const profile = await AthleteRepository.findFirstAthleteProfile();
+  if (!profile) return [];
+  const workouts = await TrainingRepository.listWorkouts(profile.id);
+  return workouts.map(mapPlannedWorkout);
+}
+
+export async function deleteTrainingPlan(id: string): Promise<void> {
+  const existing = await TrainingRepository.findTrainingPlanById(id);
+  if (!existing) throw ApiError.notFound('Training plan not found');
+  await TrainingRepository.deleteTrainingPlan(id);
+}

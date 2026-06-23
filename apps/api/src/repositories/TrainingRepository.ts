@@ -196,6 +196,18 @@ export async function deletePlannedWorkout(id: string): Promise<void> {
   await prisma.plannedWorkout.delete({ where: { id } });
 }
 
+export async function listWorkouts(athleteProfileId: string): Promise<WorkoutWithSteps[]> {
+  return prisma.plannedWorkout.findMany({
+    where: { athleteProfileId },
+    include: { steps: { orderBy: { stepIndex: 'asc' } } },
+    orderBy: { scheduledDate: 'desc' },
+  });
+}
+
+export async function deleteTrainingPlan(id: string): Promise<void> {
+  await prisma.trainingPlan.delete({ where: { id } });
+}
+
 export async function findWorkoutsByTrainingPlan(
   trainingPlanId: string,
 ): Promise<WorkoutWithSteps[]> {

@@ -44,6 +44,12 @@ export async function trainingRoutes(app: FastifyInstance): Promise<void> {
     return TrainingService.getTrainingPlanById(id);
   });
 
+  app.delete('/api/training-plans/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    await TrainingService.deleteTrainingPlan(id);
+    return reply.status(204).send();
+  });
+
   app.put('/api/training-plans/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     let body: unknown;
@@ -65,6 +71,10 @@ export async function trainingRoutes(app: FastifyInstance): Promise<void> {
       body as ReturnType<typeof UpdateTrainingPlanRequestSchema.parse>,
     );
     return reply.status(200).send(plan);
+  });
+
+  app.get('/api/workouts', async () => {
+    return TrainingService.listWorkouts();
   });
 
   app.get('/api/workouts/:id', async (request) => {
