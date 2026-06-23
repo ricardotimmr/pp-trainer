@@ -776,17 +776,26 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
   const activePlanId = weekPlanState.status === 'success' ? weekPlanState.plan?.id : undefined;
 
   const viewToggle = activePlanId ? (
-    <div className="tp-week-toggle">
+    <div className="segmented-control" role="tablist" aria-label="Week view filter">
+      <span
+        className="segmented-control__indicator"
+        aria-hidden="true"
+        style={{ left: weekView === 'plan' ? '0%' : '50%', width: '50%' }}
+      />
       <button
         type="button"
-        className={`tp-week-toggle__btn${weekView === 'plan' ? ' is-active' : ''}`}
+        role="tab"
+        aria-selected={weekView === 'plan'}
+        className={`segmented-control__tab${weekView === 'plan' ? ' is-active' : ''}`}
         onClick={() => setWeekView('plan')}
       >
         Active plan only
       </button>
       <button
         type="button"
-        className={`tp-week-toggle__btn${weekView === 'all' ? ' is-active' : ''}`}
+        role="tab"
+        aria-selected={weekView === 'all'}
+        className={`segmented-control__tab${weekView === 'all' ? ' is-active' : ''}`}
         onClick={() => setWeekView('all')}
       >
         All this week
