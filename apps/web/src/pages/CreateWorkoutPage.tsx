@@ -1,9 +1,11 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import type { CreatePlannedWorkoutRequest, CreateWorkoutStepRequest } from '@pp-trainer/shared';
 
 import { createWorkout } from '../api/trainingApi';
+import { useCurrentWeekPlan } from '../hooks/useCurrentWeekPlan';
 import { useTrainingPlans } from '../hooks/useTrainingPlans';
 import { PageShell } from '../layout/PageShell';
 import type { PageComponentProps } from '../routes/routeTypes';
@@ -78,6 +80,9 @@ type SubStepDraft = {
   instruction: string;
   durationMinutes: string;
   distanceKm: string;
+  targetFrom: string;
+  targetTo: string;
+  targetReps: string;
 };
 
 type SingleStep = {
@@ -88,6 +93,9 @@ type SingleStep = {
   durationMinutes: string;
   distanceKm: string;
   repetitions: string;
+  targetFrom: string;
+  targetTo: string;
+  targetReps: string;
 };
 
 type RepeatBlock = {
@@ -106,11 +114,11 @@ function uid(): string {
 }
 
 function newSingleStep(stepType = 'main'): SingleStep {
-  return { kind: 'step', key: uid(), stepType, instruction: '', durationMinutes: '', distanceKm: '', repetitions: '' };
+  return { kind: 'step', key: uid(), stepType, instruction: '', durationMinutes: '', distanceKm: '', repetitions: '', targetFrom: '', targetTo: '', targetReps: '' };
 }
 
 function newSubStep(stepType = 'interval'): SubStepDraft {
-  return { key: uid(), stepType, instruction: '', durationMinutes: '', distanceKm: '' };
+  return { key: uid(), stepType, instruction: '', durationMinutes: '', distanceKm: '', targetFrom: '', targetTo: '', targetReps: '' };
 }
 
 function newRepeatBlock(): RepeatBlock {
@@ -123,6 +131,14 @@ function newRepeatBlock(): RepeatBlock {
       newSubStep('recovery'),
     ],
   };
+}
+
+function defaultItems(): SessionItem[] {
+  return [
+    newSingleStep('warmup'),
+    newSingleStep('main'),
+    newSingleStep('cooldown'),
+  ];
 }
 
 function todayIso(): string {
@@ -152,7 +168,13 @@ function computeBarSegs(items: SessionItem[]): BarSeg[] {
 
 /* ─── Submit payload builder ─────────────────────────────────────────────── */
 
-function buildStepsPayload(items: SessionItem[]): CreateWorkoutStepRequest[] {
+function parsePaceToSec(pace: string): number | null {
+  const m = pace.trim().match(/^(\d+):(\d{2})$/);
+  if (!m) return null;
+  return parseInt(m[1]) * 60 + parseInt(m[2]);
+}
+
+function buildStepsPayload(items: SessionItem[], sport: string): CreateWorkoutStepRequest[] {
   const steps: CreateWorkoutStepRequest[] = [];
   let idx = 0;
 
@@ -162,6 +184,9 @@ function buildStepsPayload(items: SessionItem[]): CreateWorkoutStepRequest[] {
     durationMinutes: string,
     distanceKm: string,
     repetitions?: string,
+    targetFrom?: string,
+    targetTo?: string,
+    targetReps?: string,
   ) => {
     const step: CreateWorkoutStepRequest = {
       stepIndex: idx++,
@@ -176,17 +201,38 @@ function buildStepsPayload(items: SessionItem[]): CreateWorkoutStepRequest[] {
       const reps = parseInt(repetitions);
       if (!isNaN(reps) && reps > 0) step.repetitions = reps;
     }
+
+    if (sport === 'running') {
+      const lo = targetFrom ? parsePaceToSec(targetFrom) : null;
+      const hi = targetTo ? parsePaceToSec(targetTo) : null;
+      if (lo !== null) step.targetPaceLowerSecPerKm = lo;
+      if (hi !== null) step.targetPaceUpperSecPerKm = hi;
+    } else if (sport === 'swimming') {
+      const lo = targetFrom ? parsePaceToSec(targetFrom) : null;
+      const hi = targetTo ? parsePaceToSec(targetTo) : null;
+      if (lo !== null) step.targetSwimPaceLowerSecPer100m = lo;
+      if (hi !== null) step.targetSwimPaceUpperSecPer100m = hi;
+    } else if (sport === 'cycling') {
+      const lo = parseInt(targetFrom ?? '');
+      const hi = parseInt(targetTo ?? '');
+      if (!isNaN(lo) && lo > 0) step.targetPowerLowerWatts = lo;
+      if (!isNaN(hi) && hi > 0) step.targetPowerUpperWatts = hi;
+    } else if (targetReps) {
+      const reps = parseInt(targetReps);
+      if (!isNaN(reps) && reps > 0) step.repetitions = reps;
+    }
+
     steps.push(step);
   };
 
   for (const item of items) {
     if (item.kind === 'step') {
-      addStep(item.stepType, item.instruction, item.durationMinutes, item.distanceKm, item.repetitions);
+      addStep(item.stepType, item.instruction, item.durationMinutes, item.distanceKm, item.repetitions, item.targetFrom, item.targetTo, item.targetReps);
     } else {
       const c = Math.max(1, item.count || 1);
       for (let r = 0; r < c; r++) {
         for (const sub of item.steps) {
-          addStep(sub.stepType, sub.instruction, sub.durationMinutes, sub.distanceKm);
+          addStep(sub.stepType, sub.instruction, sub.durationMinutes, sub.distanceKm, undefined, sub.targetFrom, sub.targetTo, sub.targetReps);
         }
       }
     }
@@ -195,7 +241,121 @@ function buildStepsPayload(items: SessionItem[]): CreateWorkoutStepRequest[] {
   return steps;
 }
 
+/* ─── Sport-specific intensity helpers ───────────────────────────────────── */
+
+type SportIntensityConfig =
+  | { type: 'pace'; unit: string; placeholder: string }
+  | { type: 'power' }
+  | { type: 'reps' };
+
+function getSportIntensityConfig(sport: string): SportIntensityConfig | null {
+  if (sport === 'running') return { type: 'pace', unit: '/km', placeholder: '4:00' };
+  if (sport === 'swimming') return { type: 'pace', unit: '/100m', placeholder: '1:45' };
+  if (sport === 'cycling') return { type: 'power' };
+  if (sport === 'strength' || sport === 'mobility' || sport === 'other') return { type: 'reps' };
+  return null;
+}
+
+function formatCardIntensity(
+  item: { targetFrom: string; targetTo: string; targetReps: string },
+  sport: string,
+): string | null {
+  const cfg = getSportIntensityConfig(sport);
+  if (!cfg) return null;
+  if (cfg.type === 'pace') {
+    if (item.targetFrom && item.targetTo) return `${item.targetFrom} – ${item.targetTo} ${cfg.unit}`;
+    if (item.targetFrom) return `${item.targetFrom} ${cfg.unit}`;
+  } else if (cfg.type === 'power') {
+    if (item.targetFrom && item.targetTo) return `${item.targetFrom} – ${item.targetTo} W`;
+    if (item.targetFrom) return `${item.targetFrom} W`;
+  } else if (cfg.type === 'reps') {
+    if (item.targetReps) return `${item.targetReps} reps`;
+  }
+  return null;
+}
+
 /* ─── Sub-components ─────────────────────────────────────────────────────── */
+
+type SelectMenuOption = { value: string; label: string };
+
+type SelectMenuProps = {
+  id?: string;
+  value: string;
+  options: readonly SelectMenuOption[];
+  onChange: (value: string) => void;
+  className?: string;
+  'aria-label'?: string;
+};
+
+function SelectMenu({ id, value, options, onChange, className, 'aria-label': ariaLabel }: SelectMenuProps) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open]);
+
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <div ref={rootRef} className={`cw-sm${className ? ` ${className}` : ''}`}>
+      <button
+        ref={triggerRef}
+        id={id}
+        type="button"
+        className={`cw-sm__trigger${open ? ' is-open' : ''}`}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={ariaLabel}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {selected?.label ?? value}
+      </button>
+      <div
+        className={`cw-sm__menu${open ? ' is-open' : ''}`}
+        role="menu"
+        aria-hidden={!open}
+      >
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            role="menuitem"
+            className={opt.value === value ? 'is-selected' : undefined}
+            onClick={() => {
+              onChange(opt.value);
+              setOpen(false);
+              triggerRef.current?.focus();
+            }}
+          >
+            <span>{opt.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 type FieldProps = {
   label: string;
@@ -216,136 +376,174 @@ function Field({ label, required, htmlFor, className = '', children }: FieldProp
   );
 }
 
-type SubStepRowProps = {
-  step: SubStepDraft;
-  index: number;
-  total: number;
-  onUpdate: (patch: Partial<SubStepDraft>) => void;
-  onRemove: () => void;
-  onMove: (dir: 'up' | 'down') => void;
-};
+function StepCard({ item, sport, onEdit, onRemove }: { item: SingleStep; sport: string; onEdit: () => void; onRemove: () => void }) {
+  const typeLabel = STEP_TYPE_OPTIONS.find((o) => o.value === item.stepType)?.label ?? item.stepType;
+  const dur = parseFloat(item.durationMinutes);
+  const dist = parseFloat(item.distanceKm);
+  const hasDur = !isNaN(dur) && dur > 0;
+  const hasDist = !isNaN(dist) && dist > 0;
+  const intensityLabel = formatCardIntensity(item, sport);
 
-function SubStepRow({ step, index, total, onUpdate, onRemove, onMove }: SubStepRowProps) {
   return (
-    <div className="cw-sub-step">
-      <div className="cw-sub-step__header">
-        <span className={`cw-step-type-dot cw-step-type-dot--${step.stepType}`} />
-        <select
-          className="cw-select cw-select--inline"
-          value={step.stepType}
-          onChange={(e) => onUpdate({ stepType: e.target.value })}
-          aria-label="Step type"
-        >
-          {STEP_TYPE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-        <div className="cw-step-reorder">
-          <button type="button" className="btn btn--ghost btn--xs" onClick={() => onMove('up')} disabled={index === 0} aria-label="Move up">↑</button>
-          <button type="button" className="btn btn--ghost btn--xs" onClick={() => onMove('down')} disabled={index === total - 1} aria-label="Move down">↓</button>
-        </div>
-        <button type="button" className="btn btn--ghost btn--xs cw-remove-btn" onClick={onRemove} aria-label="Remove">✕</button>
-      </div>
-      <div className="cw-sub-step__body">
-        <Field label="Instruction" htmlFor={`instr-${step.key}`}>
-          <textarea
-            id={`instr-${step.key}`}
-            className="cw-textarea cw-textarea--sm"
-            placeholder="What to do..."
-            rows={1}
-            value={step.instruction}
-            onChange={(e) => onUpdate({ instruction: e.target.value })}
-          />
-        </Field>
-        <div className="cw-step-metrics">
-          <Field label="Duration (min)" htmlFor={`dur-${step.key}`} className="cw-field--metric">
-            <input id={`dur-${step.key}`} className="cw-input cw-input--sm" type="number" min="0" step="0.5" placeholder="—" value={step.durationMinutes} onChange={(e) => onUpdate({ durationMinutes: e.target.value })} />
-          </Field>
-          <Field label="Distance (km)" htmlFor={`dist-${step.key}`} className="cw-field--metric">
-            <input id={`dist-${step.key}`} className="cw-input cw-input--sm" type="number" min="0" step="0.1" placeholder="—" value={step.distanceKm} onChange={(e) => onUpdate({ distanceKm: e.target.value })} />
-          </Field>
-        </div>
-      </div>
+    <div
+      className={`cw-card cw-card--step cw-card--${item.stepType}`}
+      role="button"
+      tabIndex={0}
+      onClick={onEdit}
+      onKeyDown={(e) => e.key === 'Enter' && onEdit()}
+    >
+      <span className={`cw-card__dot cw-step-type-dot--${item.stepType}`} />
+      <span className="cw-card__type">{typeLabel}</span>
+      {intensityLabel && <span className="cw-card__intensity">{intensityLabel}</span>}
+      <span className="cw-card__metrics">
+        {hasDur ? `${dur} min` : '—'}
+        {hasDist ? ` · ${dist} km` : ''}
+      </span>
+      {item.instruction && <span className="cw-card__instr">{item.instruction}</span>}
+      <button
+        type="button"
+        className="cw-card__remove"
+        aria-label="Remove step"
+        onClick={(e) => { e.stopPropagation(); onRemove(); }}
+      >✕</button>
     </div>
   );
 }
 
-type SingleStepRowProps = {
-  item: SingleStep;
-  index: number;
-  total: number;
-  onUpdate: (patch: Partial<SingleStep>) => void;
-  onRemove: () => void;
-  onMove: (dir: 'up' | 'down') => void;
-};
+function RepeatBlockCard({ item, onEdit, onRemove }: { item: RepeatBlock; onEdit: () => void; onRemove: () => void }) {
+  const totalDur = item.steps.reduce((s, sub) => s + (parseFloat(sub.durationMinutes) || 0), 0) * item.count;
 
-function SingleStepRow({ item, index, total, onUpdate, onRemove, onMove }: SingleStepRowProps) {
   return (
-    <div className={`cw-step cw-step--single cw-step--${item.stepType}`}>
-      <div className="cw-step__header">
-        <span className="cw-step__num">{String(index + 1).padStart(2, '0')}</span>
-        <span className={`cw-step-type-dot cw-step-type-dot--${item.stepType}`} />
-        <select
-          className="cw-select cw-select--inline"
-          value={item.stepType}
-          onChange={(e) => onUpdate({ stepType: e.target.value })}
-          aria-label="Step type"
-        >
-          {STEP_TYPE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-        <div className="cw-step-reorder">
-          <button type="button" className="btn btn--ghost btn--xs" onClick={() => onMove('up')} disabled={index === 0} aria-label="Move up">↑</button>
-          <button type="button" className="btn btn--ghost btn--xs" onClick={() => onMove('down')} disabled={index === total - 1} aria-label="Move down">↓</button>
-        </div>
-        <button type="button" className="btn btn--ghost btn--xs cw-remove-btn" onClick={onRemove} aria-label="Remove">✕</button>
-      </div>
-      <div className="cw-step__body">
-        <Field label="Instruction" htmlFor={`instr-${item.key}`}>
-          <textarea
-            id={`instr-${item.key}`}
-            className="cw-textarea cw-textarea--sm"
-            placeholder="What to do in this step..."
-            rows={2}
-            value={item.instruction}
-            onChange={(e) => onUpdate({ instruction: e.target.value })}
+    <div
+      className="cw-card cw-card--repeat"
+      role="button"
+      tabIndex={0}
+      onClick={onEdit}
+      onKeyDown={(e) => e.key === 'Enter' && onEdit()}
+    >
+      <span className="cw-card__repeat-badge">⟳ {item.count}×</span>
+      <div className="cw-card__dots">
+        {item.steps.map((s) => (
+          <span
+            key={s.key}
+            className={`cw-step-type-dot cw-step-type-dot--${s.stepType}`}
+            title={STEP_TYPE_OPTIONS.find((o) => o.value === s.stepType)?.label}
           />
-        </Field>
-        <div className="cw-step-metrics">
-          <Field label="Duration (min)" htmlFor={`dur-${item.key}`} className="cw-field--metric">
-            <input id={`dur-${item.key}`} className="cw-input cw-input--sm" type="number" min="0" step="0.5" placeholder="—" value={item.durationMinutes} onChange={(e) => onUpdate({ durationMinutes: e.target.value })} />
-          </Field>
-          <Field label="Distance (km)" htmlFor={`dist-${item.key}`} className="cw-field--metric">
-            <input id={`dist-${item.key}`} className="cw-input cw-input--sm" type="number" min="0" step="0.1" placeholder="—" value={item.distanceKm} onChange={(e) => onUpdate({ distanceKm: e.target.value })} />
-          </Field>
-          <Field label="Repetitions" htmlFor={`reps-${item.key}`} className="cw-field--metric">
-            <input id={`reps-${item.key}`} className="cw-input cw-input--sm" type="number" min="0" step="1" placeholder="—" value={item.repetitions} onChange={(e) => onUpdate({ repetitions: e.target.value })} />
-          </Field>
-        </div>
+        ))}
       </div>
+      <div className="cw-card__sub-labels">
+        {item.steps.map((s) => (
+          <span key={s.key} className="cw-card__sub-label">{STEP_TYPE_SHORT[s.stepType] ?? '?'}</span>
+        ))}
+      </div>
+      {totalDur > 0 && <span className="cw-card__metrics">{totalDur} min</span>}
+      <button
+        type="button"
+        className="cw-card__remove"
+        aria-label="Remove block"
+        onClick={(e) => { e.stopPropagation(); onRemove(); }}
+      >✕</button>
     </div>
   );
 }
 
-type RepeatBlockRowProps = {
-  item: RepeatBlock;
-  index: number;
-  total: number;
-  onUpdate: (patch: Partial<RepeatBlock>) => void;
-  onRemove: () => void;
-  onMove: (dir: 'up' | 'down') => void;
-};
+function IntensityFields({ cfg, idPrefix, item, onChange }: {
+  cfg: SportIntensityConfig;
+  idPrefix: string;
+  item: { targetFrom: string; targetTo: string; targetReps: string };
+  onChange: (patch: Partial<Pick<SubStepDraft, 'targetFrom' | 'targetTo' | 'targetReps'>>) => void;
+}) {
+  if (cfg.type === 'pace') return (
+    <div className="cw-row">
+      <Field label={`From (${cfg.unit})`} htmlFor={`${idPrefix}-pf`} className="cw-field--1">
+        <input id={`${idPrefix}-pf`} className="cw-input" type="text" placeholder={cfg.placeholder} value={item.targetFrom} onChange={(e) => onChange({ targetFrom: e.target.value })} />
+      </Field>
+      <Field label={`To (${cfg.unit})`} htmlFor={`${idPrefix}-pt`} className="cw-field--1">
+        <input id={`${idPrefix}-pt`} className="cw-input" type="text" placeholder={cfg.placeholder} value={item.targetTo} onChange={(e) => onChange({ targetTo: e.target.value })} />
+      </Field>
+    </div>
+  );
+  if (cfg.type === 'power') return (
+    <div className="cw-row">
+      <Field label="Watts from" htmlFor={`${idPrefix}-wf`} className="cw-field--1">
+        <input id={`${idPrefix}-wf`} className="cw-input" type="number" min="0" placeholder="250" value={item.targetFrom} onChange={(e) => onChange({ targetFrom: e.target.value })} />
+      </Field>
+      <Field label="Watts to" htmlFor={`${idPrefix}-wt`} className="cw-field--1">
+        <input id={`${idPrefix}-wt`} className="cw-input" type="number" min="0" placeholder="300" value={item.targetTo} onChange={(e) => onChange({ targetTo: e.target.value })} />
+      </Field>
+    </div>
+  );
+  return (
+    <Field label="Exercise reps" htmlFor={`${idPrefix}-er`}>
+      <input id={`${idPrefix}-er`} className="cw-input" type="number" min="0" step="1" placeholder="e.g. 12" value={item.targetReps} onChange={(e) => onChange({ targetReps: e.target.value })} />
+    </Field>
+  );
+}
 
-function RepeatBlockRow({ item, index, total, onUpdate, onRemove, onMove }: RepeatBlockRowProps) {
+function useModalEscape(onClose: () => void) {
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); onClose(); } };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+}
+
+function StepEditModal({ item, sport, onUpdate, onClose }: { item: SingleStep; sport: string; onUpdate: (p: Partial<SingleStep>) => void; onClose: () => void }) {
+  useModalEscape(onClose);
+  const typeLabel = STEP_TYPE_OPTIONS.find((o) => o.value === item.stepType)?.label ?? item.stepType;
+  const intensityCfg = getSportIntensityConfig(sport);
+
+  return createPortal(
+    <div className="cw-modal-overlay" onPointerDown={onClose}>
+      <div className="cw-modal" onPointerDown={(e) => e.stopPropagation()}>
+        <div className="cw-modal__header">
+          <span className={`cw-step-type-dot cw-step-type-dot--${item.stepType}`} />
+          <h3>{typeLabel}</h3>
+          <button type="button" className="cw-modal__close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="cw-modal__body">
+          <Field label="Type" htmlFor={`mt-${item.key}`}>
+            <SelectMenu id={`mt-${item.key}`} value={item.stepType} options={STEP_TYPE_OPTIONS} onChange={(v) => onUpdate({ stepType: v })} />
+          </Field>
+          {intensityCfg && (
+            <IntensityFields cfg={intensityCfg} idPrefix={item.key} item={item} onChange={(p) => onUpdate(p as Partial<SingleStep>)} />
+          )}
+          <Field label="Instruction" htmlFor={`mi-${item.key}`} className="cw-field--full">
+            <textarea id={`mi-${item.key}`} className="cw-textarea" placeholder="What to do in this step..." rows={3} value={item.instruction} onChange={(e) => onUpdate({ instruction: e.target.value })} />
+          </Field>
+          <div className="cw-row">
+            <Field label="Duration (min)" htmlFor={`md-${item.key}`} className="cw-field--1">
+              <input id={`md-${item.key}`} className="cw-input" type="number" min="0" step="0.5" placeholder="—" value={item.durationMinutes} onChange={(e) => onUpdate({ durationMinutes: e.target.value })} />
+            </Field>
+            <Field label="Distance (km)" htmlFor={`mdi-${item.key}`} className="cw-field--1">
+              <input id={`mdi-${item.key}`} className="cw-input" type="number" min="0" step="0.1" placeholder="—" value={item.distanceKm} onChange={(e) => onUpdate({ distanceKm: e.target.value })} />
+            </Field>
+            {intensityCfg?.type !== 'reps' && (
+              <Field label="Repetitions" htmlFor={`mr-${item.key}`} className="cw-field--1">
+                <input id={`mr-${item.key}`} className="cw-input" type="number" min="0" step="1" placeholder="—" value={item.repetitions} onChange={(e) => onUpdate({ repetitions: e.target.value })} />
+              </Field>
+            )}
+          </div>
+        </div>
+        <div className="cw-modal__footer">
+          <button type="button" className="btn btn--primary" onClick={onClose}>Done</button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function RepeatBlockEditModal({ item, sport, onUpdate, onClose }: { item: RepeatBlock; sport: string; onUpdate: (p: Partial<RepeatBlock>) => void; onClose: () => void }) {
+  useModalEscape(onClose);
+  const intensityCfg = getSportIntensityConfig(sport);
+
   function updateSubStep(key: string, patch: Partial<SubStepDraft>) {
     onUpdate({ steps: item.steps.map((s) => (s.key === key ? { ...s, ...patch } : s)) });
   }
-
   function removeSubStep(key: string) {
     onUpdate({ steps: item.steps.filter((s) => s.key !== key) });
   }
-
   function moveSubStep(key: string, dir: 'up' | 'down') {
     const idx = item.steps.findIndex((s) => s.key === key);
     const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
@@ -355,52 +553,59 @@ function RepeatBlockRow({ item, index, total, onUpdate, onRemove, onMove }: Repe
     onUpdate({ steps: next });
   }
 
-  function addSubStep() {
-    onUpdate({ steps: [...item.steps, newSubStep('recovery')] });
-  }
-
-  return (
-    <div className="cw-step cw-step--repeat">
-      <div className="cw-step__header cw-step__header--repeat">
-        <span className="cw-step__num">{String(index + 1).padStart(2, '0')}</span>
-        <span className="cw-repeat-icon" aria-hidden="true">⟳</span>
-        <span className="cw-repeat-label">Repeat</span>
-        <div className="cw-repeat-count">
-          <input
-            className="cw-input cw-input--count"
-            type="number"
-            min="1"
-            max="99"
-            value={item.count}
-            onChange={(e) => onUpdate({ count: Math.max(1, parseInt(e.target.value) || 1) })}
-            aria-label="Repeat count"
-          />
-          <span className="cw-repeat-count__label">×</span>
+  return createPortal(
+    <div className="cw-modal-overlay" onPointerDown={onClose}>
+      <div className="cw-modal" onPointerDown={(e) => e.stopPropagation()}>
+        <div className="cw-modal__header">
+          <span className="cw-card__repeat-badge" style={{ fontSize: '1rem' }}>⟳</span>
+          <h3>Repeat Block</h3>
+          <button type="button" className="cw-modal__close" onClick={onClose} aria-label="Close">✕</button>
         </div>
-        <div className="cw-step-reorder">
-          <button type="button" className="btn btn--ghost btn--xs" onClick={() => onMove('up')} disabled={index === 0} aria-label="Move up">↑</button>
-          <button type="button" className="btn btn--ghost btn--xs" onClick={() => onMove('down')} disabled={index === total - 1} aria-label="Move down">↓</button>
-        </div>
-        <button type="button" className="btn btn--ghost btn--xs cw-remove-btn" onClick={onRemove} aria-label="Remove block">✕</button>
-      </div>
+        <div className="cw-modal__body">
+          <div className="cw-modal__repeat-count">
+            <label className="cw-label" htmlFor="mrc">Repeat</label>
+            <input id="mrc" className="cw-input cw-input--count" type="number" min="1" max="99" value={item.count} onChange={(e) => onUpdate({ count: Math.max(1, parseInt(e.target.value) || 1) })} />
+            <span className="cw-modal__repeat-unit">times</span>
+          </div>
 
-      <div className="cw-repeat-block__body">
-        {item.steps.map((sub, si) => (
-          <SubStepRow
-            key={sub.key}
-            step={sub}
-            index={si}
-            total={item.steps.length}
-            onUpdate={(patch) => updateSubStep(sub.key, patch)}
-            onRemove={() => removeSubStep(sub.key)}
-            onMove={(dir) => moveSubStep(sub.key, dir)}
-          />
-        ))}
-        <button type="button" className="btn btn--ghost btn--sm cw-add-sub-step" onClick={addSubStep}>
-          + Add step to block
-        </button>
+          <div className="cw-modal__sub-steps">
+            {item.steps.map((sub, si) => (
+              <div key={sub.key} className="cw-modal__sub-step">
+                <div className="cw-modal__sub-step-header">
+                  <span className={`cw-step-type-dot cw-step-type-dot--${sub.stepType}`} />
+                  <SelectMenu value={sub.stepType} options={STEP_TYPE_OPTIONS} onChange={(v) => updateSubStep(sub.key, { stepType: v })} className="cw-sm--inline" aria-label="Step type" />
+                  <div className="cw-step-reorder">
+                    <button type="button" className="btn btn--ghost btn--xs" onClick={() => moveSubStep(sub.key, 'up')} disabled={si === 0} aria-label="Move up">↑</button>
+                    <button type="button" className="btn btn--ghost btn--xs" onClick={() => moveSubStep(sub.key, 'down')} disabled={si === item.steps.length - 1} aria-label="Move down">↓</button>
+                  </div>
+                  <button type="button" className="btn btn--ghost btn--xs" onClick={() => removeSubStep(sub.key)} aria-label="Remove">✕</button>
+                </div>
+                {intensityCfg && (
+                  <IntensityFields cfg={intensityCfg} idPrefix={sub.key} item={sub} onChange={(p) => updateSubStep(sub.key, p)} />
+                )}
+                <textarea className="cw-textarea cw-textarea--sm" placeholder="Instruction..." rows={1} value={sub.instruction} onChange={(e) => updateSubStep(sub.key, { instruction: e.target.value })} />
+                <div className="cw-row">
+                  <Field label="Duration (min)" htmlFor={`sd-${sub.key}`} className="cw-field--1">
+                    <input id={`sd-${sub.key}`} className="cw-input cw-input--sm" type="number" min="0" step="0.5" placeholder="—" value={sub.durationMinutes} onChange={(e) => updateSubStep(sub.key, { durationMinutes: e.target.value })} />
+                  </Field>
+                  <Field label="Distance (km)" htmlFor={`sdi-${sub.key}`} className="cw-field--1">
+                    <input id={`sdi-${sub.key}`} className="cw-input cw-input--sm" type="number" min="0" step="0.1" placeholder="—" value={sub.distanceKm} onChange={(e) => updateSubStep(sub.key, { distanceKm: e.target.value })} />
+                  </Field>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => onUpdate({ steps: [...item.steps, newSubStep('recovery')] })}>
+            + Add step to block
+          </button>
+        </div>
+        <div className="cw-modal__footer">
+          <button type="button" className="btn btn--primary" onClick={onClose}>Done</button>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -408,10 +613,11 @@ function RepeatBlockRow({ item, index, total, onUpdate, onRemove, onMove }: Repe
 
 export function CreateWorkoutPage({ navigate }: PageComponentProps) {
   const plansState = useTrainingPlans();
+  const { refresh: refreshWeekPlan } = useCurrentWeekPlan();
 
   /* form fields */
   const [title, setTitle] = useState('');
-  const [sport, setSport] = useState<string>('running');
+  const [sport, setSport] = useState<string>('');
   const [workoutType, setWorkoutType] = useState<string>('endurance');
   const [scheduledDate, setScheduledDate] = useState<string>(todayIso());
   const [scheduledStartTime, setScheduledStartTime] = useState('');
@@ -424,7 +630,8 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
   const [trainingPlanId, setTrainingPlanId] = useState('');
 
   /* session */
-  const [items, setItems] = useState<SessionItem[]>([]);
+  const [items, setItems] = useState<SessionItem[]>(defaultItems);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
 
   /* submission */
   const [submitting, setSubmitting] = useState(false);
@@ -433,26 +640,20 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
   /* ── item mutations ────────────────────────────────────────────────────── */
 
   function addStep() {
-    setItems((prev) => [...prev, newSingleStep(prev.length === 0 ? 'warmup' : 'main')]);
+    const step = newSingleStep('main');
+    setItems((prev) => [...prev, step]);
+    setEditingKey(step.key);
   }
 
   function addRepeatBlock() {
-    setItems((prev) => [...prev, newRepeatBlock()]);
+    const block = newRepeatBlock();
+    setItems((prev) => [...prev, block]);
+    setEditingKey(block.key);
   }
 
   function removeItem(key: string) {
     setItems((prev) => prev.filter((i) => i.key !== key));
-  }
-
-  function moveItem(key: string, dir: 'up' | 'down') {
-    setItems((prev) => {
-      const idx = prev.findIndex((i) => i.key === key);
-      const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
-      if (idx === -1 || swapIdx < 0 || swapIdx >= prev.length) return prev;
-      const next = [...prev];
-      [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
-      return next;
-    });
+    setEditingKey((cur) => (cur === key ? null : cur));
   }
 
   function updateItem<T extends SessionItem>(key: string, patch: Partial<T>) {
@@ -477,7 +678,7 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
       scheduledDate,
       intensity: intensity as CreatePlannedWorkoutRequest['intensity'],
       status: 'planned',
-      steps: buildStepsPayload(items),
+      steps: buildStepsPayload(items, sport),
     };
 
     if (scheduledStartTime) payload.scheduledStartTime = `${scheduledDate}T${scheduledStartTime}:00`;
@@ -493,6 +694,7 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
     setSubmitting(true);
     try {
       const created = await createWorkout(payload);
+      refreshWeekPlan();
       navigate(`/workouts/${created.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create workout.');
@@ -502,6 +704,7 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
 
   /* ── derived ───────────────────────────────────────────────────────────── */
 
+  const isLocked = !sport;
   const plans = plansState.status === 'success' ? plansState.plans : [];
   const barSegs = computeBarSegs(items);
   const totalBarDur = barSegs.reduce((s, seg) => s + seg.dur, 0);
@@ -515,6 +718,84 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
       description="Plan a new session — set targets, build structure, assign to a training week."
     >
       <form className="cw-form" onSubmit={handleSubmit} noValidate>
+
+        {/* ── SPORT PICKER ──────────────────────────────────────────────── */}
+        <div className="cw-sport-row">
+          <div className="cw-sport-row__head">
+            <span className="cw-sport-row__title">Select a sport</span>
+            {!sport && <span className="cw-sport-row__hint">Choose a sport to unlock the form below</span>}
+          </div>
+          <div className="cw-sport-pills">
+            {SPORT_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                className={`badge badge--sport badge--sport-${o.value} cw-sport-pill${sport === o.value ? ' is-selected' : ''}`}
+                onClick={() => setSport(o.value)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className={`cw-form__body${isLocked ? ' cw-form__body--locked' : ''}`}>
+
+        {/* ── SESSION STRUCTURE ─────────────────────────────────────────── */}
+        <section className="cw-section cw-section--session">
+          <h2 className="cw-section__title">Session Structure</h2>
+
+          {/* Visual bar */}
+          {barSegs.length > 0 && (
+            <div className="cw-session-bar" aria-hidden="true">
+              {barSegs.map((seg) => (
+                <div
+                  key={seg.key}
+                  className={`cw-session-bar__seg session-bar__segment--${seg.stepType}`}
+                  style={{ flex: totalBarDur > 0 ? Math.max(seg.dur, totalBarDur * 0.025) : 1 }}
+                  title={`${STEP_TYPE_SHORT[seg.stepType] ?? seg.stepType}${seg.dur > 0 ? ` · ${seg.dur} min` : ''}`}
+                >
+                  <span className="cw-session-bar__label">
+                    {STEP_TYPE_SHORT[seg.stepType] ?? '?'}
+                    {seg.dur > 0 && <span className="cw-session-bar__dur">{seg.dur}′</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Cards grid */}
+          <div className="cw-cards">
+            {items.map((item) =>
+              item.kind === 'step' ? (
+                <StepCard
+                  key={item.key}
+                  item={item}
+                  sport={sport}
+                  onEdit={() => setEditingKey(item.key)}
+                  onRemove={() => removeItem(item.key)}
+                />
+              ) : (
+                <RepeatBlockCard
+                  key={item.key}
+                  item={item}
+                  onEdit={() => setEditingKey(item.key)}
+                  onRemove={() => removeItem(item.key)}
+                />
+              )
+            )}
+          </div>
+
+          {/* Add actions */}
+          <div className="cw-session-actions">
+            <button type="button" className="btn btn--secondary" onClick={addStep}>
+              + Add step
+            </button>
+            <button type="button" className="btn btn--secondary" onClick={addRepeatBlock}>
+              ⟳ Add repeat block
+            </button>
+          </div>
+        </section>
 
         {/* ── TOP GRID: Basics + Schedule side by side ─────────────────── */}
         <div className="cw-top-grid">
@@ -536,22 +817,12 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
               />
             </Field>
 
-            <Field label="Sport" required htmlFor="cw-sport">
-              <select id="cw-sport" className="cw-select" value={sport} onChange={(e) => setSport(e.target.value)}>
-                {SPORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </Field>
-
             <Field label="Workout type" required htmlFor="cw-workout-type">
-              <select id="cw-workout-type" className="cw-select" value={workoutType} onChange={(e) => setWorkoutType(e.target.value)}>
-                {WORKOUT_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+              <SelectMenu id="cw-workout-type" value={workoutType} options={WORKOUT_TYPE_OPTIONS} onChange={setWorkoutType} />
             </Field>
 
             <Field label="Intensity" required htmlFor="cw-intensity">
-              <select id="cw-intensity" className="cw-select" value={intensity} onChange={(e) => setIntensity(e.target.value)}>
-                {INTENSITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+              <SelectMenu id="cw-intensity" value={intensity} options={INTENSITY_OPTIONS} onChange={setIntensity} />
             </Field>
           </section>
 
@@ -578,77 +849,16 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
             </div>
 
             <Field label="Training plan" htmlFor="cw-plan" className="cw-field--full">
-              <select id="cw-plan" className="cw-select" value={trainingPlanId} onChange={(e) => setTrainingPlanId(e.target.value)}>
-                <option value="">None — standalone workout</option>
-                {plans.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-              </select>
+              <SelectMenu
+                id="cw-plan"
+                value={trainingPlanId}
+                options={[{ value: '', label: 'None — standalone workout' }, ...plans.map((p) => ({ value: p.id, label: p.title }))]}
+                onChange={setTrainingPlanId}
+              />
             </Field>
           </section>
 
         </div>
-
-        {/* ── SESSION STRUCTURE ─────────────────────────────────────────── */}
-        <section className="cw-section cw-section--session">
-          <h2 className="cw-section__title">Session Structure</h2>
-
-          {/* Visual bar */}
-          {barSegs.length > 0 && (
-            <div className="cw-session-bar" aria-hidden="true">
-              {barSegs.map((seg) => (
-                <div
-                  key={seg.key}
-                  className={`cw-session-bar__seg session-bar__segment--${seg.stepType}`}
-                  style={{ flex: totalBarDur > 0 ? Math.max(seg.dur, totalBarDur * 0.025) : 1 }}
-                  title={`${STEP_TYPE_SHORT[seg.stepType] ?? seg.stepType}${seg.dur > 0 ? ` · ${seg.dur} min` : ''}`}
-                >
-                  <span className="cw-session-bar__label">
-                    {STEP_TYPE_SHORT[seg.stepType] ?? '?'}
-                    {seg.dur > 0 && <span className="cw-session-bar__dur">{seg.dur}′</span>}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Step list */}
-          {items.length > 0 && (
-            <div className="cw-session-list">
-              {items.map((item, idx) =>
-                item.kind === 'step' ? (
-                  <SingleStepRow
-                    key={item.key}
-                    item={item}
-                    index={idx}
-                    total={items.length}
-                    onUpdate={(patch) => updateItem<SingleStep>(item.key, patch)}
-                    onRemove={() => removeItem(item.key)}
-                    onMove={(dir) => moveItem(item.key, dir)}
-                  />
-                ) : (
-                  <RepeatBlockRow
-                    key={item.key}
-                    item={item}
-                    index={idx}
-                    total={items.length}
-                    onUpdate={(patch) => updateItem<RepeatBlock>(item.key, patch)}
-                    onRemove={() => removeItem(item.key)}
-                    onMove={(dir) => moveItem(item.key, dir)}
-                  />
-                ),
-              )}
-            </div>
-          )}
-
-          {/* Add actions */}
-          <div className="cw-session-actions">
-            <button type="button" className="btn btn--secondary" onClick={addStep}>
-              + Add step
-            </button>
-            <button type="button" className="btn btn--secondary" onClick={addRepeatBlock}>
-              ⟳ Add repeat block
-            </button>
-          </div>
-        </section>
 
         {/* ── GOAL & NOTES ──────────────────────────────────────────────── */}
         <section className="cw-section">
@@ -680,7 +890,18 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
           </button>
         </div>
 
+        </div>{/* end cw-form__body */}
       </form>
+
+      {/* ── Step / Repeat-Block edit modal (portal → renders over full page) ── */}
+      {editingKey && (() => {
+        const item = items.find((i) => i.key === editingKey);
+        if (!item) return null;
+        const onClose = () => setEditingKey(null);
+        return item.kind === 'step'
+          ? <StepEditModal item={item} sport={sport} onUpdate={(p) => updateItem<SingleStep>(editingKey, p)} onClose={onClose} />
+          : <RepeatBlockEditModal item={item} sport={sport} onUpdate={(p) => updateItem<RepeatBlock>(editingKey, p)} onClose={onClose} />;
+      })()}
     </PageShell>
   );
 }

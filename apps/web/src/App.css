@@ -6509,7 +6509,6 @@ button:focus-visible {
 /* ── Inputs ──────────────────────────────────────────────────────────────── */
 
 .cw-input,
-.cw-select,
 .cw-textarea {
   width: 100%;
   padding: 10px 14px;
@@ -6528,13 +6527,11 @@ button:focus-visible {
 }
 
 .cw-input:hover,
-.cw-select:hover,
 .cw-textarea:hover {
   border-color: var(--color-ink);
 }
 
 .cw-input:focus,
-.cw-select:focus,
 .cw-textarea:focus {
   outline: none;
   border-color: var(--color-accent);
@@ -6554,25 +6551,120 @@ button:focus-visible {
   line-height: 1.55;
 }
 
-/* Select with custom chevron */
-.cw-select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23161418' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 36px;
-  cursor: pointer;
-  font-weight: 600;
+/* ── Custom select menu (replaces native <select>) ───────────────── */
+.cw-sm {
+  position: relative;
 }
 
-/* Smaller/inline selects for step rows */
-.cw-select--inline {
-  padding: 7px 30px 7px 10px;
-  font-size: 0.84rem;
-  border-radius: 6px;
-  background-color: var(--color-surface);
+.cw-sm__trigger {
+  width: 100%;
+  padding: 10px 38px 10px 14px;
+  background: var(--color-surface);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23161418' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  border: 1.5px solid var(--color-line-strong);
+  border-radius: 8px;
+  color: var(--color-ink);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-align: left;
+  text-transform: uppercase;
+  transition:
+    border-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.cw-sm__trigger:hover,
+.cw-sm__trigger.is-open {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23eb0f7a' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.cw-sm__trigger:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.cw-sm__menu {
+  position: absolute;
+  z-index: 100;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  box-shadow: 0 18px 40px rgb(16 16 20 / 12%);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.cw-sm__menu.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.cw-sm__menu button {
+  width: 100%;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--color-ink);
+  cursor: pointer;
+  padding: 8px 10px;
+  text-align: left;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.cw-sm__menu button:hover,
+.cw-sm__menu button.is-selected {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  color: var(--color-accent);
+}
+
+.cw-sm__menu button span {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* Inline variant for step-row headers */
+.cw-sm--inline {
+  flex-shrink: 0;
+}
+
+.cw-sm--inline .cw-sm__trigger {
+  padding: 5px 26px 5px 9px;
+  font-size: 0.7rem;
+  border-width: 1px;
   border-color: var(--color-line);
-  background-position: right 10px center;
-  padding-right: 28px;
+  border-radius: 5px;
+  background-position: right 9px center;
+}
+
+.cw-sm--inline .cw-sm__menu {
+  min-width: 140px;
+  right: auto;
 }
 
 /* Tiny number input for repeat count */
@@ -6603,12 +6695,24 @@ button:focus-visible {
 /* ── Session structure ───────────────────────────────────────────────────── */
 
 /* Visual session bar */
+@keyframes cw-bar-appear {
+  from { opacity: 0; transform: scaleX(0.92); }
+  to   { opacity: 1; transform: scaleX(1); }
+}
+
+@keyframes cw-seg-in {
+  from { opacity: 0; flex: 0 !important; }
+  to   { opacity: 1; }
+}
+
 .cw-session-bar {
   display: flex;
   height: 32px;
   border-radius: 8px;
   overflow: hidden;
   gap: 2px;
+  animation: cw-bar-appear 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: left center;
 }
 
 .cw-session-bar__seg {
@@ -6622,6 +6726,7 @@ button:focus-visible {
   background: var(--segment-color, var(--color-line));
   overflow: hidden;
   transition: flex 0.25s ease;
+  animation: cw-seg-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .cw-session-bar__label {
@@ -6659,7 +6764,357 @@ button:focus-visible {
   flex-wrap: wrap;
 }
 
-/* ── Step cards ──────────────────────────────────────────────────────────── */
+/* ── Session step cards grid ─────────────────────────────────────────────── */
+.cw-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.cw-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 12px 32px;
+  min-height: 112px;
+  border: 1.5px solid var(--color-line);
+  border-radius: 10px;
+  background: var(--color-surface);
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.cw-card:hover {
+  border-color: var(--color-ink);
+  box-shadow: 0 4px 16px rgb(16 16 20 / 7%);
+}
+
+.cw-card--warmup  { border-left: 3px solid var(--color-int-easy); }
+.cw-card--cooldown { border-left: 3px solid var(--color-int-easy); }
+.cw-card--recovery { border-left: 3px solid var(--color-int-recovery); }
+.cw-card--interval { border-left: 3px solid var(--color-accent); }
+.cw-card--main    { border-left: 3px solid var(--color-ink); }
+.cw-card--technique { border-left: 3px solid var(--color-sport-swimming); }
+.cw-card--strength_exercise { border-left: 3px solid var(--color-sport-strength); }
+.cw-card--rest    { border-left: 3px solid var(--color-muted); }
+.cw-card--other   { border-left: 3px solid var(--color-line-strong); }
+.cw-card--repeat  { border-left: 3px solid var(--color-accent); }
+
+.cw-card__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cw-card__type {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  line-height: 1.2;
+}
+
+.cw-card__metrics {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.cw-card__instr {
+  font-size: 0.73rem;
+  color: var(--color-muted);
+  line-height: 1.3;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.cw-card__remove {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 0.65rem;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.cw-card:hover .cw-card__remove {
+  opacity: 1;
+}
+
+.cw-card__remove:hover {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-accent);
+}
+
+.cw-card__repeat-badge {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--color-accent);
+}
+
+.cw-card__dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.cw-card__sub-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cw-card__sub-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--color-muted);
+  text-transform: uppercase;
+}
+
+/* ── Sport picker ────────────────────────────────────────────────────────── */
+.cw-sport-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 22px;
+  border-bottom: 1.5px solid var(--color-line);
+  margin-bottom: 4px;
+}
+
+.cw-sport-row__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.cw-sport-row__title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-ink);
+}
+
+.cw-sport-row__hint {
+  font-size: 0.72rem;
+  color: var(--color-ink-muted, var(--color-muted));
+  opacity: 0.6;
+}
+
+.cw-sport-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Button reset — badge classes handle the visual appearance */
+.cw-sport-pill {
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.cw-sport-pill::before {
+  transition: transform 0.15s ease;
+}
+
+.cw-sport-pill:hover {
+  border-color: var(--color-ink);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.14);
+}
+
+.cw-sport-pill:hover::before {
+  transform: skewX(-20deg) scaleX(1.5);
+}
+
+.cw-sport-pill.is-selected {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-soft);
+}
+
+/* ── Form body locked state ──────────────────────────────────────────────── */
+.cw-form__body {
+  display: contents;
+}
+
+.cw-form__body--locked {
+  display: block;
+  opacity: 0.32;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Card intensity label ────────────────────────────────────────────────── */
+.cw-card__intensity {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: 0.01em;
+}
+
+/* ── Modal animations ────────────────────────────────────────────────────── */
+@keyframes cw-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes cw-modal-in {
+  from { opacity: 0; transform: scale(0.95) translateY(12px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Step edit modal ─────────────────────────────────────────────────────── */
+.cw-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(16 16 20 / 52%);
+  backdrop-filter: blur(3px);
+  animation: cw-overlay-in 0.18s ease;
+}
+
+.cw-modal {
+  width: 100%;
+  max-width: 480px;
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-line);
+  border-radius: 14px;
+  box-shadow: 0 32px 80px rgb(16 16 20 / 22%);
+  overflow: hidden;
+  animation: cw-modal-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cw-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px 14px;
+  border-bottom: 1.5px solid var(--color-line);
+  flex-shrink: 0;
+}
+
+.cw-modal__header h3 {
+  flex: 1;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cw-modal__close {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.cw-modal__close:hover {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-accent);
+}
+
+.cw-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 18px;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.cw-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 18px;
+  border-top: 1.5px solid var(--color-line);
+  flex-shrink: 0;
+}
+
+.cw-modal__repeat-count {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cw-modal__repeat-unit {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.cw-modal__sub-steps {
+  display: grid;
+  gap: 10px;
+}
+
+.cw-modal__sub-step {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-paper, var(--color-surface));
+}
+
+.cw-modal__sub-step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Step cards (legacy) ─────────────────────────────────────────────────── */
 
 .cw-step {
   border: 1.5px solid var(--color-line);
@@ -6729,7 +7184,7 @@ button:focus-visible {
 .cw-step-type-dot--rest        { background: var(--color-muted); }
 
 /* Type select — flex-grows within header */
-.cw-step__header > .cw-select--inline {
+.cw-step__header > .cw-sm--inline {
   flex: 1;
 }
 
@@ -6815,7 +7270,7 @@ button:focus-visible {
   margin-bottom: 10px;
 }
 
-.cw-sub-step__header > .cw-select--inline {
+.cw-sub-step__header > .cw-sm--inline {
   flex: 1;
 }
 
