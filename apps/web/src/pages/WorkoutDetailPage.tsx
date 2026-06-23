@@ -246,7 +246,7 @@ function WorkoutDeleteAction({
     try {
       await deleteWorkout(workoutId);
       onDeleted();
-      navigate('/training');
+      navigate('/training-plan');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete workout.');
       setLoading(false);

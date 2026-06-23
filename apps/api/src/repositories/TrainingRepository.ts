@@ -191,7 +191,7 @@ export async function updatePlannedWorkout(
     where: { id },
     data: {
       ...workoutFields,
-      ...(steps !== undefined && {
+      ...(steps !== undefined && steps.length > 0 && {
         steps: { deleteMany: {}, create: steps },
       }),
     },

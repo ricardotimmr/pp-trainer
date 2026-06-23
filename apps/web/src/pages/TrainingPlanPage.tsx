@@ -265,7 +265,7 @@ function EditPlanModal({ plan, onClose, onSuccess }: EditPlanModalProps) {
     startDate: plan.startDate,
     endDate: plan.endDate,
     description: plan.description ?? '',
-    status: (plan.status === 'draft' || plan.status === 'active') ? plan.status : 'draft',
+    status: plan.status === 'active' ? 'active' : 'draft',
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -276,11 +276,12 @@ function EditPlanModal({ plan, onClose, onSuccess }: EditPlanModalProps) {
     if (!fields.title.trim()) { setError('Title is required.'); return; }
     if (fields.endDate < fields.startDate) { setError('End date must be on or after start date.'); return; }
 
+    // Omit status from payload — status changes only happen via Activate/Archive actions,
+    // not the edit form. This prevents accidentally overwriting completed/archived status.
     const payload: UpdateTrainingPlanRequest = {
       title: fields.title.trim(),
       startDate: fields.startDate,
       endDate: fields.endDate,
-      status: fields.status,
       description: fields.description.trim() || undefined,
     };
 
@@ -789,6 +790,7 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
   const [weekView, setWeekView] = useState<'all' | 'plan'>('plan');
+  const [actionError, setActionError] = useState<string | null>(null);
 
   function refreshAll() {
     weekPlanState.refresh();
@@ -798,9 +800,12 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
 
   async function handleActivate(id: string) {
     setActivating(id);
+    setActionError(null);
     try {
       await updateTrainingPlan(id, { status: 'active' } as UpdateTrainingPlanRequest);
       refreshAll();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to activate plan.');
     } finally {
       setActivating(null);
     }
@@ -808,9 +813,12 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
 
   async function handleDelete(id: string) {
     setDeleting(id);
+    setActionError(null);
     try {
       await deleteTrainingPlan(id);
       refreshAll();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to delete plan.');
     } finally {
       setDeleting(null);
     }
@@ -818,17 +826,25 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
 
   async function handleAssign(workoutId: string, planId: string) {
     setAssigning(workoutId);
+    setActionError(null);
     try {
       await updateWorkout(workoutId, { trainingPlanId: planId });
       refreshAll();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to assign plan.');
     } finally {
       setAssigning(null);
     }
   }
 
   async function handleDeleteWorkout(id: string) {
-    await deleteWorkout(id);
-    refreshAll();
+    setActionError(null);
+    try {
+      await deleteWorkout(id);
+      refreshAll();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to delete workout.');
+    }
   }
 
   const plans = plansState.status === 'success' ? plansState.plans : [];
@@ -951,6 +967,12 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
 
   return (
     <>
+      {actionError && (
+        <div className="tp-action-error" role="alert">
+          {actionError}
+          <button type="button" className="tp-action-error__dismiss" onClick={() => setActionError(null)}>×</button>
+        </div>
+      )}
       {rendered}
       {showCreatePlan && (
         <CreatePlanModal

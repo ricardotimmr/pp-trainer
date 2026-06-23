@@ -657,6 +657,37 @@ button:focus-visible {
   color: #ef4444;
 }
 
+.tp-action-error {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #b91c1c;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.tp-action-error__dismiss {
+  background: none;
+  border: none;
+  padding: 0;
+  line-height: 1;
+  font-size: 1rem;
+  color: #b91c1c;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.tp-action-error__dismiss:hover { opacity: 1; }
+
 .wd-delete-action {
   margin: 0 0 28px;
   display: flex;
