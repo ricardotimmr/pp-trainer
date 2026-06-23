@@ -3155,10 +3155,9 @@ button:focus-visible {
 }
 
 .tp-workout-row__delete {
-  flex-shrink: 0;
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 4px;
 }
 
 .tp-workout-row__delete-btn {
@@ -3173,38 +3172,69 @@ button:focus-visible {
   transition: color 0.15s ease, background 0.15s ease;
 }
 
-.tp-workout-row__delete-btn:hover {
+.tp-workout-row__delete-btn:hover,
+.tp-workout-row__delete-btn.is-open {
   color: var(--color-danger, #e53e3e);
   background: color-mix(in srgb, var(--color-danger, #e53e3e) 8%, transparent);
 }
 
-.tp-workout-row__delete-confirm {
+.tp-workout-row__delete-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  white-space: nowrap;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tp-workout-row__delete-tooltip-label {
+  font-size: 0.78rem;
+  color: var(--color-ink);
+  font-weight: 500;
+}
+
+.tp-workout-row__delete-tooltip-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.tp-workout-row__delete-tooltip-yes,
+.tp-workout-row__delete-tooltip-no {
+  flex: 1;
   font-size: 0.72rem;
   font-weight: 700;
   font-family: var(--font-mono);
-  padding: 2px 7px;
+  padding: 3px 10px;
   border-radius: 5px;
   border: 1.5px solid;
   cursor: pointer;
   background: none;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.tp-workout-row__delete-confirm--yes {
+.tp-workout-row__delete-tooltip-yes {
   border-color: var(--color-danger, #e53e3e);
   color: var(--color-danger, #e53e3e);
 }
 
-.tp-workout-row__delete-confirm--yes:hover {
+.tp-workout-row__delete-tooltip-yes:hover:not(:disabled) {
   background: var(--color-danger, #e53e3e);
   color: #fff;
 }
 
-.tp-workout-row__delete-confirm--no {
+.tp-workout-row__delete-tooltip-no {
   border-color: var(--color-line);
   color: var(--color-muted);
 }
 
-.tp-workout-row__delete-confirm--no:hover {
+.tp-workout-row__delete-tooltip-no:hover {
   border-color: var(--color-muted);
   color: var(--color-ink);
 }

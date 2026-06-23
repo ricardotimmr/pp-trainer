@@ -565,39 +565,41 @@ function AllWorkoutsSection({ workouts, plans, onAssign, onDelete, assigning, na
                 )}
               </div>
               <div className="tp-workout-row__delete">
-                {showConfirm ? (
-                  <>
-                    <button
-                      type="button"
-                      className="tp-workout-row__delete-confirm tp-workout-row__delete-confirm--yes"
-                      disabled={isDeleting}
-                      onClick={async () => {
-                        setDeletingId(w.id);
-                        setConfirmDeleteId(null);
-                        await onDelete(w.id);
-                        setDeletingId(null);
-                      }}
-                    >
-                      {isDeleting ? '…' : 'Yes'}
-                    </button>
-                    <button
-                      type="button"
-                      className="tp-workout-row__delete-confirm tp-workout-row__delete-confirm--no"
-                      onClick={() => setConfirmDeleteId(null)}
-                    >
-                      No
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className="tp-workout-row__delete-btn"
-                    title="Delete workout"
-                    disabled={isDeleting}
-                    onClick={() => setConfirmDeleteId(w.id)}
-                  >
-                    ×
-                  </button>
+                <button
+                  type="button"
+                  className={`tp-workout-row__delete-btn${showConfirm ? ' is-open' : ''}`}
+                  title="Delete workout"
+                  disabled={isDeleting}
+                  onClick={() => setConfirmDeleteId(showConfirm ? null : w.id)}
+                >
+                  {isDeleting ? '…' : '×'}
+                </button>
+                {showConfirm && (
+                  <div className="tp-workout-row__delete-tooltip">
+                    <span className="tp-workout-row__delete-tooltip-label">Delete workout?</span>
+                    <div className="tp-workout-row__delete-tooltip-actions">
+                      <button
+                        type="button"
+                        className="tp-workout-row__delete-tooltip-yes"
+                        disabled={isDeleting}
+                        onClick={async () => {
+                          setDeletingId(w.id);
+                          setConfirmDeleteId(null);
+                          await onDelete(w.id);
+                          setDeletingId(null);
+                        }}
+                      >
+                        Yes
+                      </button>
+                      <button
+                        type="button"
+                        className="tp-workout-row__delete-tooltip-no"
+                        onClick={() => setConfirmDeleteId(null)}
+                      >
+                        No
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             </li>
