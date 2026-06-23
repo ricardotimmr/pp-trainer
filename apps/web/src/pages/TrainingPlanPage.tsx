@@ -1,3 +1,5 @@
+import React from 'react';
+
 import type { PlannedWorkoutDto } from '@pp-trainer/shared';
 
 import { EmptyState, ErrorState, LoadingState, WorkoutCard } from '../components';
@@ -65,6 +67,7 @@ type WeekPlanContentProps = {
   workouts: WorkoutCardData[];
   summaryItems: { label: string; value: string }[];
   navigate: PageComponentProps['navigate'];
+  actions?: React.ReactNode;
 };
 
 function WeekPlanContent({
@@ -75,6 +78,7 @@ function WeekPlanContent({
   workouts,
   summaryItems,
   navigate,
+  actions,
 }: WeekPlanContentProps) {
   const weekRange = formatWeekRange(weekStart, weekEnd);
   const weekDates = getWeekDates(weekStart, weekEnd);
@@ -87,7 +91,7 @@ function WeekPlanContent({
   }, {});
 
   return (
-    <PageShell title={title} eyebrow={`Training Plan · ${weekRange}`} description={description}>
+    <PageShell title={title} eyebrow={`Training Plan · ${weekRange}`} description={description} actions={actions}>
       <dl className="week-summary">
         {summaryItems.map(({ label, value }) => (
           <div key={label}>
@@ -199,9 +203,22 @@ function TrainingPlanMockMode({ navigate }: PageComponentProps) {
   );
 }
 
+function CreateWorkoutButton({ navigate }: { navigate: PageComponentProps['navigate'] }) {
+  return (
+    <button
+      type="button"
+      className="btn btn--primary"
+      onClick={() => navigate('/workouts/new')}
+    >
+      + Create Workout
+    </button>
+  );
+}
+
 function TrainingPlanApiMode({ navigate }: PageComponentProps) {
   const state = useCurrentWeekPlan();
   const { weekStart, weekEnd } = getCurrentWeekRange();
+  const createBtn = <CreateWorkoutButton navigate={navigate} />;
 
   if (state.status === 'loading') {
     return (
@@ -221,7 +238,11 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
 
   if (!state.plan) {
     return (
-      <PageShell title="Training Plan" eyebrow={`Training Plan · ${formatWeekRange(weekStart, weekEnd)}`}>
+      <PageShell
+        title="Training Plan"
+        eyebrow={`Training Plan · ${formatWeekRange(weekStart, weekEnd)}`}
+        actions={createBtn}
+      >
         <EmptyState
           title="No active training plan"
           description="No training plan for this week. Create one or wait for the AI Coach."
@@ -241,6 +262,7 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
       workouts={plan.plannedWorkouts as WorkoutCardData[]}
       summaryItems={buildApiSummaryItems(plan.plannedWorkouts)}
       navigate={navigate}
+      actions={createBtn}
     />
   );
 }
