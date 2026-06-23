@@ -3178,10 +3178,15 @@ button:focus-visible {
   background: color-mix(in srgb, var(--color-danger, #e53e3e) 8%, transparent);
 }
 
+@keyframes tp-delete-tooltip-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
 .tp-workout-row__delete-tooltip {
   position: absolute;
-  bottom: calc(100% + 6px);
-  right: 0;
+  bottom: calc(100% + 10px);
+  right: -6px;
   background: var(--color-surface);
   border: 1.5px solid var(--color-line);
   border-radius: 8px;
@@ -3192,6 +3197,29 @@ button:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transform-origin: bottom right;
+  animation: tp-delete-tooltip-in 0.15s ease;
+}
+
+/* speech-bubble tail pointing down toward the × button */
+.tp-workout-row__delete-tooltip::after,
+.tp-workout-row__delete-tooltip::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 12px;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+}
+
+.tp-workout-row__delete-tooltip::before {
+  border-top: 8px solid var(--color-line);
+  margin-top: 1.5px;
+}
+
+.tp-workout-row__delete-tooltip::after {
+  border-top: 8px solid var(--color-surface);
+  margin-top: -0.5px;
 }
 
 .tp-workout-row__delete-tooltip-label {
