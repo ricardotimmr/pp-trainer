@@ -32,7 +32,7 @@ export async function getActivities(
   }
 
   if (filters.dateTo != null) {
-    startTimeTo = new Date(filters.dateTo);
+    startTimeTo = new Date(`${filters.dateTo}T23:59:59.999Z`);
     if (isNaN(startTimeTo.getTime())) {
       throw ApiError.badRequest('Invalid dateTo — expected ISO 8601 date string');
     }

@@ -93,6 +93,15 @@ export const SWIM_STROKE_TYPE_MAP: Record<SwimStrokeType, SwimStrokeTypeDto> = {
   Drill: 'drill',
 };
 
+export const DTO_TO_PRISMA_SWIM_STROKE_MAP: Record<SwimStrokeTypeDto, SwimStrokeType> = {
+  freestyle: 'Freestyle',
+  backstroke: 'Backstroke',
+  breaststroke: 'Breaststroke',
+  butterfly: 'Butterfly',
+  mixed: 'Mixed',
+  drill: 'Drill',
+};
+
 export const GOAL_PRIORITY_MAP: Record<GoalPriority, GoalPriorityDto> = {
   MainGoal: 'main_goal',
   SecondaryGoal: 'secondary_goal',
@@ -218,4 +227,13 @@ export const IMPORT_STATUS_MAP: Record<ImportStatus, ImportStatusDto> = {
   Failed: 'failed',
   Duplicate: 'duplicate',
   PartiallyImported: 'partially_imported',
+};
+
+export const DTO_TO_PRISMA_IMPORT_STATUS_MAP: Record<ImportStatusDto, ImportStatus> = {
+  pending: 'Pending',
+  processing: 'Processing',
+  success: 'Success',
+  failed: 'Failed',
+  duplicate: 'Duplicate',
+  partially_imported: 'PartiallyImported',
 };

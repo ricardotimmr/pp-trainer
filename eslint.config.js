@@ -45,6 +45,9 @@ export default [
     languageOptions: {
       globals: globals.node,
     },
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
   },
 
   // Turn off rules that conflict with Prettier formatting

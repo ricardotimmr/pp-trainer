@@ -15,6 +15,7 @@ test-results
 *.local
 .env
 docs/local/
+docs/tmp/
 docs/pp-brand/
 docs/precision-pacers-mockup_4.html
 

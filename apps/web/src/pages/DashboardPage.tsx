@@ -3,11 +3,15 @@ import {
   ActivitySummaryStats,
   DashboardWidget,
   EmptyState,
+  ErrorState,
   LoadingState,
   SportBadge,
   WorkoutCard,
 } from '../components';
+import { DATA_MODE } from '../config/dataMode';
 import { usePrototypeAthleteContext } from '../context/prototypeAthleteContextValue';
+import { useDashboardApi } from '../hooks/useDashboardApi';
+import type { WeekVolume } from '../hooks/useDashboardApi';
 import { PageShell } from '../layout/PageShell';
 import { getDashboardSummary } from '../mock/prototypeData.helpers';
 import type { SportType } from '../mock/prototypeData.types';
@@ -93,7 +97,168 @@ function WeekBalancePanel({
   );
 }
 
-export function DashboardPage({ navigate }: PageComponentProps) {
+type SportSplitItem = { sport: SportType; durationSeconds: number };
+
+function WeekCompletedPanel({
+  weekVolume,
+}: {
+  weekVolume: WeekVolume;
+}) {
+  const sportSplit: SportSplitItem[] = (
+    Object.entries(weekVolume.bySport) as [SportType, number][]
+  )
+    .filter(([, dur]) => dur > 0)
+    .map(([sport, durationSeconds]) => ({ sport, durationSeconds }));
+
+  return (
+    <section className="dashboard-week-balance" aria-label="Weekly volume">
+      <div className="dashboard-week-balance__topline">
+        <h3>Weekly volume</h3>
+        <span>{formatDuration(weekVolume.totalSeconds)} completed</span>
+      </div>
+      <dl className="dashboard-week-balance__metrics">
+        <div className="is-completed">
+          <dt>Completed</dt>
+          <dd>{formatDuration(weekVolume.totalSeconds)}</dd>
+        </div>
+        <div>
+          <dt>Distance</dt>
+          <dd>{formatDistance(weekVolume.totalDistanceMeters)}</dd>
+        </div>
+      </dl>
+      {sportSplit.length > 0 && (
+        <>
+          <div className="dashboard-week-balance__bar" aria-hidden="true">
+            {sportSplit.map((item) => {
+              const width =
+                weekVolume.totalSeconds > 0
+                  ? Math.max(3, (item.durationSeconds / weekVolume.totalSeconds) * 100)
+                  : 0;
+              return (
+                <span
+                  key={item.sport}
+                  className={`dashboard-week-balance__segment dashboard-week-balance__segment--${item.sport}`}
+                  style={{ width: `${width}%` }}
+                />
+              );
+            })}
+          </div>
+          <div className="dashboard-week-balance__legend">
+            {sportSplit.map((item) => (
+              <div key={item.sport}>
+                <span
+                  className={`dashboard-week-balance__dot dashboard-week-balance__dot--${item.sport}`}
+                />
+                <span>
+                  {sportLabels[item.sport]} {formatDuration(item.durationSeconds)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function DashboardApiMode({ navigate }: PageComponentProps) {
+  const state = useDashboardApi();
+
+  if (state.status === 'loading') {
+    return (
+      <PageShell title="Dashboard" description="Loading from local backend...">
+        <LoadingState title="Loading dashboard" description="Fetching from local backend..." />
+      </PageShell>
+    );
+  }
+
+  if (state.status === 'error') {
+    return (
+      <PageShell title="Dashboard" description="Could not load dashboard.">
+        <ErrorState title="Could not load dashboard" description={state.message} />
+      </PageShell>
+    );
+  }
+
+  const { recentActivities, weekVolume, weekStart, weekEnd } = state;
+
+  return (
+    <PageShell
+      title="Dashboard"
+      description="Current week activity volume and recent activities from the local backend."
+      actions={
+        <button
+          type="button"
+          className="button button--secondary"
+          onClick={() => navigate('/activities')}
+        >
+          View activities
+        </button>
+      }
+    >
+      <div className="dashboard-page">
+        <section className="dashboard-hero" aria-label="Current training week">
+          <div className="dashboard-hero__intro">
+            <p className="dashboard-hero__eyebrow">
+              {formatDate(weekStart)} to {formatDate(weekEnd)}
+            </p>
+            <h2>Current week</h2>
+            <p>No active training plan.</p>
+          </div>
+          <WeekCompletedPanel weekVolume={weekVolume} />
+        </section>
+
+        <div className="dashboard-layout">
+          <div className="dashboard-col--main">
+            <DashboardWidget
+              title="Recent activities"
+              eyebrow="Training history"
+              action={
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={() => navigate('/activities')}
+                >
+                  View all
+                </button>
+              }
+            >
+              {recentActivities.length > 0 ? (
+                <>
+                  <ActivitySummaryStats activities={recentActivities} />
+                  <div className="list-stack">
+                    {recentActivities.map((activity) => (
+                      <ActivityCard
+                        key={activity.id}
+                        activity={activity}
+                        onOpen={(activityId) => navigate(`/activities/${activityId}`)}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <EmptyState
+                  title="No recent activities"
+                  description="Completed training will appear here once activity data exists."
+                  variant="inline"
+                />
+              )}
+            </DashboardWidget>
+          </div>
+        </div>
+      </div>
+    </PageShell>
+  );
+}
+
+export function DashboardPage({ navigate, params }: PageComponentProps) {
+  if (DATA_MODE === 'api') {
+    return <DashboardApiMode navigate={navigate} params={params} />;
+  }
+  return <DashboardPageMock navigate={navigate} params={params} />;
+}
+
+function DashboardPageMock({ navigate }: PageComponentProps) {
   const dashboard = getDashboardSummary();
   const { mainGoal, secondaryGoals, watchlistGoals } =
     usePrototypeAthleteContext();

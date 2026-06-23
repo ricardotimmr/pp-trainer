@@ -4,27 +4,25 @@
 
 ## Current Status
 
-**Phase 3: Backend and Database Foundation — complete**
+**Phase 4: Activity Import and Normalization — complete**
 
-The backend API, PostgreSQL database, migrations, and seed layer are fully operational. The frontend prototype from Phase 2 remains the default experience (mock mode) while the backend matures.
+The full activity import pipeline is operational. FIT, GPX, TCX binary and XML files are parsed, normalized into the internal activity model, deduplicated and persisted. The JSON import endpoint covers the python-garminconnect integration path. The Dashboard and Import pages are migrated to API mode.
 
-**What Phase 3 delivered:**
+**What Phase 4 delivered:**
 
-- Fastify v5 REST API (`apps/api/`) with TypeScript and ESM
-- PostgreSQL database via Prisma v7 and Docker Compose
-- Full migration history and rich seed dataset (athlete, goals, zones, activities, training plan, performance stats, import placeholders, AI coach foundation)
-- Zod DTO schemas in `packages/shared/` shared across API and frontend
-- Read endpoints for all Phase 2 data domains
-- Import metadata foundation (history read, upload placeholder returning 501 until Phase 4)
-- Athlete context builder (`GET /api/athlete/context`, `POST /api/athlete/context/snapshot`)
-- Frontend API client layer with explicit `VITE_DATA_MODE=mock|api` switch
-- Activities page migrated to optional API mode as the first real data proof
-- Quality gate: `npm run check` covers shared build, API typecheck, lint, tests and seed validation
-- GitHub Actions CI (no database required — all API tests use in-process mocks)
+- `POST /api/imports/activity-file` — FIT, GPX and TCX file uploads with multipart parsing, storage and pipeline dispatch
+- `POST /api/imports/activity-json` — structured JSON import with Zod validation and duplicate detection
+- `GET /api/imports` / `GET /api/imports/:id` — import history with status, error messages and file metadata
+- FIT parser (`fit-file-parser`), GPX/TCX parser (`fast-xml-parser`) with 5 s metric downsampling
+- `ActivityNormalizer` — sport-specific mapping to `Prisma.ActivityUncheckedCreateInput`
+- Deduplication layer — exact SHA-256 hash match + similarity check (sport, startTime ±60 s, duration ±5%)
+- Dashboard API mode — weekly volume from real activities, no active plan handled gracefully
+- Import page API mode — drag-and-drop upload, JSON import, status result blocks, paginated history with filter tabs
+- 361 unit and integration tests — all passing without a database
 
-**What is still mock-only (Phase 4+):**
+**What is still mock-only (Phase 5+):**
 
-All pages except Activities read from `apps/web/src/mock/` prototype helpers. No real file import or AI generation exists yet.
+Training plan, workouts, goals, AI coach and performance pages still read from `apps/web/src/mock/` prototype helpers. No create/update/delete mutations for training plans exist yet.
 
 ## Repository Structure
 
@@ -168,8 +166,11 @@ All endpoints return `{ error: { code, message } }` on failure.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/import/history` | Import file history with status and activity count |
-| `POST` | `/api/import/upload` | **501 Not Implemented** — placeholder until Phase 4 |
+| `POST` | `/api/imports/activity-json` | JSON activity import — full field reference below |
+| `POST` | `/api/imports/activity-file` | File upload — `.fit`, `.gpx`, `.tcx` (multipart/form-data, field name `file`) |
+| `GET` | `/api/imports` | Import job list. Query params: `status` (`success`\|`failed`\|`duplicate`), `limit` (max 100, default 20), `offset` |
+| `GET` | `/api/imports/:id` | Import job detail with file metadata and warning messages |
+| `GET` | `/api/import/history` | Phase 3 legacy endpoint — returns seeded import history |
 
 ## Mock Mode vs API Mode
 
@@ -177,7 +178,7 @@ The frontend has two data modes controlled by `VITE_DATA_MODE`:
 
 **`mock` (default)** — all pages read from `apps/web/src/mock/prototypeData.helpers.ts`. No backend or database needed. This is the safe default during development.
 
-**`api`** — the Activities page fetches from `GET /api/activities` via the API client in `apps/web/src/api/`. Loading and error states are handled. All other pages still read from mock helpers until they are migrated in a future phase.
+**`api`** — Activities, Dashboard and Import pages fetch from the backend API. Loading and error states are handled throughout. Training plan, AI coach and performance pages still read from mock helpers until migrated in a future phase.
 
 The switch is intentionally explicit — setting `VITE_DATA_MODE=api` with no backend running shows a clear error state rather than silently falling back to mock data.
 
@@ -228,7 +229,7 @@ This runs in sequence:
 1. `build:shared` + `typecheck:shared` — shared package compiles cleanly
 2. `typecheck:api` — API TypeScript is clean
 3. `lint:api` — no ESLint errors
-4. `test:api` — all 155 unit tests pass (no database required)
+4. `test:api` — all 361 unit tests pass (no database required)
 5. `db:validate:seed` — seed payload structure is internally consistent
 
 CI (GitHub Actions) runs the same steps on every push and pull request to `main`.
@@ -240,7 +241,7 @@ Phase 0   Project Foundation          done
 Phase 1   Repo and App Foundation     done
 Phase 2   Frontend Prototype          done
 Phase 3   Backend and Database        done
-Phase 4   Activity Import             upcoming
+Phase 4   Activity Import             done
 Phase 5   Training Planning Core      upcoming
 Phase 6   AI Coach MVP                upcoming
 Phase 7   MVP Integration             upcoming
@@ -248,13 +249,159 @@ Phase 7   MVP Integration             upcoming
 
 Full roadmap: `docs/07-roadmap.md`
 
-## What Phase 4 Should Build Next
+## Phase 4: Activity Import
 
-Phase 4 picks up from the `POST /api/import/upload` placeholder (currently 501):
+### Supported import formats
 
-- Real FIT/GPX/TCX parser writing to `ImportedFile` + `RawActivityData`
-- Activity normaliser writing to `Activity` + related tables
-- Duplicate detection based on `externalId`
-- Garmin or manual upload flow in the frontend
-- Import status polling or webhook
-- Seed dataset replaced or extended by real imported data
+| Format | Endpoint | Notes |
+|---|---|---|
+| JSON | `POST /api/imports/activity-json` | Structured, source-agnostic — designed as the output format of a python-garminconnect worker |
+| FIT | `POST /api/imports/activity-file` | Garmin device binary — parsed via `fit-file-parser` |
+| GPX | `POST /api/imports/activity-file` | GPS track XML — namespace-stripped via `fast-xml-parser` |
+| TCX | `POST /api/imports/activity-file` | Training Center XML — weighted HR and power extracted |
+
+### JSON import format
+
+#### Minimal working example
+
+```json
+{
+  "athleteProfileId": "<your-profile-id>",
+  "sport": "running",
+  "startTime": "2026-06-20T07:30:00Z",
+  "durationSeconds": 3600,
+  "distanceMeters": 12000,
+  "averageHeartRate": 148
+}
+```
+
+Get your `athleteProfileId` from the seeded database:
+
+```bash
+npx prisma studio
+# or
+psql $DATABASE_URL -c "SELECT id FROM \"AthleteProfile\" LIMIT 1;"
+```
+
+#### Full field reference
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `athleteProfileId` | yes | string | Must match the seeded profile |
+| `sport` | yes | string | `running` `cycling` `swimming` `strength` `mobility` `other` |
+| `startTime` | yes | ISO 8601 | e.g. `2026-06-20T07:30:00Z` |
+| `durationSeconds` | yes | integer > 0 | Total elapsed time |
+| `title` | no | string | Activity name |
+| `notes` | no | string | Free-text notes |
+| `distanceMeters` | no | integer ≥ 0 | |
+| `elevationGainMeters` | no | integer ≥ 0 | |
+| `averageHeartRate` | no | integer > 0 | |
+| `maxHeartRate` | no | integer > 0 | |
+| `averagePowerWatts` | no | integer > 0 | Cycling / running power |
+| `normalizedPowerWatts` | no | integer > 0 | |
+| `averageCadence` | no | number > 0 | rpm or spm |
+| `averageSpeedKmh` | no | number > 0 | |
+| `calories` | no | integer > 0 | |
+| `perceivedExertion` | no | integer 1–10 | RPE |
+| `forceImport` | no | boolean | Skip duplicate check (dev/testing only) |
+
+**Cycling power fields** — included in the common table above (`averagePowerWatts`, `normalizedPowerWatts`).
+
+**Swimming-specific fields:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `poolLengthMeters` | integer > 0 | Pool length in metres |
+| `dominantStrokeType` | string | `freestyle` `backstroke` `breaststroke` `butterfly` `mixed` `drill` `other` |
+| `totalStrokeCount` | integer > 0 | Total strokes across all laps |
+| `swimLaps` | array | See below |
+
+`swimLaps` item: `{ lapNumber, durationSeconds, distanceMeters, strokeType?, strokeCount?, swolfScore?, averagePaceSecPer100m?, averageHeartRateBpm? }`
+
+**Strength-specific fields:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `totalSets` | integer > 0 | |
+| `totalReps` | integer > 0 | |
+| `strengthSets` | array | See below |
+
+`strengthSets` item: `{ setNumber, exerciseName?, exerciseCategory?, muscleGroup?, reps?, weightKg?, durationSeconds?, restSeconds?, notes? }`
+
+**Time-series fields** (optional, any sport):
+
+- `laps` — `{ lapNumber, durationSeconds, distanceMeters, averageHeartRateBpm?, maxHeartRateBpm?, averagePaceSecPerKm?, averageSpeedKmh?, averagePowerWatts?, averageCadence?, elevationGainMeters? }`
+- `metricSamples` — `{ offsetSeconds, heartRateBpm?, powerWatts?, paceSecPerKm?, speedKmh?, cadenceRpm?, elevationMeters?, latitude?, longitude? }`
+- `timeInZones` — `{ zoneNumber, zoneName, durationSeconds, percentage }`
+
+### How to test import locally
+
+#### JSON import
+
+```bash
+curl -X POST http://localhost:3000/api/imports/activity-json \
+  -H "Content-Type: application/json" \
+  -d '{
+    "athleteProfileId": "<your-profile-id>",
+    "sport": "running",
+    "startTime": "2026-06-20T07:30:00Z",
+    "durationSeconds": 3600,
+    "distanceMeters": 12000
+  }'
+```
+
+#### File upload
+
+```bash
+# FIT file
+curl -X POST http://localhost:3000/api/imports/activity-file \
+  -F "file=@/path/to/activity.fit"
+
+# GPX file
+curl -X POST http://localhost:3000/api/imports/activity-file \
+  -F "file=@/path/to/activity.gpx"
+```
+
+#### Expected success response (`201`)
+
+```json
+{
+  "importId": "...",
+  "status": "success",
+  "activityId": "...",
+  "errors": [],
+  "warnings": []
+}
+```
+
+#### Duplicate response (`200`)
+
+```json
+{
+  "importId": "...",
+  "status": "duplicate",
+  "activityId": "<existing-activity-id>",
+  "errors": [],
+  "warnings": ["Activity matches existing record by start time and duration"]
+}
+```
+
+### Import error reference
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `VALIDATION_ERROR` | 400 | Missing or invalid field — `message` contains field path and reason |
+| `INVALID_FILE_TYPE` | 400 | File extension not `.fit`, `.gpx` or `.tcx` |
+| `FILE_TOO_LARGE` | 400 | File exceeds `IMPORT_MAX_FILE_SIZE_MB` limit |
+| `PARSE_ERROR` | 422 | File could not be parsed — likely wrong format or corrupt |
+| `STORAGE_ERROR` | 422 | File could not be written — check `IMPORT_STORAGE_PATH` permissions |
+| `FORBIDDEN` | 403 | `athleteProfileId` does not match the active profile |
+| `DUPLICATE` (status field) | 200 | Activity already exists — `activityId` in response points to the existing record |
+
+### python-garminconnect bridge
+
+The JSON import format is designed to be the natural output of a python-garminconnect worker. A Python script that exports activity data from Garmin Connect can POST directly to `POST /api/imports/activity-json` with no additional transformation — the format covers all fields the library provides including laps, HR zones and metric samples. The `forceImport` flag is available for re-importing historical exports during development without triggering duplicate detection.
+
+## Phase 5 Preview
+
+Phase 5 (Training Planning Core) will expose create/update/delete mutations for `TrainingPlan`, `PlannedWorkout` and `WorkoutStep` so training plans can be managed independently from AI generation. The training plan and workout pages will migrate from mock mode to API mode, and the seed dataset will serve as the default starting point rather than the only data source.
