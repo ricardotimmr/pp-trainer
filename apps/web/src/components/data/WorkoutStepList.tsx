@@ -1,4 +1,4 @@
-import type { WorkoutStep } from '../../mock/prototypeData.types';
+import type { WorkoutStepType } from '../../mock/prototypeData.types';
 import { stepTypeLabels } from './workoutStepLabels';
 import { EmptyState } from '../states/EmptyState';
 import {
@@ -7,11 +7,29 @@ import {
   formatPace,
 } from '../prototypeFormatters';
 
-type WorkoutStepListProps = {
-  steps: WorkoutStep[];
+export type WorkoutStepData = {
+  id: string;
+  stepIndex: number;
+  stepType: WorkoutStepType;
+  title?: string;
+  instruction: string;
+  durationSeconds?: number;
+  distanceMeters?: number;
+  repetitions?: number;
+  restSeconds?: number;
+  targetPowerLowerWatts?: number;
+  targetPowerUpperWatts?: number;
+  targetPaceLowerSecPerKm?: number;
+  targetPaceUpperSecPerKm?: number;
+  targetSwimPaceLowerSecPer100m?: number;
+  targetSwimPaceUpperSecPer100m?: number;
 };
 
-const getStepTarget = (step: WorkoutStep): string | undefined => {
+type WorkoutStepListProps = {
+  steps: WorkoutStepData[];
+};
+
+const getStepTarget = (step: WorkoutStepData): string | undefined => {
   if (step.targetPowerLowerWatts && step.targetPowerUpperWatts) {
     return `${step.targetPowerLowerWatts}–${step.targetPowerUpperWatts} W`;
   }
@@ -24,7 +42,7 @@ const getStepTarget = (step: WorkoutStep): string | undefined => {
   return undefined;
 };
 
-const buildMetrics = (step: WorkoutStep): string => {
+const buildMetrics = (step: WorkoutStepData): string => {
   const parts: string[] = [];
   if (step.durationSeconds) parts.push(formatDuration(step.durationSeconds));
   if (step.distanceMeters) parts.push(formatDistance(step.distanceMeters));
