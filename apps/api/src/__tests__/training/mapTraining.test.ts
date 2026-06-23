@@ -159,11 +159,11 @@ describe('mapPlannedWorkout', () => {
     expect(mapPlannedWorkout({ ...workoutWithSteps, status: 'Missed' }).status).toBe('missed');
   });
 
-  it('preserves step order by stepIndex', () => {
+  it('preserves step order as provided (Prisma guarantees orderBy stepIndex asc)', () => {
     const steps: WorkoutStep[] = [
-      { ...baseStep, id: 'step-3', stepIndex: 2, stepType: 'Cooldown', instruction: 'Cool down' },
       { ...baseStep, id: 'step-1', stepIndex: 0, stepType: 'Warmup', instruction: 'Warm up' },
       { ...baseStep, id: 'step-2', stepIndex: 1, stepType: 'Main', instruction: 'Main set' },
+      { ...baseStep, id: 'step-3', stepIndex: 2, stepType: 'Cooldown', instruction: 'Cool down' },
     ];
     const dto = mapPlannedWorkout({ ...workoutWithSteps, steps });
     expect(dto.steps[0].stepType).toBe('warmup');

@@ -6,6 +6,7 @@ export type RouteId =
   | 'activities'
   | 'activityDetail'
   | 'trainingPlan'
+  | 'workoutCreate'
   | 'workoutDetail'
   | 'performance'
   | 'aiCoach'

@@ -1,6 +1,7 @@
 import { ActivitiesPage } from '../pages/ActivitiesPage';
 import { ActivityDetailPage } from '../pages/ActivityDetailPage';
 import { AiCoachPreviewPage } from '../pages/AiCoachPreviewPage';
+import { CreateWorkoutPage } from '../pages/CreateWorkoutPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { DevUiShowcasePage } from '../pages/DevUiShowcasePage';
 import { HomePage } from '../pages/HomePage';
@@ -47,6 +48,13 @@ export const routes: RouteConfig[] = [
     label: 'Training Plan',
     navVisible: true,
     component: TrainingPlanPage,
+  },
+  {
+    id: 'workoutCreate',
+    path: '/workouts/new',
+    label: 'Create Workout',
+    navVisible: false,
+    component: CreateWorkoutPage,
   },
   {
     id: 'workoutDetail',

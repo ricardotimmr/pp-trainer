@@ -1,4 +1,4 @@
-import type { PlannedWorkout } from '../../mock/prototypeData.types';
+import type { WorkoutIntensity, WorkoutStatus, SportType } from '../../mock/prototypeData.types';
 import { IntensityBadge } from '../badges/IntensityBadge';
 import { SportBadge } from '../badges/SportBadge';
 import { WorkoutStatusBadge } from '../badges/WorkoutStatusBadge';
@@ -8,8 +8,22 @@ import {
   formatDuration,
 } from '../prototypeFormatters';
 
+export type WorkoutCardData = {
+  id: string;
+  sport: SportType;
+  intensity: WorkoutIntensity;
+  status: WorkoutStatus;
+  title: string;
+  objective?: string;
+  description?: string;
+  scheduledDate: string;
+  scheduledStartTime?: string;
+  plannedDurationSeconds?: number;
+  plannedDistanceMeters?: number;
+};
+
 type WorkoutCardProps = {
-  workout: PlannedWorkout;
+  workout: WorkoutCardData;
   onOpen?: (workoutId: string) => void;
   showDate?: boolean;
 };

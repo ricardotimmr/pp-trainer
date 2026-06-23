@@ -242,7 +242,7 @@ Phase 1   Repo and App Foundation     done
 Phase 2   Frontend Prototype          done
 Phase 3   Backend and Database        done
 Phase 4   Activity Import             done
-Phase 5   Training Planning Core      upcoming
+Phase 5   Training Planning Core      done
 Phase 6   AI Coach MVP                upcoming
 Phase 7   MVP Integration             upcoming
 ```
@@ -402,6 +402,153 @@ curl -X POST http://localhost:3000/api/imports/activity-file \
 
 The JSON import format is designed to be the natural output of a python-garminconnect worker. A Python script that exports activity data from Garmin Connect can POST directly to `POST /api/imports/activity-json` with no additional transformation — the format covers all fields the library provides including laps, HR zones and metric samples. The `forceImport` flag is available for re-importing historical exports during development without triggering duplicate detection.
 
-## Phase 5 Preview
+## Phase 5: Training Planning Core
 
-Phase 5 (Training Planning Core) will expose create/update/delete mutations for `TrainingPlan`, `PlannedWorkout` and `WorkoutStep` so training plans can be managed independently from AI generation. The training plan and workout pages will migrate from mock mode to API mode, and the seed dataset will serve as the default starting point rather than the only data source.
+Phase 5 exposes the full write API for training plans and workouts, wires the frontend to real backend data, and adds manual creation and status management UI — all without depending on the AI Coach.
+
+### Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/training-plans` | List all training plans (summary) |
+| `POST` | `/api/training-plans` | Create a training plan |
+| `GET` | `/api/training-plans/:id` | Get a full plan with workouts |
+| `PUT` | `/api/training-plans/:id` | Update a plan (title, dates, status) |
+| `DELETE` | `/api/training-plans/:id` | Delete a plan |
+| `GET` | `/api/training-plans/current-week` | Active plan + this week's workouts |
+| `GET` | `/api/workouts` | List all workouts across all plans |
+| `POST` | `/api/workouts` | Create a workout (with optional steps) |
+| `GET` | `/api/workouts/:id` | Get a workout with steps |
+| `PUT` | `/api/workouts/:id` | Update a workout or its status |
+| `DELETE` | `/api/workouts/:id` | Delete a workout |
+
+### Training plan status values
+
+| Status | Meaning |
+|---|---|
+| `draft` | Plan is being built, not yet active |
+| `active` | The current active plan — only one plan should be active at a time |
+| `completed` | Plan period has ended |
+| `archived` | Manually archived, no longer relevant |
+
+### Workout status values
+
+| Status | Meaning |
+|---|---|
+| `planned` | Scheduled but not yet done |
+| `completed` | Workout completed as planned |
+| `missed` | Scheduled date passed without completion |
+| `cancelled` | Explicitly cancelled |
+| `moved` | Rescheduled (AI Coach may use this in Phase 6) |
+| `adjusted` | Modified from the original plan |
+
+### Create a training plan
+
+```bash
+curl -X POST http://localhost:3000/api/training-plans \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Base Phase",
+    "startDate": "2026-06-23",
+    "endDate": "2026-08-17",
+    "status": "active",
+    "description": "8-week aerobic base block"
+  }'
+```
+
+Response `201`:
+
+```json
+{
+  "id": "plan-uuid",
+  "title": "Base Phase",
+  "startDate": "2026-06-23",
+  "endDate": "2026-08-17",
+  "status": "active",
+  "source": "manual",
+  "plannedWorkouts": []
+}
+```
+
+### Create a workout with steps
+
+```bash
+curl -X POST http://localhost:3000/api/workouts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "trainingPlanId": "plan-uuid",
+    "title": "Threshold Tuesday",
+    "sport": "running",
+    "workoutType": "threshold",
+    "scheduledDate": "2026-06-24",
+    "plannedDurationSeconds": 3600,
+    "intensity": "hard",
+    "objective": "Improve lactate threshold pace",
+    "steps": [
+      { "stepIndex": 0, "stepType": "warmup",   "instruction": "15 min easy", "durationSeconds": 900 },
+      { "stepIndex": 1, "stepType": "main",      "instruction": "3 × 10 min at threshold pace", "durationSeconds": 2100,
+        "targetPaceLowerSecPerKm": 255, "targetPaceUpperSecPerKm": 265 },
+      { "stepIndex": 2, "stepType": "cooldown",  "instruction": "10 min easy", "durationSeconds": 600 }
+    ]
+  }'
+```
+
+Response `201`:
+
+```json
+{
+  "id": "workout-uuid",
+  "trainingPlanId": "plan-uuid",
+  "title": "Threshold Tuesday",
+  "sport": "running",
+  "status": "planned",
+  "source": "manual",
+  "steps": [
+    { "stepIndex": 0, "stepType": "warmup", "instruction": "15 min easy", "durationSeconds": 900 },
+    { "stepIndex": 1, "stepType": "main",   "instruction": "3 × 10 min at threshold pace", "durationSeconds": 2100,
+      "targetPaceLowerSecPerKm": 255, "targetPaceUpperSecPerKm": 265 },
+    { "stepIndex": 2, "stepType": "cooldown","instruction": "10 min easy", "durationSeconds": 600 }
+  ]
+}
+```
+
+### Update workout status
+
+```bash
+curl -X PUT http://localhost:3000/api/workouts/<workout-id> \
+  -H "Content-Type: application/json" \
+  -d '{ "status": "completed" }'
+```
+
+Response `200`: updated `PlannedWorkoutDto`.
+
+### Manual training week via curl
+
+```bash
+# 1. Create and activate a plan
+PLAN=$(curl -s -X POST http://localhost:3000/api/training-plans \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test Week","startDate":"2026-06-23","endDate":"2026-06-29","status":"active"}')
+PLAN_ID=$(echo $PLAN | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+# 2. Add a workout to the plan
+curl -s -X POST http://localhost:3000/api/workouts \
+  -H "Content-Type: application/json" \
+  -d "{\"trainingPlanId\":\"$PLAN_ID\",\"title\":\"Easy Run\",\"sport\":\"running\",\"workoutType\":\"endurance\",\"scheduledDate\":\"2026-06-25\",\"plannedDurationSeconds\":2700,\"intensity\":\"easy\",\"steps\":[]}"
+
+# 3. View the current week
+curl -s http://localhost:3000/api/training-plans/current-week | jq .
+```
+
+### source field
+
+All plans and workouts created through the API in Phase 5 carry `"source": "manual"`. When the AI Coach (Phase 6) creates plans and workouts it will use `"source": "aiCoach"`. This distinction allows the UI to attribute content origin and allows future filtering by source.
+
+### Phase 6 next steps
+
+Phase 6 (AI Coach MVP) will:
+
+- Add `POST /api/ai-coach/generate-plan` which produces `TrainingPlan` + `PlannedWorkout` records using `source: 'aiCoach'`
+- Add `POST /api/ai-coach/suggest-workout` for single-session recommendations
+- Add `POST /api/context/snapshot` to build and persist the athlete context used in AI prompts
+- Introduce stricter workout status transitions (state machine guard) where the current permissive `PUT /api/workouts/:id` approach may need guarding for AI-generated content

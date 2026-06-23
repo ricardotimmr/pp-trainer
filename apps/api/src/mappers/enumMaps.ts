@@ -237,3 +237,72 @@ export const DTO_TO_PRISMA_IMPORT_STATUS_MAP: Record<ImportStatusDto, ImportStat
   duplicate: 'Duplicate',
   partially_imported: 'PartiallyImported',
 };
+
+export const DTO_TO_PRISMA_TRAINING_PLAN_STATUS_MAP: Record<TrainingPlanStatusDto, TrainingPlanStatus> = {
+  draft: 'Draft',
+  active: 'Active',
+  completed: 'Completed',
+  archived: 'Archived',
+};
+
+export const DTO_TO_PRISMA_TRAINING_PLAN_SOURCE_MAP: Record<TrainingPlanSourceDto, TrainingPlanSource> = {
+  manual: 'Manual',
+  ai_generated: 'AiGenerated',
+  template: 'Template',
+  imported: 'Imported',
+};
+
+export const DTO_TO_PRISMA_PLANNED_WORKOUT_SOURCE_MAP: Record<PlannedWorkoutSourceDto, PlannedWorkoutSource> = {
+  manual: 'Manual',
+  ai_generated: 'AiGenerated',
+  template: 'Template',
+  imported: 'Imported',
+};
+
+export const DTO_TO_PRISMA_WORKOUT_STATUS_MAP: Record<WorkoutStatusDto, WorkoutStatus> = {
+  planned: 'Planned',
+  completed: 'Completed',
+  missed: 'Missed',
+  moved: 'Moved',
+  adjusted: 'Adjusted',
+  cancelled: 'Cancelled',
+};
+
+export const DTO_TO_PRISMA_WORKOUT_TYPE_MAP: Record<WorkoutTypeDto, WorkoutType> = {
+  endurance: 'Endurance',
+  recovery: 'Recovery',
+  tempo: 'Tempo',
+  threshold: 'Threshold',
+  vo2max: 'Vo2Max',
+  long: 'Long',
+  race_specific: 'RaceSpecific',
+  technique: 'Technique',
+  strength: 'Strength',
+  mobility: 'Mobility',
+  rest: 'Rest',
+  other: 'Other',
+};
+
+export const DTO_TO_PRISMA_WORKOUT_INTENSITY_MAP: Record<WorkoutIntensityDto, WorkoutIntensity> = {
+  rest: 'Rest',
+  recovery: 'Recovery',
+  easy: 'Easy',
+  moderate: 'Moderate',
+  tempo: 'Tempo',
+  threshold: 'Threshold',
+  vo2max: 'Vo2Max',
+  race: 'Race',
+  strength: 'Strength',
+};
+
+export const DTO_TO_PRISMA_WORKOUT_STEP_TYPE_MAP: Record<WorkoutStepTypeDto, WorkoutStepType> = {
+  warmup: 'Warmup',
+  main: 'Main',
+  interval: 'Interval',
+  recovery: 'Recovery',
+  cooldown: 'Cooldown',
+  technique: 'Technique',
+  strength_exercise: 'StrengthExercise',
+  rest: 'Rest',
+  other: 'Other',
+};

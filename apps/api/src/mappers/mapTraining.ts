@@ -1,7 +1,8 @@
-import type { WorkoutStep } from '@prisma/client';
+import type { TrainingPlan, WorkoutStep } from '@prisma/client';
 import type {
   PlannedWorkoutDto,
   TrainingPlanDto,
+  TrainingPlanSummaryDto,
   WorkoutStepDto,
 } from '@pp-trainer/shared';
 
@@ -72,7 +73,20 @@ export function mapPlannedWorkout(workout: WorkoutWithSteps): PlannedWorkoutDto 
     ...(workout.description != null && { description: workout.description }),
     ...(workout.coachNotes != null && { coachNotes: workout.coachNotes }),
     source: PLANNED_WORKOUT_SOURCE_MAP[workout.source],
-    steps: [...workout.steps].sort((a, b) => a.stepIndex - b.stepIndex).map(mapWorkoutStep),
+    steps: workout.steps.map(mapWorkoutStep),
+  };
+}
+
+export function mapTrainingPlanSummary(plan: TrainingPlan): TrainingPlanSummaryDto {
+  return {
+    id: plan.id,
+    title: plan.title,
+    ...(plan.description != null && { description: plan.description }),
+    startDate: toDateString(plan.startDate),
+    endDate: toDateString(plan.endDate),
+    status: TRAINING_PLAN_STATUS_MAP[plan.status],
+    source: TRAINING_PLAN_SOURCE_MAP[plan.source],
+    ...(plan.goalId != null && { goalId: plan.goalId }),
   };
 }
 
