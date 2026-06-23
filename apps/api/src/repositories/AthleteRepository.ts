@@ -8,6 +8,10 @@ export async function findFirstAthleteProfile(): Promise<AthleteProfile | null> 
   return prisma.athleteProfile.findFirst();
 }
 
+export async function findAthleteProfileById(id: string): Promise<AthleteProfile | null> {
+  return prisma.athleteProfile.findUnique({ where: { id } });
+}
+
 export async function findAthleteGoals(athleteProfileId: string): Promise<TrainingGoal[]> {
   return prisma.trainingGoal.findMany({
     where: { athleteProfileId, isActive: true },
