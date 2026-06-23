@@ -2854,36 +2854,44 @@ button:focus-visible {
 
 /* ── Week view toggle ─────────────────────────────────────────────────────── */
 
+@keyframes tp-content-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tp-week-content {
+  animation: tp-content-in 0.2s ease;
+}
+
 .tp-week-toggle {
   display: inline-flex;
-  gap: 0;
+  align-self: flex-start;
+  gap: 3px;
   margin-bottom: 20px;
-  border: 1.5px solid var(--color-line);
-  border-radius: 8px;
-  overflow: hidden;
+  padding: 3px;
+  background: color-mix(in srgb, var(--color-line) 60%, transparent);
+  border-radius: 10px;
 }
 
 .tp-week-toggle__btn {
-  padding: 5px 14px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  padding: 4px 13px;
+  font-size: 0.72rem;
+  font-weight: 700;
   font-family: var(--font-mono);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   background: none;
   border: none;
+  border-radius: 7px;
   color: var(--color-muted);
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
-}
-
-.tp-week-toggle__btn + .tp-week-toggle__btn {
-  border-left: 1.5px solid var(--color-line);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .tp-week-toggle__btn.is-active {
-  background: var(--color-ink);
-  color: var(--color-bg);
+  background: var(--color-surface);
+  color: var(--color-accent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* ── Plan list section ────────────────────────────────────────────────────── */

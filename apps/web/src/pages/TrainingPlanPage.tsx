@@ -577,6 +577,7 @@ type WeekPlanContentProps = {
   navigate: PageComponentProps['navigate'];
   actions?: React.ReactNode;
   viewToggle?: React.ReactNode;
+  contentKey?: string;
   footer?: React.ReactNode;
 };
 
@@ -590,6 +591,7 @@ function WeekPlanContent({
   navigate,
   actions,
   viewToggle,
+  contentKey,
   footer,
 }: WeekPlanContentProps) {
   const weekRange = formatWeekRange(weekStart, weekEnd);
@@ -615,6 +617,7 @@ function WeekPlanContent({
 
       {viewToggle}
 
+      <div key={contentKey} className="tp-week-content">
       {workouts.length === 0 ? (
         <EmptyState
           title="No workouts this week"
@@ -653,6 +656,7 @@ function WeekPlanContent({
           })}
         </ol>
       )}
+      </div>
       {footer}
     </PageShell>
   );
@@ -728,7 +732,7 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
   const [activating, setActivating] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
-  const [weekView, setWeekView] = useState<'all' | 'plan'>('all');
+  const [weekView, setWeekView] = useState<'all' | 'plan'>('plan');
 
   function refreshAll() {
     weekPlanState.refresh();
@@ -775,17 +779,17 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
     <div className="tp-week-toggle">
       <button
         type="button"
-        className={`tp-week-toggle__btn${weekView === 'all' ? ' is-active' : ''}`}
-        onClick={() => setWeekView('all')}
-      >
-        All this week
-      </button>
-      <button
-        type="button"
         className={`tp-week-toggle__btn${weekView === 'plan' ? ' is-active' : ''}`}
         onClick={() => setWeekView('plan')}
       >
         Active plan only
+      </button>
+      <button
+        type="button"
+        className={`tp-week-toggle__btn${weekView === 'all' ? ' is-active' : ''}`}
+        onClick={() => setWeekView('all')}
+      >
+        All this week
       </button>
     </div>
   ) : null;
@@ -856,6 +860,7 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
         navigate={navigate}
         actions={headerActions}
         viewToggle={viewToggle}
+        contentKey={weekView}
         footer={sideContent}
       />
     );
