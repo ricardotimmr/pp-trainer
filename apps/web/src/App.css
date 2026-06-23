@@ -2921,6 +2921,11 @@ button:focus-visible {
   border: 1.5px solid var(--color-line);
   border-radius: 10px;
   overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.tp-plan-row:hover {
+  border-color: var(--color-accent);
 }
 
 .tp-plan-row.is-expanded {
@@ -2946,20 +2951,8 @@ button:focus-visible {
   padding: 2px 0 2px 12px;
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s ease;
 }
 
-.tp-plan-row__toggle:hover {
-  background: var(--color-accent-soft);
-}
-
-.tp-plan-row__toggle:hover .tp-plan-row__title {
-  color: var(--color-accent);
-}
-
-.tp-plan-row__toggle:hover .tp-plan-row__dates {
-  color: var(--color-accent);
-}
 
 .tp-plan-row__chevron {
   font-size: 0.7rem;
@@ -3099,15 +3092,6 @@ button:focus-visible {
 
 .tp-workout-row:hover {
   border-color: var(--color-accent);
-  background: var(--color-accent-soft);
-}
-
-.tp-workout-row:hover .tp-workout-row__title {
-  color: var(--color-accent);
-}
-
-.tp-workout-row:hover .tp-workout-row__date {
-  color: var(--color-accent);
 }
 
 /* Button spans the first two columns (badge + info) and subgrids them. */
