@@ -83,3 +83,101 @@ export type CurrentTrainingPlanResponseDto = z.infer<
   typeof CurrentTrainingPlanResponseDtoSchema
 >;
 export type WorkoutDetailDto = z.infer<typeof WorkoutDetailDtoSchema>;
+
+// ── Write-side request schemas (Phase 5) ─────────────────────────────────────
+
+const TrainingPlanFieldsSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().optional(),
+  startDate: IsoDateStringSchema,
+  endDate: IsoDateStringSchema,
+  status: TrainingPlanStatusSchema.default('draft'),
+  goalId: IdSchema.optional(),
+});
+
+export const CreateTrainingPlanRequestSchema = TrainingPlanFieldsSchema.refine(
+  (d) => d.endDate >= d.startDate,
+  { message: 'endDate must be on or after startDate', path: ['endDate'] },
+);
+
+export const UpdateTrainingPlanRequestSchema =
+  TrainingPlanFieldsSchema.partial().refine(
+    (d) => d.startDate == null || d.endDate == null || d.endDate >= d.startDate,
+    { message: 'endDate must be on or after startDate', path: ['endDate'] },
+  );
+
+export const TrainingPlanSummaryDtoSchema = z.object({
+  id: IdSchema,
+  title: z.string().min(1),
+  description: z.string().optional(),
+  startDate: IsoDateStringSchema,
+  endDate: IsoDateStringSchema,
+  status: TrainingPlanStatusSchema,
+  source: TrainingPlanSourceSchema,
+  goalId: IdSchema.optional(),
+});
+
+export const CreateWorkoutStepRequestSchema = z.object({
+  stepIndex: NonNegativeIntegerSchema,
+  stepType: WorkoutStepTypeSchema,
+  instruction: z.string().min(1),
+  title: z.string().optional(),
+  durationSeconds: NonNegativeIntegerSchema.optional(),
+  distanceMeters: NonNegativeIntegerSchema.optional(),
+  repetitions: NonNegativeIntegerSchema.optional(),
+  targetPowerLowerWatts: NonNegativeIntegerSchema.optional(),
+  targetPowerUpperWatts: NonNegativeIntegerSchema.optional(),
+  targetPaceLowerSecPerKm: NonNegativeIntegerSchema.optional(),
+  targetPaceUpperSecPerKm: NonNegativeIntegerSchema.optional(),
+  targetSwimPaceLowerSecPer100m: NonNegativeIntegerSchema.optional(),
+  targetSwimPaceUpperSecPer100m: NonNegativeIntegerSchema.optional(),
+  targetHeartRateZoneId: IdSchema.optional(),
+  targetPowerZoneId: IdSchema.optional(),
+  targetPaceZoneId: IdSchema.optional(),
+  restSeconds: NonNegativeIntegerSchema.optional(),
+  notes: z.string().optional(),
+});
+
+export const CreatePlannedWorkoutRequestSchema = z.object({
+  trainingPlanId: IdSchema.optional(),
+  title: z.string().min(1),
+  sport: SportTypeSchema,
+  workoutType: WorkoutTypeSchema,
+  scheduledDate: IsoDateStringSchema,
+  scheduledStartTime: IsoDateTimeStringSchema.optional(),
+  plannedDurationSeconds: NonNegativeIntegerSchema.optional(),
+  plannedDistanceMeters: NonNegativeIntegerSchema.optional(),
+  intensity: WorkoutIntensitySchema,
+  status: WorkoutStatusSchema.default('planned'),
+  objective: z.string().optional(),
+  description: z.string().optional(),
+  coachNotes: z.string().optional(),
+  steps: z.array(CreateWorkoutStepRequestSchema).default([]),
+});
+
+export const UpdatePlannedWorkoutRequestSchema =
+  CreatePlannedWorkoutRequestSchema.partial();
+
+export const UpdateWorkoutStatusRequestSchema = z.object({
+  status: WorkoutStatusSchema,
+});
+
+export type CreateTrainingPlanRequest = z.infer<
+  typeof CreateTrainingPlanRequestSchema
+>;
+export type UpdateTrainingPlanRequest = z.infer<
+  typeof UpdateTrainingPlanRequestSchema
+>;
+export type TrainingPlanSummaryDto = z.infer<typeof TrainingPlanSummaryDtoSchema>;
+export type CreateWorkoutStepRequest = z.infer<
+  typeof CreateWorkoutStepRequestSchema
+>;
+export type CreatePlannedWorkoutRequest = z.infer<
+  typeof CreatePlannedWorkoutRequestSchema
+>;
+export type UpdatePlannedWorkoutRequest = z.infer<
+  typeof UpdatePlannedWorkoutRequestSchema
+>;
+export type UpdateWorkoutStatusRequest = z.infer<
+  typeof UpdateWorkoutStatusRequestSchema
+>;
