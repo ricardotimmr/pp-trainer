@@ -6430,14 +6430,26 @@ button:focus-visible {
 
 .cw-form {
   display: grid;
-  gap: 48px;
-  max-width: 860px;
+  gap: 52px;
 }
 
-/* Section ------------------------------------------------------------------ */
+/* ── Top grid: Basics + Schedule ────────────────────────────────────────── */
+
+.cw-top-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+/* ── Section ─────────────────────────────────────────────────────────────── */
 
 .cw-section {
   display: grid;
+  gap: 18px;
+}
+
+.cw-section--session {
   gap: 20px;
 }
 
@@ -6446,18 +6458,18 @@ button:focus-visible {
   padding-top: 12px;
   border-top: 1.5px solid var(--color-ink);
   color: var(--color-muted);
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 700;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
 }
 
-/* Row & fields ------------------------------------------------------------- */
+/* ── Row & fields ────────────────────────────────────────────────────────── */
 
 .cw-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 14px;
   align-items: end;
 }
 
@@ -6465,7 +6477,7 @@ button:focus-visible {
   display: grid;
   gap: 7px;
   flex: 1;
-  min-width: 140px;
+  min-width: 120px;
 }
 
 .cw-field--full {
@@ -6473,18 +6485,18 @@ button:focus-visible {
   min-width: 0;
 }
 
-.cw-field--1 {
+.cw-field--1 { flex: 1; }
+.cw-field--2 { flex: 2; }
+
+.cw-field--metric {
+  min-width: 80px;
   flex: 1;
 }
 
-.cw-field--2 {
-  flex: 2;
-}
-
 .cw-label {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.1em;
   color: var(--color-muted);
   text-transform: uppercase;
 }
@@ -6494,7 +6506,7 @@ button:focus-visible {
   color: var(--color-accent);
 }
 
-/* Inputs ------------------------------------------------------------------- */
+/* ── Inputs ──────────────────────────────────────────────────────────────── */
 
 .cw-input,
 .cw-select,
@@ -6502,15 +6514,23 @@ button:focus-visible {
   width: 100%;
   padding: 10px 14px;
   background: var(--color-surface);
-  border: 1.5px solid var(--color-line);
+  border: 1.5px solid var(--color-line-strong);
   border-radius: 8px;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
+  font-weight: 500;
   font-family: inherit;
   color: var(--color-ink);
   appearance: none;
+  -webkit-appearance: none;
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
+}
+
+.cw-input:hover,
+.cw-select:hover,
+.cw-textarea:hover {
+  border-color: var(--color-ink);
 }
 
 .cw-input:focus,
@@ -6524,7 +6544,8 @@ button:focus-visible {
 .cw-input::placeholder,
 .cw-textarea::placeholder {
   color: var(--color-muted);
-  opacity: 0.55;
+  font-weight: 400;
+  opacity: 0.7;
 }
 
 .cw-textarea {
@@ -6533,30 +6554,140 @@ button:focus-visible {
   line-height: 1.55;
 }
 
+/* Select with custom chevron */
 .cw-select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238c8a90' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23161418' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 14px center;
-  padding-right: 38px;
+  background-position: right 12px center;
+  padding-right: 36px;
   cursor: pointer;
+  font-weight: 600;
 }
 
-/* Steps -------------------------------------------------------------------- */
+/* Smaller/inline selects for step rows */
+.cw-select--inline {
+  padding: 7px 30px 7px 10px;
+  font-size: 0.84rem;
+  border-radius: 6px;
+  background-color: var(--color-surface);
+  border-color: var(--color-line);
+  background-position: right 10px center;
+  padding-right: 28px;
+}
 
-.cw-steps {
+/* Tiny number input for repeat count */
+.cw-input--count {
+  width: 52px;
+  padding: 6px 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  text-align: center;
+  border-radius: 6px;
+}
+
+/* Smaller inputs inside step rows */
+.cw-input--sm {
+  padding: 7px 10px;
+  font-size: 0.84rem;
+  border-radius: 6px;
+}
+
+.cw-textarea--sm {
+  min-height: 52px;
+  padding: 7px 10px;
+  font-size: 0.84rem;
+  border-radius: 6px;
+}
+
+/* ── Session structure ───────────────────────────────────────────────────── */
+
+/* Visual session bar */
+.cw-session-bar {
+  display: flex;
+  height: 32px;
+  border-radius: 8px;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.cw-session-bar__seg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  border-radius: 4px;
+  padding: 0 4px;
+  background: var(--segment-color, var(--color-line));
+  overflow: hidden;
+  transition: flex 0.25s ease;
+}
+
+.cw-session-bar__label {
+  font-size: 0.6rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+  mix-blend-mode: overlay;
+  opacity: 0.9;
+}
+
+.cw-session-bar__dur {
+  font-size: 0.55rem;
+  opacity: 0.85;
+  font-weight: 600;
+}
+
+/* Session list */
+.cw-session-list {
   display: grid;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  gap: 8px;
 }
+
+/* Add actions below list */
+.cw-session-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ── Step cards ──────────────────────────────────────────────────────────── */
 
 .cw-step {
   border: 1.5px solid var(--color-line);
   border-radius: 10px;
   overflow: hidden;
+  background: var(--color-surface);
 }
 
+/* Left accent bar keyed to step type */
+.cw-step--single { border-left: 3px solid var(--color-line-strong); }
+
+.cw-step--warmup,
+.cw-step--cooldown    { border-left-color: var(--color-int-easy); }
+.cw-step--recovery    { border-left-color: var(--color-int-recovery); }
+.cw-step--interval    { border-left-color: var(--color-accent); }
+.cw-step--main        { border-left-color: var(--color-ink); }
+.cw-step--technique   { border-left-color: var(--color-sport-swimming); }
+.cw-step--strength_exercise { border-left-color: var(--color-sport-strength); }
+.cw-step--rest        { border-left-color: var(--color-line-strong); }
+
+/* Repeat block — distinct look */
+.cw-step--repeat {
+  border-color: var(--color-ink);
+  border-left-width: 3px;
+  border-left-color: var(--color-accent);
+}
+
+/* Step header (shared by single + repeat) */
 .cw-step__header {
   display: flex;
   align-items: center;
@@ -6566,89 +6697,179 @@ button:focus-visible {
   border-bottom: 1px solid var(--color-line);
 }
 
+.cw-step__header--repeat {
+  background: color-mix(in srgb, var(--color-accent) 6%, var(--color-paper));
+}
+
 .cw-step__num {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
   color: var(--color-muted);
-  min-width: 20px;
+  min-width: 18px;
+  flex-shrink: 0;
 }
 
-.cw-step__type {
+/* Colored dot indicating step type */
+.cw-step-type-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-line-strong);
+}
+
+.cw-step-type-dot--warmup,
+.cw-step-type-dot--cooldown    { background: var(--color-int-easy); }
+.cw-step-type-dot--recovery    { background: var(--color-int-recovery); }
+.cw-step-type-dot--interval    { background: var(--color-accent); }
+.cw-step-type-dot--main        { background: var(--color-ink); }
+.cw-step-type-dot--technique   { background: var(--color-sport-swimming); }
+.cw-step-type-dot--strength_exercise { background: var(--color-sport-strength); }
+.cw-step-type-dot--rest        { background: var(--color-muted); }
+
+/* Type select — flex-grows within header */
+.cw-step__header > .cw-select--inline {
   flex: 1;
 }
 
-.cw-step__type .cw-select {
-  padding: 7px 32px 7px 10px;
-  font-size: 0.85rem;
-  border-color: var(--color-line);
-  background-color: var(--color-surface);
-}
-
-.cw-step__reorder {
+/* Reorder + remove */
+.cw-step-reorder {
   display: flex;
   gap: 2px;
+  flex-shrink: 0;
 }
 
-.cw-step__remove {
+.cw-remove-btn:hover:not(:disabled) {
+  color: #c0392b !important;
+  background-color: rgba(192, 57, 43, 0.08) !important;
+  border-color: rgba(192, 57, 43, 0.2) !important;
+}
+
+/* Step body */
+.cw-step__body {
+  display: grid;
+  gap: 12px;
+  padding: 14px 14px;
+}
+
+.cw-step-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ── Repeat block internals ──────────────────────────────────────────────── */
+
+.cw-repeat-icon {
+  font-size: 1rem;
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.cw-repeat-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+}
+
+.cw-repeat-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.cw-repeat-count__label {
+  font-size: 0.8rem;
+  font-weight: 700;
   color: var(--color-muted);
 }
 
-.cw-step__remove:hover:not(:disabled) {
-  color: #c0392b;
-  background-color: rgba(192, 57, 43, 0.07);
-  border-color: rgba(192, 57, 43, 0.15);
-}
-
-.cw-step__body {
+.cw-repeat-block__body {
   display: grid;
-  gap: 14px;
-  padding: 16px 14px;
+  gap: 0;
+  background: color-mix(in srgb, var(--color-accent) 3%, var(--color-surface));
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--color-line);
 }
 
-.cw-step__metrics {
+/* Sub-step rows inside a repeat block */
+.cw-sub-step {
+  border-left: 2px solid var(--color-line);
+  margin-left: 4px;
+  padding: 10px 0 10px 12px;
+}
+
+.cw-sub-step + .cw-sub-step {
+  border-top: 1px solid var(--color-line);
+}
+
+.cw-sub-step__header {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
-.cw-step__metrics .cw-field {
-  min-width: 110px;
+.cw-sub-step__header > .cw-select--inline {
   flex: 1;
 }
 
-/* Add step button ---------------------------------------------------------- */
-
-.cw-add-step {
-  align-self: start;
-  justify-self: start;
+.cw-sub-step__body {
+  display: grid;
+  gap: 10px;
 }
 
-/* Error -------------------------------------------------------------------- */
+.cw-add-sub-step {
+  margin-top: 8px;
+  margin-left: 16px;
+  font-size: 0.8rem;
+}
+
+/* ── Extra button size ───────────────────────────────────────────────────── */
+
+.btn--xs {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  border-radius: 5px;
+}
+
+/* ── Error ───────────────────────────────────────────────────────────────── */
 
 .cw-error {
   padding: 12px 16px;
-  background: rgba(192, 57, 43, 0.07);
-  border: 1.5px solid rgba(192, 57, 43, 0.25);
+  background: rgba(192, 57, 43, 0.06);
+  border: 1.5px solid rgba(192, 57, 43, 0.22);
   border-radius: 8px;
   color: #b03a2e;
   font-size: 0.9rem;
   margin: 0;
 }
 
-/* Form actions ------------------------------------------------------------- */
+/* ── Form actions ────────────────────────────────────────────────────────── */
 
 .cw-form__actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding-top: 12px;
+  padding-top: 14px;
   border-top: 1px solid var(--color-line);
 }
 
-/* Responsive --------------------------------------------------------------- */
+/* ── Responsive ──────────────────────────────────────────────────────────── */
 
-@media (max-width: 600px) {
+@media (max-width: 800px) {
+  .cw-top-grid {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+}
+
+@media (max-width: 560px) {
   .cw-row {
     flex-direction: column;
     gap: 14px;
@@ -6661,8 +6882,17 @@ button:focus-visible {
     width: 100%;
   }
 
-  .cw-step__metrics {
+  .cw-step-metrics {
     flex-direction: column;
+  }
+
+  .cw-session-actions {
+    flex-direction: column;
+  }
+
+  .cw-session-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .cw-form__actions {

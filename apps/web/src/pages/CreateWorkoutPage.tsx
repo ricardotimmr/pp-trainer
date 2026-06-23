@@ -8,6 +8,8 @@ import { useTrainingPlans } from '../hooks/useTrainingPlans';
 import { PageShell } from '../layout/PageShell';
 import type { PageComponentProps } from '../routes/routeTypes';
 
+/* ─── Option constants ───────────────────────────────────────────────────── */
+
 const SPORT_OPTIONS = [
   { value: 'running', label: 'Running' },
   { value: 'cycling', label: 'Cycling' },
@@ -56,7 +58,30 @@ const STEP_TYPE_OPTIONS = [
   { value: 'other', label: 'Other' },
 ] as const;
 
-type StepDraft = {
+const STEP_TYPE_SHORT: Record<string, string> = {
+  warmup: 'WU',
+  main: 'M',
+  interval: 'INT',
+  recovery: 'REC',
+  cooldown: 'CD',
+  technique: 'TEC',
+  strength_exercise: 'STR',
+  rest: 'RST',
+  other: '—',
+};
+
+/* ─── Session item types ─────────────────────────────────────────────────── */
+
+type SubStepDraft = {
+  key: string;
+  stepType: string;
+  instruction: string;
+  durationMinutes: string;
+  distanceKm: string;
+};
+
+type SingleStep = {
+  kind: 'step';
   key: string;
   stepType: string;
   instruction: string;
@@ -65,14 +90,38 @@ type StepDraft = {
   repetitions: string;
 };
 
-function newStep(): StepDraft {
+type RepeatBlock = {
+  kind: 'repeat';
+  key: string;
+  count: number;
+  steps: SubStepDraft[];
+};
+
+type SessionItem = SingleStep | RepeatBlock;
+
+/* ─── Factories ──────────────────────────────────────────────────────────── */
+
+function uid(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function newSingleStep(stepType = 'main'): SingleStep {
+  return { kind: 'step', key: uid(), stepType, instruction: '', durationMinutes: '', distanceKm: '', repetitions: '' };
+}
+
+function newSubStep(stepType = 'interval'): SubStepDraft {
+  return { key: uid(), stepType, instruction: '', durationMinutes: '', distanceKm: '' };
+}
+
+function newRepeatBlock(): RepeatBlock {
   return {
-    key: `step-${Date.now()}-${Math.random()}`,
-    stepType: 'main',
-    instruction: '',
-    durationMinutes: '',
-    distanceKm: '',
-    repetitions: '',
+    kind: 'repeat',
+    key: uid(),
+    count: 4,
+    steps: [
+      newSubStep('interval'),
+      newSubStep('recovery'),
+    ],
   };
 }
 
@@ -80,9 +129,287 @@ function todayIso(): string {
   return new Date().toISOString().split('T')[0];
 }
 
+/* ─── Visual bar helpers ─────────────────────────────────────────────────── */
+
+type BarSeg = { key: string; stepType: string; dur: number };
+
+function computeBarSegs(items: SessionItem[]): BarSeg[] {
+  const segs: BarSeg[] = [];
+  for (const item of items) {
+    if (item.kind === 'step') {
+      segs.push({ key: item.key, stepType: item.stepType, dur: parseFloat(item.durationMinutes) || 0 });
+    } else {
+      const c = Math.max(1, item.count || 1);
+      for (let r = 0; r < c; r++) {
+        for (const s of item.steps) {
+          segs.push({ key: `${item.key}-${r}-${s.key}`, stepType: s.stepType, dur: parseFloat(s.durationMinutes) || 0 });
+        }
+      }
+    }
+  }
+  return segs;
+}
+
+/* ─── Submit payload builder ─────────────────────────────────────────────── */
+
+function buildStepsPayload(items: SessionItem[]): CreateWorkoutStepRequest[] {
+  const steps: CreateWorkoutStepRequest[] = [];
+  let idx = 0;
+
+  const addStep = (
+    stepType: string,
+    instruction: string,
+    durationMinutes: string,
+    distanceKm: string,
+    repetitions?: string,
+  ) => {
+    const step: CreateWorkoutStepRequest = {
+      stepIndex: idx++,
+      stepType: stepType as CreateWorkoutStepRequest['stepType'],
+      instruction: instruction.trim() || '—',
+    };
+    const dur = parseFloat(durationMinutes);
+    if (!isNaN(dur) && dur > 0) step.durationSeconds = Math.round(dur * 60);
+    const dist = parseFloat(distanceKm);
+    if (!isNaN(dist) && dist > 0) step.distanceMeters = Math.round(dist * 1000);
+    if (repetitions !== undefined) {
+      const reps = parseInt(repetitions);
+      if (!isNaN(reps) && reps > 0) step.repetitions = reps;
+    }
+    steps.push(step);
+  };
+
+  for (const item of items) {
+    if (item.kind === 'step') {
+      addStep(item.stepType, item.instruction, item.durationMinutes, item.distanceKm, item.repetitions);
+    } else {
+      const c = Math.max(1, item.count || 1);
+      for (let r = 0; r < c; r++) {
+        for (const sub of item.steps) {
+          addStep(sub.stepType, sub.instruction, sub.durationMinutes, sub.distanceKm);
+        }
+      }
+    }
+  }
+
+  return steps;
+}
+
+/* ─── Sub-components ─────────────────────────────────────────────────────── */
+
+type FieldProps = {
+  label: string;
+  required?: boolean;
+  htmlFor: string;
+  className?: string;
+  children: React.ReactNode;
+};
+
+function Field({ label, required, htmlFor, className = '', children }: FieldProps) {
+  return (
+    <div className={`cw-field ${className}`}>
+      <label className={`cw-label${required ? ' cw-label--required' : ''}`} htmlFor={htmlFor}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+type SubStepRowProps = {
+  step: SubStepDraft;
+  index: number;
+  total: number;
+  onUpdate: (patch: Partial<SubStepDraft>) => void;
+  onRemove: () => void;
+  onMove: (dir: 'up' | 'down') => void;
+};
+
+function SubStepRow({ step, index, total, onUpdate, onRemove, onMove }: SubStepRowProps) {
+  return (
+    <div className="cw-sub-step">
+      <div className="cw-sub-step__header">
+        <span className={`cw-step-type-dot cw-step-type-dot--${step.stepType}`} />
+        <select
+          className="cw-select cw-select--inline"
+          value={step.stepType}
+          onChange={(e) => onUpdate({ stepType: e.target.value })}
+          aria-label="Step type"
+        >
+          {STEP_TYPE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        <div className="cw-step-reorder">
+          <button type="button" className="btn btn--ghost btn--xs" onClick={() => onMove('up')} disabled={index === 0} aria-label="Move up">↑</button>
+          <button type="button" className="btn btn--ghost btn--xs" onClick={() => onMove('down')} disabled={index === total - 1} aria-label="Move down">↓</button>
+        </div>
+        <button type="button" className="btn btn--ghost btn--xs cw-remove-btn" onClick={onRemove} aria-label="Remove">✕</button>
+      </div>
+      <div className="cw-sub-step__body">
+        <Field label="Instruction" htmlFor={`instr-${step.key}`}>
+          <textarea
+            id={`instr-${step.key}`}
+            className="cw-textarea cw-textarea--sm"
+            placeholder="What to do..."
+            rows={1}
+            value={step.instruction}
+            onChange={(e) => onUpdate({ instruction: e.target.value })}
+          />
+        </Field>
+        <div className="cw-step-metrics">
+          <Field label="Duration (min)" htmlFor={`dur-${step.key}`} className="cw-field--metric">
+            <input id={`dur-${step.key}`} className="cw-input cw-input--sm" type="number" min="0" step="0.5" placeholder="—" value={step.durationMinutes} onChange={(e) => onUpdate({ durationMinutes: e.target.value })} />
+          </Field>
+          <Field label="Distance (km)" htmlFor={`dist-${step.key}`} className="cw-field--metric">
+            <input id={`dist-${step.key}`} className="cw-input cw-input--sm" type="number" min="0" step="0.1" placeholder="—" value={step.distanceKm} onChange={(e) => onUpdate({ distanceKm: e.target.value })} />
+          </Field>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type SingleStepRowProps = {
+  item: SingleStep;
+  index: number;
+  total: number;
+  onUpdate: (patch: Partial<SingleStep>) => void;
+  onRemove: () => void;
+  onMove: (dir: 'up' | 'down') => void;
+};
+
+function SingleStepRow({ item, index, total, onUpdate, onRemove, onMove }: SingleStepRowProps) {
+  return (
+    <div className={`cw-step cw-step--single cw-step--${item.stepType}`}>
+      <div className="cw-step__header">
+        <span className="cw-step__num">{String(index + 1).padStart(2, '0')}</span>
+        <span className={`cw-step-type-dot cw-step-type-dot--${item.stepType}`} />
+        <select
+          className="cw-select cw-select--inline"
+          value={item.stepType}
+          onChange={(e) => onUpdate({ stepType: e.target.value })}
+          aria-label="Step type"
+        >
+          {STEP_TYPE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        <div className="cw-step-reorder">
+          <button type="button" className="btn btn--ghost btn--xs" onClick={() => onMove('up')} disabled={index === 0} aria-label="Move up">↑</button>
+          <button type="button" className="btn btn--ghost btn--xs" onClick={() => onMove('down')} disabled={index === total - 1} aria-label="Move down">↓</button>
+        </div>
+        <button type="button" className="btn btn--ghost btn--xs cw-remove-btn" onClick={onRemove} aria-label="Remove">✕</button>
+      </div>
+      <div className="cw-step__body">
+        <Field label="Instruction" htmlFor={`instr-${item.key}`}>
+          <textarea
+            id={`instr-${item.key}`}
+            className="cw-textarea cw-textarea--sm"
+            placeholder="What to do in this step..."
+            rows={2}
+            value={item.instruction}
+            onChange={(e) => onUpdate({ instruction: e.target.value })}
+          />
+        </Field>
+        <div className="cw-step-metrics">
+          <Field label="Duration (min)" htmlFor={`dur-${item.key}`} className="cw-field--metric">
+            <input id={`dur-${item.key}`} className="cw-input cw-input--sm" type="number" min="0" step="0.5" placeholder="—" value={item.durationMinutes} onChange={(e) => onUpdate({ durationMinutes: e.target.value })} />
+          </Field>
+          <Field label="Distance (km)" htmlFor={`dist-${item.key}`} className="cw-field--metric">
+            <input id={`dist-${item.key}`} className="cw-input cw-input--sm" type="number" min="0" step="0.1" placeholder="—" value={item.distanceKm} onChange={(e) => onUpdate({ distanceKm: e.target.value })} />
+          </Field>
+          <Field label="Repetitions" htmlFor={`reps-${item.key}`} className="cw-field--metric">
+            <input id={`reps-${item.key}`} className="cw-input cw-input--sm" type="number" min="0" step="1" placeholder="—" value={item.repetitions} onChange={(e) => onUpdate({ repetitions: e.target.value })} />
+          </Field>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type RepeatBlockRowProps = {
+  item: RepeatBlock;
+  index: number;
+  total: number;
+  onUpdate: (patch: Partial<RepeatBlock>) => void;
+  onRemove: () => void;
+  onMove: (dir: 'up' | 'down') => void;
+};
+
+function RepeatBlockRow({ item, index, total, onUpdate, onRemove, onMove }: RepeatBlockRowProps) {
+  function updateSubStep(key: string, patch: Partial<SubStepDraft>) {
+    onUpdate({ steps: item.steps.map((s) => (s.key === key ? { ...s, ...patch } : s)) });
+  }
+
+  function removeSubStep(key: string) {
+    onUpdate({ steps: item.steps.filter((s) => s.key !== key) });
+  }
+
+  function moveSubStep(key: string, dir: 'up' | 'down') {
+    const idx = item.steps.findIndex((s) => s.key === key);
+    const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+    if (idx === -1 || swapIdx < 0 || swapIdx >= item.steps.length) return;
+    const next = [...item.steps];
+    [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+    onUpdate({ steps: next });
+  }
+
+  function addSubStep() {
+    onUpdate({ steps: [...item.steps, newSubStep('recovery')] });
+  }
+
+  return (
+    <div className="cw-step cw-step--repeat">
+      <div className="cw-step__header cw-step__header--repeat">
+        <span className="cw-step__num">{String(index + 1).padStart(2, '0')}</span>
+        <span className="cw-repeat-icon" aria-hidden="true">⟳</span>
+        <span className="cw-repeat-label">Repeat</span>
+        <div className="cw-repeat-count">
+          <input
+            className="cw-input cw-input--count"
+            type="number"
+            min="1"
+            max="99"
+            value={item.count}
+            onChange={(e) => onUpdate({ count: Math.max(1, parseInt(e.target.value) || 1) })}
+            aria-label="Repeat count"
+          />
+          <span className="cw-repeat-count__label">×</span>
+        </div>
+        <div className="cw-step-reorder">
+          <button type="button" className="btn btn--ghost btn--xs" onClick={() => onMove('up')} disabled={index === 0} aria-label="Move up">↑</button>
+          <button type="button" className="btn btn--ghost btn--xs" onClick={() => onMove('down')} disabled={index === total - 1} aria-label="Move down">↓</button>
+        </div>
+        <button type="button" className="btn btn--ghost btn--xs cw-remove-btn" onClick={onRemove} aria-label="Remove block">✕</button>
+      </div>
+
+      <div className="cw-repeat-block__body">
+        {item.steps.map((sub, si) => (
+          <SubStepRow
+            key={sub.key}
+            step={sub}
+            index={si}
+            total={item.steps.length}
+            onUpdate={(patch) => updateSubStep(sub.key, patch)}
+            onRemove={() => removeSubStep(sub.key)}
+            onMove={(dir) => moveSubStep(sub.key, dir)}
+          />
+        ))}
+        <button type="button" className="btn btn--ghost btn--sm cw-add-sub-step" onClick={addSubStep}>
+          + Add step to block
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main page ──────────────────────────────────────────────────────────── */
+
 export function CreateWorkoutPage({ navigate }: PageComponentProps) {
   const plansState = useTrainingPlans();
 
+  /* form fields */
   const [title, setTitle] = useState('');
   const [sport, setSport] = useState<string>('running');
   const [workoutType, setWorkoutType] = useState<string>('endurance');
@@ -96,21 +423,30 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
   const [coachNotes, setCoachNotes] = useState('');
   const [trainingPlanId, setTrainingPlanId] = useState('');
 
-  const [steps, setSteps] = useState<StepDraft[]>([]);
+  /* session */
+  const [items, setItems] = useState<SessionItem[]>([]);
+
+  /* submission */
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /* ── item mutations ────────────────────────────────────────────────────── */
+
   function addStep() {
-    setSteps((prev) => [...prev, newStep()]);
+    setItems((prev) => [...prev, newSingleStep(prev.length === 0 ? 'warmup' : 'main')]);
   }
 
-  function removeStep(key: string) {
-    setSteps((prev) => prev.filter((s) => s.key !== key));
+  function addRepeatBlock() {
+    setItems((prev) => [...prev, newRepeatBlock()]);
   }
 
-  function moveStep(key: string, dir: 'up' | 'down') {
-    setSteps((prev) => {
-      const idx = prev.findIndex((s) => s.key === key);
+  function removeItem(key: string) {
+    setItems((prev) => prev.filter((i) => i.key !== key));
+  }
+
+  function moveItem(key: string, dir: 'up' | 'down') {
+    setItems((prev) => {
+      const idx = prev.findIndex((i) => i.key === key);
       const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
       if (idx === -1 || swapIdx < 0 || swapIdx >= prev.length) return prev;
       const next = [...prev];
@@ -119,37 +455,20 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
     });
   }
 
-  function updateStep(key: string, patch: Partial<StepDraft>) {
-    setSteps((prev) => prev.map((s) => (s.key === key ? { ...s, ...patch } : s)));
+  function updateItem<T extends SessionItem>(key: string, patch: Partial<T>) {
+    setItems((prev) =>
+      prev.map((i) => (i.key === key ? { ...i, ...patch } : i)) as SessionItem[],
+    );
   }
+
+  /* ── submit ────────────────────────────────────────────────────────────── */
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (!title.trim()) {
-      setError('Title is required.');
-      return;
-    }
-    if (!scheduledDate) {
-      setError('Scheduled date is required.');
-      return;
-    }
-
-    const workoutSteps: CreateWorkoutStepRequest[] = steps.map((s, idx) => {
-      const step: CreateWorkoutStepRequest = {
-        stepIndex: idx,
-        stepType: s.stepType as CreateWorkoutStepRequest['stepType'],
-        instruction: s.instruction.trim() || '—',
-      };
-      const durMin = parseFloat(s.durationMinutes);
-      if (!isNaN(durMin) && durMin > 0) step.durationSeconds = Math.round(durMin * 60);
-      const distKm = parseFloat(s.distanceKm);
-      if (!isNaN(distKm) && distKm > 0) step.distanceMeters = Math.round(distKm * 1000);
-      const reps = parseInt(s.repetitions);
-      if (!isNaN(reps) && reps > 0) step.repetitions = reps;
-      return step;
-    });
+    if (!title.trim()) { setError('Title is required.'); return; }
+    if (!scheduledDate) { setError('Scheduled date is required.'); return; }
 
     const payload: CreatePlannedWorkoutRequest = {
       title: title.trim(),
@@ -158,12 +477,10 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
       scheduledDate,
       intensity: intensity as CreatePlannedWorkoutRequest['intensity'],
       status: 'planned',
-      steps: workoutSteps,
+      steps: buildStepsPayload(items),
     };
 
-    if (scheduledStartTime) {
-      payload.scheduledStartTime = `${scheduledDate}T${scheduledStartTime}:00`;
-    }
+    if (scheduledStartTime) payload.scheduledStartTime = `${scheduledDate}T${scheduledStartTime}:00`;
     const durMin = parseFloat(plannedDurationMinutes);
     if (!isNaN(durMin) && durMin > 0) payload.plannedDurationSeconds = Math.round(durMin * 60);
     const distKm = parseFloat(plannedDistanceKm);
@@ -183,23 +500,30 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
     }
   }
 
+  /* ── derived ───────────────────────────────────────────────────────────── */
+
   const plans = plansState.status === 'success' ? plansState.plans : [];
+  const barSegs = computeBarSegs(items);
+  const totalBarDur = barSegs.reduce((s, seg) => s + seg.dur, 0);
+
+  /* ── render ────────────────────────────────────────────────────────────── */
 
   return (
     <PageShell
       title="Create Workout"
       eyebrow="Training Plan · New Workout"
-      description="Plan a new workout session — add steps, set targets, and assign it to a training week."
+      description="Plan a new session — set targets, build structure, assign to a training week."
     >
       <form className="cw-form" onSubmit={handleSubmit} noValidate>
 
-        {/* ── Basics ─────────────────────────────────────────────────── */}
-        <section className="cw-section">
-          <h2 className="cw-section__title">Basics</h2>
+        {/* ── TOP GRID: Basics + Schedule side by side ─────────────────── */}
+        <div className="cw-top-grid">
 
-          <div className="cw-row">
-            <div className="cw-field cw-field--full">
-              <label className="cw-label cw-label--required" htmlFor="cw-title">Title</label>
+          {/* Basics */}
+          <section className="cw-section">
+            <h2 className="cw-section__title">Basics</h2>
+
+            <Field label="Title" required htmlFor="cw-title" className="cw-field--full">
               <input
                 id="cw-title"
                 className="cw-input"
@@ -210,299 +534,148 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
                 required
                 autoFocus
               />
-            </div>
-          </div>
+            </Field>
 
-          <div className="cw-row">
-            <div className="cw-field cw-field--1">
-              <label className="cw-label cw-label--required" htmlFor="cw-sport">Sport</label>
-              <select
-                id="cw-sport"
-                className="cw-select"
-                value={sport}
-                onChange={(e) => setSport(e.target.value)}
-              >
-                {SPORT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
+            <Field label="Sport" required htmlFor="cw-sport">
+              <select id="cw-sport" className="cw-select" value={sport} onChange={(e) => setSport(e.target.value)}>
+                {SPORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
-            </div>
-            <div className="cw-field cw-field--2">
-              <label className="cw-label cw-label--required" htmlFor="cw-workout-type">Workout type</label>
-              <select
-                id="cw-workout-type"
-                className="cw-select"
-                value={workoutType}
-                onChange={(e) => setWorkoutType(e.target.value)}
-              >
-                {WORKOUT_TYPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
+            </Field>
+
+            <Field label="Workout type" required htmlFor="cw-workout-type">
+              <select id="cw-workout-type" className="cw-select" value={workoutType} onChange={(e) => setWorkoutType(e.target.value)}>
+                {WORKOUT_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
-            </div>
-            <div className="cw-field cw-field--1">
-              <label className="cw-label cw-label--required" htmlFor="cw-intensity">Intensity</label>
-              <select
-                id="cw-intensity"
-                className="cw-select"
-                value={intensity}
-                onChange={(e) => setIntensity(e.target.value)}
-              >
-                {INTENSITY_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
+            </Field>
+
+            <Field label="Intensity" required htmlFor="cw-intensity">
+              <select id="cw-intensity" className="cw-select" value={intensity} onChange={(e) => setIntensity(e.target.value)}>
+                {INTENSITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
-            </div>
-          </div>
-        </section>
+            </Field>
+          </section>
 
-        {/* ── Schedule ───────────────────────────────────────────────── */}
-        <section className="cw-section">
-          <h2 className="cw-section__title">Schedule</h2>
+          {/* Schedule */}
+          <section className="cw-section">
+            <h2 className="cw-section__title">Schedule</h2>
 
-          <div className="cw-row">
-            <div className="cw-field">
-              <label className="cw-label cw-label--required" htmlFor="cw-date">Date</label>
-              <input
-                id="cw-date"
-                className="cw-input"
-                type="date"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                required
-              />
+            <div className="cw-row">
+              <Field label="Date" required htmlFor="cw-date" className="cw-field--2">
+                <input id="cw-date" className="cw-input" type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} required />
+              </Field>
+              <Field label="Start time" htmlFor="cw-start-time" className="cw-field--1">
+                <input id="cw-start-time" className="cw-input" type="time" value={scheduledStartTime} onChange={(e) => setScheduledStartTime(e.target.value)} />
+              </Field>
             </div>
-            <div className="cw-field">
-              <label className="cw-label" htmlFor="cw-start-time">Start time</label>
-              <input
-                id="cw-start-time"
-                className="cw-input"
-                type="time"
-                value={scheduledStartTime}
-                onChange={(e) => setScheduledStartTime(e.target.value)}
-              />
-            </div>
-            <div className="cw-field">
-              <label className="cw-label" htmlFor="cw-duration">Duration (min)</label>
-              <input
-                id="cw-duration"
-                className="cw-input"
-                type="number"
-                min="0"
-                step="1"
-                placeholder="e.g. 60"
-                value={plannedDurationMinutes}
-                onChange={(e) => setPlannedDurationMinutes(e.target.value)}
-              />
-            </div>
-            <div className="cw-field">
-              <label className="cw-label" htmlFor="cw-distance">Distance (km)</label>
-              <input
-                id="cw-distance"
-                className="cw-input"
-                type="number"
-                min="0"
-                step="0.1"
-                placeholder="e.g. 10"
-                value={plannedDistanceKm}
-                onChange={(e) => setPlannedDistanceKm(e.target.value)}
-              />
-            </div>
-          </div>
 
-          <div className="cw-row">
-            <div className="cw-field cw-field--2">
-              <label className="cw-label" htmlFor="cw-plan">Training plan</label>
-              <select
-                id="cw-plan"
-                className="cw-select"
-                value={trainingPlanId}
-                onChange={(e) => setTrainingPlanId(e.target.value)}
-              >
+            <div className="cw-row">
+              <Field label="Duration (min)" htmlFor="cw-duration" className="cw-field--1">
+                <input id="cw-duration" className="cw-input" type="number" min="0" step="1" placeholder="e.g. 60" value={plannedDurationMinutes} onChange={(e) => setPlannedDurationMinutes(e.target.value)} />
+              </Field>
+              <Field label="Distance (km)" htmlFor="cw-distance" className="cw-field--1">
+                <input id="cw-distance" className="cw-input" type="number" min="0" step="0.1" placeholder="e.g. 10" value={plannedDistanceKm} onChange={(e) => setPlannedDistanceKm(e.target.value)} />
+              </Field>
+            </div>
+
+            <Field label="Training plan" htmlFor="cw-plan" className="cw-field--full">
+              <select id="cw-plan" className="cw-select" value={trainingPlanId} onChange={(e) => setTrainingPlanId(e.target.value)}>
                 <option value="">None — standalone workout</option>
-                {plans.map((p) => (
-                  <option key={p.id} value={p.id}>{p.title}</option>
-                ))}
+                {plans.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
               </select>
+            </Field>
+          </section>
+
+        </div>
+
+        {/* ── SESSION STRUCTURE ─────────────────────────────────────────── */}
+        <section className="cw-section cw-section--session">
+          <h2 className="cw-section__title">Session Structure</h2>
+
+          {/* Visual bar */}
+          {barSegs.length > 0 && (
+            <div className="cw-session-bar" aria-hidden="true">
+              {barSegs.map((seg) => (
+                <div
+                  key={seg.key}
+                  className={`cw-session-bar__seg session-bar__segment--${seg.stepType}`}
+                  style={{ flex: totalBarDur > 0 ? Math.max(seg.dur, totalBarDur * 0.025) : 1 }}
+                  title={`${STEP_TYPE_SHORT[seg.stepType] ?? seg.stepType}${seg.dur > 0 ? ` · ${seg.dur} min` : ''}`}
+                >
+                  <span className="cw-session-bar__label">
+                    {STEP_TYPE_SHORT[seg.stepType] ?? '?'}
+                    {seg.dur > 0 && <span className="cw-session-bar__dur">{seg.dur}′</span>}
+                  </span>
+                </div>
+              ))}
             </div>
+          )}
+
+          {/* Step list */}
+          {items.length > 0 && (
+            <div className="cw-session-list">
+              {items.map((item, idx) =>
+                item.kind === 'step' ? (
+                  <SingleStepRow
+                    key={item.key}
+                    item={item}
+                    index={idx}
+                    total={items.length}
+                    onUpdate={(patch) => updateItem<SingleStep>(item.key, patch)}
+                    onRemove={() => removeItem(item.key)}
+                    onMove={(dir) => moveItem(item.key, dir)}
+                  />
+                ) : (
+                  <RepeatBlockRow
+                    key={item.key}
+                    item={item}
+                    index={idx}
+                    total={items.length}
+                    onUpdate={(patch) => updateItem<RepeatBlock>(item.key, patch)}
+                    onRemove={() => removeItem(item.key)}
+                    onMove={(dir) => moveItem(item.key, dir)}
+                  />
+                ),
+              )}
+            </div>
+          )}
+
+          {/* Add actions */}
+          <div className="cw-session-actions">
+            <button type="button" className="btn btn--secondary" onClick={addStep}>
+              + Add step
+            </button>
+            <button type="button" className="btn btn--secondary" onClick={addRepeatBlock}>
+              ⟳ Add repeat block
+            </button>
           </div>
         </section>
 
-        {/* ── Goal & Notes ───────────────────────────────────────────── */}
+        {/* ── GOAL & NOTES ──────────────────────────────────────────────── */}
         <section className="cw-section">
           <h2 className="cw-section__title">Goal &amp; Notes</h2>
 
-          <div className="cw-row">
-            <div className="cw-field cw-field--full">
-              <label className="cw-label" htmlFor="cw-objective">Objective</label>
-              <input
-                id="cw-objective"
-                className="cw-input"
-                type="text"
-                placeholder="What is the goal of this session?"
-                value={objective}
-                onChange={(e) => setObjective(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="cw-row">
-            <div className="cw-field cw-field--full">
-              <label className="cw-label" htmlFor="cw-description">Description</label>
-              <textarea
-                id="cw-description"
-                className="cw-textarea"
-                placeholder="Additional workout notes or context..."
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="cw-row">
-            <div className="cw-field cw-field--full">
-              <label className="cw-label" htmlFor="cw-coach-notes">Coach notes</label>
-              <textarea
-                id="cw-coach-notes"
-                className="cw-textarea"
-                placeholder="Private coaching or pacing notes..."
-                rows={2}
-                value={coachNotes}
-                onChange={(e) => setCoachNotes(e.target.value)}
-              />
-            </div>
-          </div>
+          <Field label="Objective" htmlFor="cw-objective" className="cw-field--full">
+            <input id="cw-objective" className="cw-input" type="text" placeholder="What is the goal of this session?" value={objective} onChange={(e) => setObjective(e.target.value)} />
+          </Field>
+
+          <Field label="Description" htmlFor="cw-description" className="cw-field--full">
+            <textarea id="cw-description" className="cw-textarea" placeholder="Additional workout notes..." rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+          </Field>
+
+          <Field label="Coach notes" htmlFor="cw-coach-notes" className="cw-field--full">
+            <textarea id="cw-coach-notes" className="cw-textarea" placeholder="Private pacing or coaching notes..." rows={2} value={coachNotes} onChange={(e) => setCoachNotes(e.target.value)} />
+          </Field>
         </section>
 
-        {/* ── Session Structure ──────────────────────────────────────── */}
-        <section className="cw-section">
-          <h2 className="cw-section__title">Session Structure</h2>
+        {/* ── Error ─────────────────────────────────────────────────────── */}
+        {error && <p className="cw-error" role="alert">{error}</p>}
 
-          {steps.length > 0 && (
-            <ol className="cw-steps">
-              {steps.map((step, idx) => (
-                <li key={step.key} className="cw-step">
-                  <div className="cw-step__header">
-                    <span className="cw-step__num">{String(idx + 1).padStart(2, '0')}</span>
-                    <div className="cw-step__type">
-                      <select
-                        className="cw-select"
-                        value={step.stepType}
-                        onChange={(e) => updateStep(step.key, { stepType: e.target.value })}
-                        aria-label="Step type"
-                      >
-                        {STEP_TYPE_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="cw-step__reorder">
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => moveStep(step.key, 'up')}
-                        disabled={idx === 0}
-                        aria-label="Move up"
-                      >↑</button>
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => moveStep(step.key, 'down')}
-                        disabled={idx === steps.length - 1}
-                        aria-label="Move down"
-                      >↓</button>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn--ghost btn--sm cw-step__remove"
-                      onClick={() => removeStep(step.key)}
-                      aria-label="Remove step"
-                    >✕</button>
-                  </div>
-
-                  <div className="cw-step__body">
-                    <div className="cw-field">
-                      <label className="cw-label" htmlFor={`cw-instr-${step.key}`}>Instruction</label>
-                      <textarea
-                        id={`cw-instr-${step.key}`}
-                        className="cw-textarea"
-                        placeholder="What to do in this step..."
-                        rows={2}
-                        value={step.instruction}
-                        onChange={(e) => updateStep(step.key, { instruction: e.target.value })}
-                      />
-                    </div>
-                    <div className="cw-step__metrics">
-                      <div className="cw-field">
-                        <label className="cw-label" htmlFor={`cw-step-dur-${step.key}`}>Duration (min)</label>
-                        <input
-                          id={`cw-step-dur-${step.key}`}
-                          className="cw-input"
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          placeholder="—"
-                          value={step.durationMinutes}
-                          onChange={(e) => updateStep(step.key, { durationMinutes: e.target.value })}
-                        />
-                      </div>
-                      <div className="cw-field">
-                        <label className="cw-label" htmlFor={`cw-step-dist-${step.key}`}>Distance (km)</label>
-                        <input
-                          id={`cw-step-dist-${step.key}`}
-                          className="cw-input"
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          placeholder="—"
-                          value={step.distanceKm}
-                          onChange={(e) => updateStep(step.key, { distanceKm: e.target.value })}
-                        />
-                      </div>
-                      <div className="cw-field">
-                        <label className="cw-label" htmlFor={`cw-step-reps-${step.key}`}>Repetitions</label>
-                        <input
-                          id={`cw-step-reps-${step.key}`}
-                          className="cw-input"
-                          type="number"
-                          min="0"
-                          step="1"
-                          placeholder="—"
-                          value={step.repetitions}
-                          onChange={(e) => updateStep(step.key, { repetitions: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-
-          <button type="button" className="btn btn--secondary cw-add-step" onClick={addStep}>
-            + Add step
-          </button>
-        </section>
-
-        {/* ── Error ──────────────────────────────────────────────────── */}
-        {error && (
-          <p className="cw-error" role="alert">{error}</p>
-        )}
-
-        {/* ── Actions ────────────────────────────────────────────────── */}
+        {/* ── Actions ───────────────────────────────────────────────────── */}
         <div className="cw-form__actions">
-          <button
-            type="button"
-            className="btn btn--secondary"
-            onClick={() => navigate('/training-plan')}
-            disabled={submitting}
-          >
+          <button type="button" className="btn btn--secondary" onClick={() => navigate('/training-plan')} disabled={submitting}>
             Cancel
           </button>
-          <button
-            type="submit"
-            className="btn btn--primary"
-            disabled={submitting}
-          >
+          <button type="submit" className="btn btn--primary" disabled={submitting}>
             {submitting ? 'Creating…' : 'Create Workout'}
           </button>
         </div>
