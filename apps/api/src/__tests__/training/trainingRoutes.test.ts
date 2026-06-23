@@ -180,3 +180,298 @@ describe('GET /api/workouts/:id', () => {
     expect(res.statusCode).toBe(500);
   });
 });
+
+const mockPlanSummary = {
+  id: 'plan-1',
+  title: 'Base Phase',
+  startDate: '2024-06-03',
+  endDate: '2024-08-25',
+  status: 'active',
+  source: 'manual',
+};
+
+const validPlanBody = {
+  title: 'Base Phase',
+  startDate: '2024-06-03',
+  endDate: '2024-08-25',
+  status: 'draft',
+};
+
+const validWorkoutBody = {
+  title: 'Easy Run',
+  sport: 'running',
+  workoutType: 'endurance',
+  scheduledDate: '2024-06-10',
+  intensity: 'easy',
+};
+
+// ── GET /api/training-plans ───────────────────────────────────────────────────
+
+describe('GET /api/training-plans', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('returns 200 with an array of plan summaries', async () => {
+    vi.mocked(TrainingService.listTrainingPlans).mockResolvedValue([mockPlanSummary] as never);
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/training-plans' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<unknown[]>();
+    expect(Array.isArray(body)).toBe(true);
+    expect(body).toHaveLength(1);
+  });
+
+  it('returns 200 with an empty array when no plans exist', async () => {
+    vi.mocked(TrainingService.listTrainingPlans).mockResolvedValue([]);
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/training-plans' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([]);
+  });
+});
+
+// ── POST /api/training-plans ──────────────────────────────────────────────────
+
+describe('POST /api/training-plans', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('returns 201 with the created plan for a valid body', async () => {
+    vi.mocked(TrainingService.createTrainingPlan).mockResolvedValue(mockPlan as never);
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/training-plans',
+      payload: validPlanBody,
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json<{ id: string }>().id).toBe('plan-1');
+  });
+
+  it('returns 400 for a missing title', async () => {
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/training-plans',
+      payload: { startDate: '2024-06-03', endDate: '2024-08-25' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json<{ error: { code: string } }>().error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('returns 400 when endDate is before startDate', async () => {
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/training-plans',
+      payload: { ...validPlanBody, startDate: '2024-08-25', endDate: '2024-06-03' },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
+// ── PUT /api/training-plans/:id ───────────────────────────────────────────────
+
+describe('PUT /api/training-plans/:id', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('returns 200 with the updated plan for a known id', async () => {
+    vi.mocked(TrainingService.updateTrainingPlan).mockResolvedValue(mockPlan as never);
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/training-plans/plan-1',
+      payload: { title: 'Updated Title' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json<{ id: string }>().id).toBe('plan-1');
+  });
+
+  it('returns 404 for an unknown plan id', async () => {
+    vi.mocked(TrainingService.updateTrainingPlan).mockRejectedValue(
+      ApiError.notFound('Training plan not found'),
+    );
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/training-plans/unknown',
+      payload: { title: 'X' },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json<{ error: { code: string } }>().error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns 400 for an invalid body', async () => {
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/training-plans/plan-1',
+      payload: { status: 'invalid-status' },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
+// ── DELETE /api/training-plans/:id ───────────────────────────────────────────
+
+describe('DELETE /api/training-plans/:id', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('returns 204 for a known plan id', async () => {
+    vi.mocked(TrainingService.deleteTrainingPlan).mockResolvedValue(undefined);
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'DELETE', url: '/api/training-plans/plan-1' });
+    expect(res.statusCode).toBe(204);
+  });
+
+  it('returns 404 for an unknown plan id', async () => {
+    vi.mocked(TrainingService.deleteTrainingPlan).mockRejectedValue(
+      ApiError.notFound('Training plan not found'),
+    );
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'DELETE', url: '/api/training-plans/unknown' });
+    expect(res.statusCode).toBe(404);
+  });
+});
+
+// ── GET /api/workouts ─────────────────────────────────────────────────────────
+
+describe('GET /api/workouts', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('returns 200 with an array of workouts', async () => {
+    vi.mocked(TrainingService.listWorkouts).mockResolvedValue([mockWorkout] as never);
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/workouts' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<unknown[]>();
+    expect(Array.isArray(body)).toBe(true);
+    expect(body).toHaveLength(1);
+  });
+
+  it('returns 200 with an empty array when no workouts exist', async () => {
+    vi.mocked(TrainingService.listWorkouts).mockResolvedValue([]);
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/workouts' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([]);
+  });
+});
+
+// ── POST /api/workouts ────────────────────────────────────────────────────────
+
+describe('POST /api/workouts', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('returns 201 with the created workout for a valid body (no steps)', async () => {
+    vi.mocked(TrainingService.createWorkout).mockResolvedValue(mockWorkout as never);
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/workouts',
+      payload: validWorkoutBody,
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json<{ id: string }>().id).toBe('wo-1');
+  });
+
+  it('returns 201 with steps present in the response', async () => {
+    const workoutWithSteps = { ...mockWorkout, steps: [mockStep] };
+    vi.mocked(TrainingService.createWorkout).mockResolvedValue(workoutWithSteps as never);
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/workouts',
+      payload: {
+        ...validWorkoutBody,
+        steps: [{ stepIndex: 0, stepType: 'warmup', instruction: '10 min easy jog' }],
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json<{ steps: unknown[] }>().steps).toHaveLength(1);
+  });
+
+  it('returns 400 for a missing required sport field', async () => {
+    const app = buildTestApp();
+    const { sport: _, ...withoutSport } = validWorkoutBody;
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/workouts',
+      payload: withoutSport,
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json<{ error: { code: string } }>().error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('returns 400 for duplicate stepIndex values', async () => {
+    vi.mocked(TrainingService.createWorkout).mockRejectedValue(
+      ApiError.badRequest('steps[].stepIndex must be unique — duplicate index: 0'),
+    );
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/workouts',
+      payload: {
+        ...validWorkoutBody,
+        steps: [
+          { stepIndex: 0, stepType: 'warmup', instruction: 'a' },
+          { stepIndex: 0, stepType: 'main', instruction: 'b' },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
+// ── PUT /api/workouts/:id ─────────────────────────────────────────────────────
+
+describe('PUT /api/workouts/:id', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('returns 200 with the updated workout for a known id', async () => {
+    vi.mocked(TrainingService.updateWorkout).mockResolvedValue(mockWorkout as never);
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/workouts/wo-1',
+      payload: { title: 'Updated Run' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json<{ id: string }>().id).toBe('wo-1');
+  });
+
+  it('returns 404 for an unknown workout id', async () => {
+    vi.mocked(TrainingService.updateWorkout).mockRejectedValue(
+      ApiError.notFound('Workout not found'),
+    );
+    const app = buildTestApp();
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/workouts/unknown',
+      payload: { title: 'X' },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json<{ error: { code: string } }>().error.code).toBe('NOT_FOUND');
+  });
+});
+
+// ── DELETE /api/workouts/:id ──────────────────────────────────────────────────
+
+describe('DELETE /api/workouts/:id', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('returns 204 for a known workout id', async () => {
+    vi.mocked(TrainingService.deleteWorkout).mockResolvedValue(undefined);
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'DELETE', url: '/api/workouts/wo-1' });
+    expect(res.statusCode).toBe(204);
+  });
+
+  it('returns 404 for an unknown workout id', async () => {
+    vi.mocked(TrainingService.deleteWorkout).mockRejectedValue(
+      ApiError.notFound('Workout not found'),
+    );
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'DELETE', url: '/api/workouts/unknown' });
+    expect(res.statusCode).toBe(404);
+    expect(res.json<{ error: { code: string } }>().error.code).toBe('NOT_FOUND');
+  });
+});
