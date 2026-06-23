@@ -94,16 +94,23 @@ export async function findActivePlanWithWeekWorkouts(
   weekStart: Date,
   weekEnd: Date,
 ): Promise<TrainingPlanWithWorkouts | null> {
-  return prisma.trainingPlan.findFirst({
+  const plan = await prisma.trainingPlan.findFirst({
     where: { athleteProfileId, status: 'Active' },
-    include: {
-      plannedWorkouts: {
-        where: { scheduledDate: { gte: weekStart, lt: weekEnd } },
-        include: { steps: { orderBy: { stepIndex: 'asc' } } },
-        orderBy: { scheduledDate: 'asc' },
-      },
-    },
   });
+
+  if (!plan) return null;
+
+  // Show all workouts for the week regardless of plan assignment
+  const plannedWorkouts = await prisma.plannedWorkout.findMany({
+    where: {
+      athleteProfileId,
+      scheduledDate: { gte: weekStart, lt: weekEnd },
+    },
+    include: { steps: { orderBy: { stepIndex: 'asc' } } },
+    orderBy: { scheduledDate: 'asc' },
+  });
+
+  return { ...plan, plannedWorkouts };
 }
 
 export async function findTrainingPlanById(id: string): Promise<TrainingPlanWithWorkouts | null> {
