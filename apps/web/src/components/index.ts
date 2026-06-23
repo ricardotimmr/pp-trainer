@@ -4,6 +4,7 @@ export { SportBadge } from './badges/SportBadge';
 export { WorkoutStatusBadge } from './badges/WorkoutStatusBadge';
 export { ActivityCard } from './cards/ActivityCard';
 export { WorkoutCard } from './cards/WorkoutCard';
+export type { WorkoutCardData } from './cards/WorkoutCard';
 export { ActivitySummaryStats } from './data/ActivitySummaryStats';
 export { WorkoutStepList } from './data/WorkoutStepList';
 export { DashboardWidget } from './layout/DashboardWidget';
