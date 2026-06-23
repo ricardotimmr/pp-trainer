@@ -1,5 +1,6 @@
 export type ApiErrorCode =
   | 'NOT_FOUND'
+  | 'FORBIDDEN'
   | 'VALIDATION_ERROR'
   | 'BAD_REQUEST'
   | 'INTERNAL_SERVER_ERROR'
@@ -11,6 +12,7 @@ export type ApiErrorCode =
 
 const HTTP_STATUS_MAP: Record<ApiErrorCode, number> = {
   NOT_FOUND: 404,
+  FORBIDDEN: 403,
   VALIDATION_ERROR: 400,
   BAD_REQUEST: 400,
   INTERNAL_SERVER_ERROR: 500,
@@ -36,6 +38,10 @@ export class ApiError extends Error {
 
   static notFound(message = 'Resource not found'): ApiError {
     return new ApiError('NOT_FOUND', message);
+  }
+
+  static forbidden(message = 'Access denied'): ApiError {
+    return new ApiError('FORBIDDEN', message);
   }
 
   static badRequest(message: string, details?: unknown): ApiError {

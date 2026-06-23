@@ -24,6 +24,8 @@ export type UpdateAiCoachOutputData = {
   validationStatus?: AiOutputValidationStatus;
   summary?: string;
   structuredOutput?: unknown;
+  createdTrainingPlanId?: string;
+  createdPlannedWorkoutId?: string;
 };
 
 export async function createOutput(data: CreateAiCoachOutputData): Promise<AiCoachOutput> {
@@ -64,6 +66,8 @@ export async function updateOutput(
       ...(data.structuredOutput != null && {
         structuredOutput: data.structuredOutput as Prisma.InputJsonValue,
       }),
+      ...(data.createdTrainingPlanId != null && { createdTrainingPlanId: data.createdTrainingPlanId }),
+      ...(data.createdPlannedWorkoutId != null && { createdPlannedWorkoutId: data.createdPlannedWorkoutId }),
     },
   });
 }

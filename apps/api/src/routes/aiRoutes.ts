@@ -5,6 +5,7 @@ import {
 import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 
+import * as AiAcceptService from '../services/AiAcceptService.js';
 import * as AiService from '../services/AiService.js';
 
 function zodValidationError(err: ZodError): { error: { code: string; message: string } } {
@@ -45,5 +46,22 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       body as ReturnType<typeof GenerateWorkoutRequestSchema.parse>,
     );
     return reply.status(201).send(output);
+  });
+
+  app.get('/api/ai/outputs/:id', async (request) => {
+    const { id } = request.params as { id: string };
+    return AiAcceptService.getOutput(id);
+  });
+
+  app.post('/api/ai/outputs/:id/accept', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const result = await AiAcceptService.acceptOutput(id);
+    return reply.status(201).send(result);
+  });
+
+  app.post('/api/ai/outputs/:id/reject', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const result = await AiAcceptService.rejectOutput(id);
+    return reply.status(200).send(result);
   });
 }
