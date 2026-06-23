@@ -1,11 +1,22 @@
 import { z } from 'zod';
 
-import { IdSchema, IsoDateTimeStringSchema } from './common.js';
+import {
+  IdSchema,
+  IsoDateStringSchema,
+  IsoDateTimeStringSchema,
+  NonNegativeIntegerSchema,
+} from './common.js';
 import {
   AiCoachOutputStatusSchema,
   AiCoachOutputTypeSchema,
   AiOutputValidationStatusSchema,
+  SportTypeSchema,
+  WorkoutIntensitySchema,
+  WorkoutStepTypeSchema,
+  WorkoutTypeSchema,
 } from './enums.js';
+
+// ── Athlete Context Snapshot DTO ─────────────────────────────────────────────
 
 export const AthleteContextSnapshotDtoSchema = z.object({
   id: IdSchema,
@@ -18,12 +29,15 @@ export const AthleteContextSnapshotDtoSchema = z.object({
   recoverySummary: z.string().optional(),
 });
 
+// ── AI Coach Output DTO ──────────────────────────────────────────────────────
+
 export const AiCoachOutputDtoSchema = z.object({
   id: IdSchema,
   outputType: AiCoachOutputTypeSchema,
   status: AiCoachOutputStatusSchema,
   summary: z.string().optional(),
   rawText: z.string().optional(),
+  structuredOutput: z.unknown().optional(),
   validationStatus: AiOutputValidationStatusSchema,
   createdTrainingPlanId: IdSchema.optional(),
   createdPlannedWorkoutId: IdSchema.optional(),
@@ -35,8 +49,109 @@ export const AiCoachPreviewDtoSchema = z.object({
   aiCoachOutput: AiCoachOutputDtoSchema,
 });
 
-export type AthleteContextSnapshotDto = z.infer<
-  typeof AthleteContextSnapshotDtoSchema
->;
+// ── AI Generated Output Schemas ──────────────────────────────────────────────
+// Used to validate structured AI responses before storage or acceptance.
+// .strict() ensures unexpected fields from AI output are caught early.
+
+export const AiGeneratedWorkoutStepSchema = z
+  .object({
+    stepIndex: NonNegativeIntegerSchema,
+    stepType: WorkoutStepTypeSchema,
+    title: z.string().optional(),
+    instruction: z.string().min(1),
+    durationSeconds: NonNegativeIntegerSchema.optional(),
+    distanceMeters: NonNegativeIntegerSchema.optional(),
+    repetitions: NonNegativeIntegerSchema.optional(),
+    targetPowerLowerWatts: NonNegativeIntegerSchema.optional(),
+    targetPowerUpperWatts: NonNegativeIntegerSchema.optional(),
+    targetPaceLowerSecPerKm: NonNegativeIntegerSchema.optional(),
+    targetPaceUpperSecPerKm: NonNegativeIntegerSchema.optional(),
+    targetSwimPaceLowerSecPer100m: NonNegativeIntegerSchema.optional(),
+    targetSwimPaceUpperSecPer100m: NonNegativeIntegerSchema.optional(),
+    targetHeartRateZoneName: z.string().optional(),
+    targetPowerZoneName: z.string().optional(),
+    targetPaceZoneName: z.string().optional(),
+    restSeconds: NonNegativeIntegerSchema.optional(),
+    notes: z.string().optional(),
+  })
+  .strict();
+
+export const AiGeneratedWorkoutSchema = z
+  .object({
+    title: z.string().min(1),
+    sport: SportTypeSchema,
+    workoutType: WorkoutTypeSchema,
+    scheduledDate: IsoDateStringSchema.optional(),
+    plannedDurationSeconds: NonNegativeIntegerSchema.optional(),
+    plannedDistanceMeters: NonNegativeIntegerSchema.optional(),
+    intensity: WorkoutIntensitySchema,
+    objective: z.string().optional(),
+    description: z.string().optional(),
+    steps: z.array(AiGeneratedWorkoutStepSchema),
+    coachNotes: z.string().optional(),
+  })
+  .strict()
+  .refine((d) => d.objective != null || d.description != null, {
+    message: 'At least one of objective or description is required',
+    path: ['objective'],
+  })
+  .refine((d) => d.steps.length >= 1 || d.description != null, {
+    message: 'At least one step or a description is required',
+    path: ['steps'],
+  })
+  .refine(
+    (d) => {
+      const indices = d.steps.map((s) => s.stepIndex);
+      return indices.length === new Set(indices).size;
+    },
+    { message: 'stepIndex values must be unique within a workout', path: ['steps'] },
+  );
+
+export const AiGeneratedWeekPlanSchema = z
+  .object({
+    title: z.string().min(1),
+    weekStartDate: IsoDateStringSchema,
+    weekEndDate: IsoDateStringSchema,
+    focus: z.string().optional(),
+    summary: z.string().optional(),
+    workouts: z.array(AiGeneratedWorkoutSchema).min(1),
+  })
+  .strict()
+  .refine((d) => d.weekEndDate >= d.weekStartDate, {
+    message: 'weekEndDate must be on or after weekStartDate',
+    path: ['weekEndDate'],
+  });
+
+export const AiGeneratedSingleWorkoutSchema = z
+  .object({
+    workout: AiGeneratedWorkoutSchema,
+  })
+  .strict();
+
+// ── AI Coach Request Schemas ─────────────────────────────────────────────────
+
+export const GenerateWeekPlanRequestSchema = z.object({
+  weekStartDate: IsoDateStringSchema,
+  userInstruction: z.string().optional(),
+});
+
+export const GenerateWorkoutRequestSchema = z.object({
+  sport: SportTypeSchema,
+  intensity: WorkoutIntensitySchema,
+  plannedDurationSeconds: NonNegativeIntegerSchema.optional(),
+  plannedDistanceMeters: NonNegativeIntegerSchema.optional(),
+  scheduledDate: IsoDateStringSchema.optional(),
+  userInstruction: z.string().optional(),
+});
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+export type AthleteContextSnapshotDto = z.infer<typeof AthleteContextSnapshotDtoSchema>;
 export type AiCoachOutputDto = z.infer<typeof AiCoachOutputDtoSchema>;
 export type AiCoachPreviewDto = z.infer<typeof AiCoachPreviewDtoSchema>;
+export type AiGeneratedWorkoutStep = z.infer<typeof AiGeneratedWorkoutStepSchema>;
+export type AiGeneratedWorkout = z.infer<typeof AiGeneratedWorkoutSchema>;
+export type AiGeneratedWeekPlan = z.infer<typeof AiGeneratedWeekPlanSchema>;
+export type AiGeneratedSingleWorkout = z.infer<typeof AiGeneratedSingleWorkoutSchema>;
+export type GenerateWeekPlanRequest = z.infer<typeof GenerateWeekPlanRequestSchema>;
+export type GenerateWorkoutRequest = z.infer<typeof GenerateWorkoutRequestSchema>;
