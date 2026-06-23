@@ -14,6 +14,7 @@ playwright-report
 test-results
 *.local
 .env
+apps/api/storage/
 docs/local/
 docs/tmp/
 docs/pp-brand/
