@@ -17,6 +17,7 @@ import { formatDate, formatDuration } from '../components/prototypeFormatters';
 import {
   createTrainingPlan,
   deleteTrainingPlan,
+  deleteWorkout,
   fetchTrainingPlanById,
   updateTrainingPlan,
   updateWorkout,
@@ -491,12 +492,15 @@ type AllWorkoutsSectionProps = {
   workouts: PlannedWorkoutDto[];
   plans: TrainingPlanSummaryDto[];
   onAssign: (workoutId: string, planId: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
   assigning: string | null;
   navigate: PageComponentProps['navigate'];
 };
 
-function AllWorkoutsSection({ workouts, plans, onAssign, assigning, navigate }: AllWorkoutsSectionProps) {
+function AllWorkoutsSection({ workouts, plans, onAssign, onDelete, assigning, navigate }: AllWorkoutsSectionProps) {
   const [assigningFor, setAssigningFor] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   if (workouts.length === 0) return null;
 
@@ -511,6 +515,9 @@ function AllWorkoutsSection({ workouts, plans, onAssign, assigning, navigate }: 
           const isAssigning = assigning === w.id;
           const showPicker = assigningFor === w.id;
 
+          const isDeleting = deletingId === w.id;
+          const showConfirm = confirmDeleteId === w.id;
+
           return (
             <li key={w.id} className="tp-workout-row">
               <button
@@ -523,8 +530,8 @@ function AllWorkoutsSection({ workouts, plans, onAssign, assigning, navigate }: 
                   <span className="tp-workout-row__title">{w.title}</span>
                   <span className="tp-workout-row__date">{formatDate(w.scheduledDate)}</span>
                 </div>
-                <WorkoutStatusBadge status={w.status as 'planned'} />
               </button>
+              <WorkoutStatusBadge status={w.status as 'planned'} />
               <div className="tp-workout-row__plan">
                 {showPicker ? (
                   <select
@@ -554,6 +561,42 @@ function AllWorkoutsSection({ workouts, plans, onAssign, assigning, navigate }: 
                     onClick={() => setAssigningFor(w.id)}
                   >
                     {isAssigning ? '…' : assignedPlan ? assignedPlan.title : 'Unassigned'}
+                  </button>
+                )}
+              </div>
+              <div className="tp-workout-row__delete">
+                {showConfirm ? (
+                  <>
+                    <button
+                      type="button"
+                      className="tp-workout-row__delete-confirm tp-workout-row__delete-confirm--yes"
+                      disabled={isDeleting}
+                      onClick={async () => {
+                        setDeletingId(w.id);
+                        setConfirmDeleteId(null);
+                        await onDelete(w.id);
+                        setDeletingId(null);
+                      }}
+                    >
+                      {isDeleting ? '…' : 'Yes'}
+                    </button>
+                    <button
+                      type="button"
+                      className="tp-workout-row__delete-confirm tp-workout-row__delete-confirm--no"
+                      onClick={() => setConfirmDeleteId(null)}
+                    >
+                      No
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="tp-workout-row__delete-btn"
+                    title="Delete workout"
+                    disabled={isDeleting}
+                    onClick={() => setConfirmDeleteId(w.id)}
+                  >
+                    ×
                   </button>
                 )}
               </div>
@@ -770,6 +813,11 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
     }
   }
 
+  async function handleDeleteWorkout(id: string) {
+    await deleteWorkout(id);
+    refreshAll();
+  }
+
   const plans = plansState.status === 'success' ? plansState.plans : [];
   const allWorkouts = workoutsState.status === 'success' ? workoutsState.workouts : [];
 
@@ -818,6 +866,7 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
         workouts={allWorkouts}
         plans={plans}
         onAssign={handleAssign}
+        onDelete={handleDeleteWorkout}
         assigning={assigning}
         navigate={navigate}
       />

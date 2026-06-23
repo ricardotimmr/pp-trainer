@@ -14,7 +14,7 @@ import { WorkoutStatusBadge } from '../components/badges/WorkoutStatusBadge';
 import { stepTypeLabels } from '../components/data/workoutStepLabels';
 import { formatDate, formatDistance, formatDuration } from '../components/prototypeFormatters';
 import { DATA_MODE } from '../config/dataMode';
-import { updateWorkoutStatus } from '../api/trainingApi';
+import { deleteWorkout, updateWorkoutStatus } from '../api/trainingApi';
 import { useCurrentWeekPlan } from '../hooks/useCurrentWeekPlan';
 import { useWorkout } from '../hooks/useWorkout';
 import { PageShell } from '../layout/PageShell';
@@ -109,9 +109,10 @@ type WorkoutDetailContentProps = {
   workout: WorkoutDetailData;
   steps: WorkoutStepData[];
   statusActions?: React.ReactNode;
+  deleteAction?: React.ReactNode;
 };
 
-function WorkoutDetailContent({ workout, steps, statusActions }: WorkoutDetailContentProps) {
+function WorkoutDetailContent({ workout, steps, statusActions, deleteAction }: WorkoutDetailContentProps) {
   const formattedDate = formatDate(workout.scheduledStartTime ?? workout.scheduledDate);
 
   const stepsWithDuration = steps.filter((s) => s.durationSeconds);
@@ -159,6 +160,8 @@ function WorkoutDetailContent({ workout, steps, statusActions }: WorkoutDetailCo
       </dl>
 
       {statusActions}
+
+      {deleteAction}
 
       {workout.coachNotes ? (
         <blockquote className="workout-detail__notes">{workout.coachNotes}</blockquote>
@@ -224,7 +227,69 @@ function WorkoutDetailMockMode({ params }: PageComponentProps) {
   );
 }
 
-function WorkoutDetailApiMode({ params }: PageComponentProps) {
+function WorkoutDeleteAction({
+  workoutId,
+  navigate,
+  onDeleted,
+}: {
+  workoutId: string;
+  navigate: PageComponentProps['navigate'];
+  onDeleted: () => void;
+}) {
+  const [confirm, setConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDelete() {
+    setError(null);
+    setLoading(true);
+    try {
+      await deleteWorkout(workoutId);
+      onDeleted();
+      navigate('/training');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete workout.');
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="wd-delete-action">
+      {confirm ? (
+        <div className="wd-delete-action__confirm">
+          <span className="wd-delete-action__confirm-label">Delete this workout?</span>
+          <button
+            type="button"
+            className="btn btn--sm btn--danger"
+            disabled={loading}
+            onClick={handleDelete}
+          >
+            {loading ? '…' : 'Yes, delete'}
+          </button>
+          <button
+            type="button"
+            className="btn btn--sm btn--ghost"
+            disabled={loading}
+            onClick={() => setConfirm(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="btn btn--sm btn--ghost wd-delete-action__trigger"
+          onClick={() => setConfirm(true)}
+        >
+          Delete workout
+        </button>
+      )}
+      {error && <p className="wd-status-actions__error">{error}</p>}
+    </div>
+  );
+}
+
+function WorkoutDetailApiMode({ params, navigate }: PageComponentProps) {
   const id = params.id ?? '';
   const { refresh: refreshWeekPlan } = useCurrentWeekPlan();
   const state = useWorkout(id);
@@ -270,6 +335,13 @@ function WorkoutDetailApiMode({ params }: PageComponentProps) {
           workoutId={id}
           status={workout.status as WorkoutStatus}
           onSuccess={handleStatusSuccess}
+        />
+      }
+      deleteAction={
+        <WorkoutDeleteAction
+          workoutId={id}
+          navigate={navigate}
+          onDeleted={refreshWeekPlan}
         />
       }
     />

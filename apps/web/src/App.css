@@ -657,6 +657,34 @@ button:focus-visible {
   color: #ef4444;
 }
 
+.wd-delete-action {
+  margin: 0 0 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wd-delete-action__trigger {
+  color: var(--color-muted);
+  border-color: var(--color-line);
+}
+
+.wd-delete-action__trigger:hover {
+  color: var(--color-danger, #e53e3e);
+  border-color: var(--color-danger, #e53e3e);
+}
+
+.wd-delete-action__confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wd-delete-action__confirm-label {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
 .workout-detail__notes {
   margin: 0 0 32px;
   padding: 14px 20px;
@@ -3089,6 +3117,9 @@ button:focus-visible {
 
 .tp-workout-row__plan {
   flex-shrink: 0;
+  width: 150px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .tp-workout-row__plan-btn {
@@ -3101,6 +3132,9 @@ button:focus-visible {
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .tp-workout-row__plan-btn:hover {
@@ -3115,7 +3149,62 @@ button:focus-visible {
 }
 
 .tp-workout-row__select {
-  max-width: 160px;
+  max-width: 150px;
+}
+
+.tp-workout-row__delete {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tp-workout-row__delete-btn {
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--color-muted);
+  cursor: pointer;
+  border-radius: 5px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.tp-workout-row__delete-btn:hover {
+  color: var(--color-danger, #e53e3e);
+  background: color-mix(in srgb, var(--color-danger, #e53e3e) 8%, transparent);
+}
+
+.tp-workout-row__delete-confirm {
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1.5px solid;
+  cursor: pointer;
+  background: none;
+}
+
+.tp-workout-row__delete-confirm--yes {
+  border-color: var(--color-danger, #e53e3e);
+  color: var(--color-danger, #e53e3e);
+}
+
+.tp-workout-row__delete-confirm--yes:hover {
+  background: var(--color-danger, #e53e3e);
+  color: #fff;
+}
+
+.tp-workout-row__delete-confirm--no {
+  border-color: var(--color-line);
+  color: var(--color-muted);
+}
+
+.tp-workout-row__delete-confirm--no:hover {
+  border-color: var(--color-muted);
+  color: var(--color-ink);
 }
 
 /* ── Plan creation modal — status radio ───────────────────────────────────── */
