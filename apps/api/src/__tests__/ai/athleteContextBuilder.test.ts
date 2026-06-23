@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as ActivityRepository from '../../repositories/ActivityRepository.js';
 import * as AthleteRepository from '../../repositories/AthleteRepository.js';
+import * as CoachingMemoryRepository from '../../repositories/CoachingMemoryRepository.js';
 import * as TrainingRepository from '../../repositories/TrainingRepository.js';
 import { buildContext, persistSnapshot } from '../../services/AthleteContextBuilder.js';
 
@@ -16,6 +17,7 @@ vi.mock('../../lib/prisma.js', () => ({
 vi.mock('../../repositories/AthleteRepository.js');
 vi.mock('../../repositories/ActivityRepository.js');
 vi.mock('../../repositories/TrainingRepository.js');
+vi.mock('../../repositories/CoachingMemoryRepository.js');
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -102,7 +104,11 @@ describe('buildContext', () => {
     vi.mocked(AthleteRepository.findAthleteAvailability).mockResolvedValue(mockAvailability);
     vi.mocked(AthleteRepository.findAthleteZoneSets).mockResolvedValue([mockZoneSet]);
     vi.mocked(ActivityRepository.findActivities).mockResolvedValue([mockActivity]);
+    vi.mocked(ActivityRepository.findActivitiesForHistory).mockResolvedValue([]);
+    vi.mocked(ActivityRepository.countActivitiesAllTime).mockResolvedValue(0);
     vi.mocked(TrainingRepository.listWorkouts).mockResolvedValue([mockWorkout]);
+    vi.mocked(CoachingMemoryRepository.findRecentEntries).mockResolvedValue([]);
+    vi.mocked(CoachingMemoryRepository.countEntries).mockResolvedValue(0);
   });
 
   it('returns a context with version v1 and generatedAt', async () => {
@@ -246,6 +252,107 @@ describe('buildContext', () => {
   it('throws 404 when athlete profile not found', async () => {
     vi.mocked(AthleteRepository.findAthleteProfileById).mockResolvedValue(null);
     await expect(buildContext('unknown-id')).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('trainingHistory is undefined when no history activities and no all-time count', async () => {
+    vi.mocked(ActivityRepository.findActivitiesForHistory).mockResolvedValue([]);
+    vi.mocked(ActivityRepository.countActivitiesAllTime).mockResolvedValue(0);
+    const ctx = await buildContext(PROFILE_ID);
+    expect(ctx.trainingHistory).toBeUndefined();
+  });
+
+  it('trainingHistory is populated with monthly stats when activities exist', async () => {
+    vi.mocked(ActivityRepository.findActivitiesForHistory).mockResolvedValue([
+      { sport: 'Running', startTime: new Date('2026-05-10T08:00:00Z'), durationSeconds: 3600, distanceMeters: 10000 },
+      { sport: 'Running', startTime: new Date('2026-05-17T08:00:00Z'), durationSeconds: 4200, distanceMeters: 12000 },
+      { sport: 'Cycling', startTime: new Date('2026-06-01T08:00:00Z'), durationSeconds: 5400, distanceMeters: null },
+    ] as never[]);
+    vi.mocked(ActivityRepository.countActivitiesAllTime).mockResolvedValue(42);
+
+    const ctx = await buildContext(PROFILE_ID);
+    expect(ctx.trainingHistory).toBeDefined();
+    expect(ctx.trainingHistory!.totalActivitiesAllTime).toBe(42);
+    expect(ctx.trainingHistory!.monthlyStats).toHaveLength(2);
+
+    const may = ctx.trainingHistory!.monthlyStats.find((m) => m.month === '2026-05');
+    expect(may?.activityCount).toBe(2);
+    expect(may?.totalDurationSeconds).toBe(7800);
+    expect(may?.totalDistanceMeters).toBe(22000);
+    expect(may?.sportBreakdown['running']).toBe(7800);
+
+    const june = ctx.trainingHistory!.monthlyStats.find((m) => m.month === '2026-06');
+    expect(june?.activityCount).toBe(1);
+    expect(june?.sportBreakdown['cycling']).toBe(5400);
+    expect(june?.totalDistanceMeters).toBeUndefined();
+  });
+
+  it('trainingHistory includes peakWeekDurationSeconds', async () => {
+    vi.mocked(ActivityRepository.findActivitiesForHistory).mockResolvedValue([
+      { sport: 'Running', startTime: new Date('2026-06-02T08:00:00Z'), durationSeconds: 3600, distanceMeters: null },
+      { sport: 'Running', startTime: new Date('2026-06-03T08:00:00Z'), durationSeconds: 3600, distanceMeters: null },
+    ] as never[]);
+    vi.mocked(ActivityRepository.countActivitiesAllTime).mockResolvedValue(2);
+
+    const ctx = await buildContext(PROFILE_ID);
+    expect(ctx.trainingHistory?.peakWeekDurationSeconds).toBe(7200);
+  });
+
+  it('coachingMemory is undefined when no memory entries', async () => {
+    vi.mocked(CoachingMemoryRepository.findRecentEntries).mockResolvedValue([]);
+    vi.mocked(CoachingMemoryRepository.countEntries).mockResolvedValue(0);
+    const ctx = await buildContext(PROFILE_ID);
+    expect(ctx.coachingMemory).toBeUndefined();
+  });
+
+  it('coachingMemory.recentEntries populated when entries exist', async () => {
+    vi.mocked(CoachingMemoryRepository.findRecentEntries).mockResolvedValue([
+      { entryText: 'Week plan accepted: 3 runs, 1 bike.' },
+      { entryText: 'Single workout: tempo run 10km.' },
+    ] as never[]);
+    vi.mocked(CoachingMemoryRepository.countEntries).mockResolvedValue(2);
+
+    const ctx = await buildContext(PROFILE_ID);
+    expect(ctx.coachingMemory?.recentEntries).toHaveLength(2);
+    expect(ctx.coachingMemory?.recentEntries[0]).toBe('Week plan accepted: 3 runs, 1 bike.');
+    expect(ctx.coachingMemory?.olderSummary).toBeUndefined();
+  });
+
+  it('coachingMemory.olderSummary shown when totalCount exceeds shown entries', async () => {
+    vi.mocked(CoachingMemoryRepository.findRecentEntries).mockResolvedValue([
+      { entryText: 'Recent entry.' },
+    ] as never[]);
+    vi.mocked(CoachingMemoryRepository.countEntries).mockResolvedValue(5);
+
+    const ctx = await buildContext(PROFILE_ID);
+    expect(ctx.coachingMemory?.recentEntries).toHaveLength(1);
+    expect(ctx.coachingMemory?.olderSummary).toBe('Plus 4 older coaching sessions not shown.');
+  });
+
+  it('coachingMemory truncates entries exceeding char budget', async () => {
+    const longEntry = 'x'.repeat(1500);
+    const shortEntry = 'Short entry.';
+    vi.mocked(CoachingMemoryRepository.findRecentEntries).mockResolvedValue([
+      { entryText: longEntry },
+      { entryText: shortEntry },
+    ] as never[]);
+    vi.mocked(CoachingMemoryRepository.countEntries).mockResolvedValue(2);
+
+    const ctx = await buildContext(PROFILE_ID);
+    // longEntry (1500 chars) fits within budget of 2000, but shortEntry would push it to 1512 > 2000? No.
+    // 1500 + 12 = 1512 < 2000, so both should fit
+    expect(ctx.coachingMemory?.recentEntries).toHaveLength(2);
+  });
+
+  it('coachingMemory has empty recentEntries when first entry exceeds char budget', async () => {
+    const overBudget = 'x'.repeat(2001);
+    vi.mocked(CoachingMemoryRepository.findRecentEntries).mockResolvedValue([
+      { entryText: overBudget },
+    ] as never[]);
+    vi.mocked(CoachingMemoryRepository.countEntries).mockResolvedValue(3);
+
+    const ctx = await buildContext(PROFILE_ID);
+    expect(ctx.coachingMemory?.recentEntries).toHaveLength(0);
+    expect(ctx.coachingMemory?.olderSummary).toBe('Plus 3 older coaching sessions not shown.');
   });
 
   it('omits null optional profile fields', async () => {

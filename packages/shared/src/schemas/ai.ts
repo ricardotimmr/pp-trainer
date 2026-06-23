@@ -144,6 +144,29 @@ export const GenerateWorkoutRequestSchema = z.object({
   userInstruction: z.string().optional(),
 });
 
+// ── Training History (Layer 1 long-term memory) ──────────────────────────────
+
+export const AiMonthlyTrainingSummarySchema = z.object({
+  month: z.string(),
+  totalDurationSeconds: z.number().int().nonnegative(),
+  totalDistanceMeters: z.number().int().nonnegative().optional(),
+  activityCount: z.number().int().nonnegative(),
+  sportBreakdown: z.record(z.string(), z.number().int().nonnegative()),
+});
+
+export const AiTrainingHistorySchema = z.object({
+  monthlyStats: z.array(AiMonthlyTrainingSummarySchema),
+  peakWeekDurationSeconds: z.number().int().nonnegative().optional(),
+  totalActivitiesAllTime: z.number().int().nonnegative().optional(),
+});
+
+// ── Coaching Memory (Layer 2 long-term memory) ───────────────────────────────
+
+export const AiCoachingMemorySchema = z.object({
+  recentEntries: z.array(z.string()),
+  olderSummary: z.string().optional(),
+});
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type AthleteContextSnapshotDto = z.infer<typeof AthleteContextSnapshotDtoSchema>;
@@ -155,3 +178,6 @@ export type AiGeneratedWeekPlan = z.infer<typeof AiGeneratedWeekPlanSchema>;
 export type AiGeneratedSingleWorkout = z.infer<typeof AiGeneratedSingleWorkoutSchema>;
 export type GenerateWeekPlanRequest = z.infer<typeof GenerateWeekPlanRequestSchema>;
 export type GenerateWorkoutRequest = z.infer<typeof GenerateWorkoutRequestSchema>;
+export type AiMonthlyTrainingSummary = z.infer<typeof AiMonthlyTrainingSummarySchema>;
+export type AiTrainingHistory = z.infer<typeof AiTrainingHistorySchema>;
+export type AiCoachingMemory = z.infer<typeof AiCoachingMemorySchema>;

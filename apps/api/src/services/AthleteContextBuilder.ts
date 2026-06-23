@@ -5,12 +5,20 @@ import { ApiError } from '../errors/ApiError.js';
 import { prisma } from '../lib/prisma.js';
 import * as ActivityRepository from '../repositories/ActivityRepository.js';
 import * as AthleteRepository from '../repositories/AthleteRepository.js';
+import * as CoachingMemoryRepository from '../repositories/CoachingMemoryRepository.js';
 import * as TrainingRepository from '../repositories/TrainingRepository.js';
-import type { AthleteContextForAi } from '../types/athleteContext.js';
+import type {
+  AiCoachingMemory,
+  AiMonthlyTrainingSummary,
+  AiTrainingHistory,
+  AthleteContextForAi,
+} from '../types/athleteContext.js';
 import { getCurrentWeekRange } from '../utils/dateUtils.js';
 
 const RECENT_ACTIVITIES_LIMIT = 10;
 const UPCOMING_DAYS = 14;
+const HISTORY_MONTHS = 12;
+const MEMORY_CHAR_BUDGET = 2000;
 
 const WEEKDAY_ORDER: Record<Weekday, number> = {
   Monday: 0,
@@ -26,25 +34,123 @@ function toDateString(date: Date): string {
   return date.toISOString().split('T')[0];
 }
 
+function toMonthKey(date: Date): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function toIsoWeekKey(date: Date): string {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+function buildTrainingHistory(
+  activities: { sport: string; startTime: Date; durationSeconds: number; distanceMeters: number | null }[],
+  totalActivitiesAllTime: number,
+): AiTrainingHistory | undefined {
+  if (activities.length === 0 && totalActivitiesAllTime === 0) return undefined;
+
+  const byMonth = new Map<string, AiMonthlyTrainingSummary>();
+  const byWeek = new Map<string, number>();
+
+  for (const act of activities) {
+    const month = toMonthKey(act.startTime);
+    const week = toIsoWeekKey(act.startTime);
+    const sport = act.sport.toLowerCase();
+
+    if (!byMonth.has(month)) {
+      byMonth.set(month, { month, totalDurationSeconds: 0, activityCount: 0, sportBreakdown: {} });
+    }
+    const ms = byMonth.get(month)!;
+    ms.totalDurationSeconds += act.durationSeconds;
+    ms.activityCount += 1;
+    if (act.distanceMeters != null) {
+      ms.totalDistanceMeters = (ms.totalDistanceMeters ?? 0) + act.distanceMeters;
+    }
+    ms.sportBreakdown[sport] = (ms.sportBreakdown[sport] ?? 0) + act.durationSeconds;
+
+    byWeek.set(week, (byWeek.get(week) ?? 0) + act.durationSeconds);
+  }
+
+  const monthlyStats = [...byMonth.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, v]) => v);
+
+  const peakWeekDurationSeconds =
+    byWeek.size > 0 ? Math.max(...byWeek.values()) : undefined;
+
+  return {
+    monthlyStats,
+    ...(peakWeekDurationSeconds != null && { peakWeekDurationSeconds }),
+    ...(totalActivitiesAllTime > 0 && { totalActivitiesAllTime }),
+  };
+}
+
+function buildCoachingMemory(entries: { entryText: string }[], totalCount: number): AiCoachingMemory | undefined {
+  if (entries.length === 0) return undefined;
+
+  // Entries come in newest-first order from the DB; we keep that order so AI sees most recent first
+  const recentEntries: string[] = [];
+  let charCount = 0;
+
+  for (const entry of entries) {
+    if (charCount + entry.entryText.length > MEMORY_CHAR_BUDGET) break;
+    recentEntries.push(entry.entryText);
+    charCount += entry.entryText.length;
+  }
+
+  const hiddenCount = totalCount - recentEntries.length;
+  const olderSummary =
+    hiddenCount > 0
+      ? `Plus ${hiddenCount} older coaching session${hiddenCount === 1 ? '' : 's'} not shown.`
+      : undefined;
+
+  return {
+    recentEntries,
+    ...(olderSummary != null && { olderSummary }),
+  };
+}
+
 export async function buildContext(athleteProfileId: string): Promise<AthleteContextForAi> {
   const { weekStart, weekEnd } = getCurrentWeekRange();
 
   const upcomingEnd = new Date(weekStart);
   upcomingEnd.setUTCDate(weekStart.getUTCDate() + UPCOMING_DAYS);
 
-  const [profile, goals, availability, zoneSets, recentActivities, weekActivities, upcomingWorkouts] =
-    await Promise.all([
-      AthleteRepository.findAthleteProfileById(athleteProfileId),
-      AthleteRepository.findAthleteGoals(athleteProfileId),
-      AthleteRepository.findAthleteAvailability(athleteProfileId),
-      AthleteRepository.findAthleteZoneSets(athleteProfileId),
-      ActivityRepository.findActivities(athleteProfileId, {}, RECENT_ACTIVITIES_LIMIT),
-      ActivityRepository.findActivities(athleteProfileId, {
-        startTimeFrom: weekStart,
-        startTimeTo: weekEnd,
-      }),
-      TrainingRepository.listWorkouts(athleteProfileId, weekStart, upcomingEnd),
-    ]);
+  const historyFrom = new Date();
+  historyFrom.setUTCMonth(historyFrom.getUTCMonth() - HISTORY_MONTHS);
+
+  const [
+    profile,
+    goals,
+    availability,
+    zoneSets,
+    recentActivities,
+    weekActivities,
+    upcomingWorkouts,
+    historyActivities,
+    totalActivitiesAllTime,
+    memoryEntries,
+    totalMemoryCount,
+  ] = await Promise.all([
+    AthleteRepository.findAthleteProfileById(athleteProfileId),
+    AthleteRepository.findAthleteGoals(athleteProfileId),
+    AthleteRepository.findAthleteAvailability(athleteProfileId),
+    AthleteRepository.findAthleteZoneSets(athleteProfileId),
+    ActivityRepository.findActivities(athleteProfileId, {}, RECENT_ACTIVITIES_LIMIT),
+    ActivityRepository.findActivities(athleteProfileId, {
+      startTimeFrom: weekStart,
+      startTimeTo: weekEnd,
+    }),
+    TrainingRepository.listWorkouts(athleteProfileId, weekStart, upcomingEnd),
+    ActivityRepository.findActivitiesForHistory(athleteProfileId, historyFrom),
+    ActivityRepository.countActivitiesAllTime(athleteProfileId),
+    CoachingMemoryRepository.findRecentEntries(athleteProfileId),
+    CoachingMemoryRepository.countEntries(athleteProfileId),
+  ]);
 
   if (profile == null) throw ApiError.notFound('Athlete profile not found');
 
@@ -153,6 +259,10 @@ export async function buildContext(athleteProfileId: string): Promise<AthleteCon
             status: w.status.toLowerCase(),
           }))
         : undefined,
+
+    trainingHistory: buildTrainingHistory(historyActivities, totalActivitiesAllTime),
+
+    coachingMemory: buildCoachingMemory(memoryEntries, totalMemoryCount),
   };
 }
 

@@ -40,6 +40,25 @@ export class OpenAiProvider implements AiProvider {
     return { data: parsed.data, rawOutput: raw };
   }
 
+  async generateMemoryEntry(prompt: BuiltPrompt): Promise<string> {
+    let response: OpenAI.Chat.ChatCompletion;
+    try {
+      response = await this.client.chat.completions.create({
+        model: this.model,
+        max_tokens: 256,
+        messages: [
+          { role: 'system', content: prompt.systemRole },
+          { role: 'user', content: prompt.userContent },
+        ],
+      });
+    } catch (err: unknown) {
+      if (err instanceof OpenAI.APIError && err.status === 429) throw ApiError.rateLimited();
+      throw ApiError.badGateway();
+    }
+
+    return response.choices[0]?.message.content?.trim() ?? '';
+  }
+
   private async callWithJsonFormat(prompt: BuiltPrompt): Promise<unknown> {
     let response: OpenAI.Chat.ChatCompletion;
     try {

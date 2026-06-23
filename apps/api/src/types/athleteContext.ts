@@ -110,6 +110,25 @@ export type AiPlannedWorkout = {
   status: string;
 };
 
+export type AiMonthlyTrainingSummary = {
+  month: string;
+  totalDurationSeconds: number;
+  totalDistanceMeters?: number;
+  activityCount: number;
+  sportBreakdown: Record<string, number>;
+};
+
+export type AiTrainingHistory = {
+  monthlyStats: AiMonthlyTrainingSummary[];
+  peakWeekDurationSeconds?: number;
+  totalActivitiesAllTime?: number;
+};
+
+export type AiCoachingMemory = {
+  recentEntries: string[];
+  olderSummary?: string;
+};
+
 export type AthleteContextForAi = {
   version: 'v1';
   generatedAt: string;
@@ -120,4 +139,6 @@ export type AthleteContextForAi = {
   recentActivities: AiRecentActivity[];
   currentWeek: AiCurrentWeek;
   plannedWorkouts?: AiPlannedWorkout[];
+  trainingHistory?: AiTrainingHistory;
+  coachingMemory?: AiCoachingMemory;
 };

@@ -78,6 +78,10 @@ export class MockProvider implements AiProvider {
     return { data, rawOutput: data };
   }
 
+  async generateMemoryEntry(_prompt: BuiltPrompt): Promise<string> {
+    return 'Recommended a base endurance running week with three sessions: one easy recovery run, one tempo effort, and a long easy run. Total planned volume is approximately 3.1 hours. Focus is on aerobic base building ahead of the target race.';
+  }
+
   async generateSingleWorkout(_prompt: BuiltPrompt): Promise<AiProviderResult<AiGeneratedSingleWorkout>> {
     const data: AiGeneratedSingleWorkout = {
       workout: {

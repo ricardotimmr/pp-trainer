@@ -60,6 +60,26 @@ export class AnthropicProvider implements AiProvider {
     return { data: parsed.data, rawOutput: raw };
   }
 
+  async generateMemoryEntry(prompt: BuiltPrompt): Promise<string> {
+    let response: Anthropic.Message;
+    try {
+      response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 256,
+        system: prompt.systemRole,
+        messages: [{ role: 'user', content: prompt.userContent }],
+      });
+    } catch (err: unknown) {
+      if (err instanceof Anthropic.APIError && err.status === 429) throw ApiError.rateLimited();
+      throw ApiError.badGateway();
+    }
+
+    const textBlock = response.content.find(
+      (block): block is Anthropic.TextBlock => block.type === 'text',
+    );
+    return textBlock?.text.trim() ?? '';
+  }
+
   private async callWithTool(
     prompt: BuiltPrompt,
     toolName: string,

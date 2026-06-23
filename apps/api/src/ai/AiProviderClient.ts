@@ -39,6 +39,17 @@ export async function generateWeekPlan(
   return provider.generateWeekPlan(prompt);
 }
 
+export async function generateMemoryEntry(
+  outputType: 'week_plan' | 'single_workout',
+  summary: string | null,
+  structuredOutput: unknown,
+): Promise<string> {
+  const provider = createProvider();
+  const { buildMemoryEntryPrompt } = await import('./PromptBuilder.js');
+  const prompt = buildMemoryEntryPrompt(outputType, summary, structuredOutput);
+  return provider.generateMemoryEntry(prompt);
+}
+
 export async function generateSingleWorkout(
   context: AthleteContextForAi,
   sport: string,

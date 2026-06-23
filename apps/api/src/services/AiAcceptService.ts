@@ -14,6 +14,7 @@ import { prisma } from '../lib/prisma.js';
 import { mapAiCoachOutput } from '../mappers/mapAi.js';
 import * as AiRepository from '../repositories/AiRepository.js';
 import * as AthleteRepository from '../repositories/AthleteRepository.js';
+import * as MemoryEntryService from './MemoryEntryService.js';
 import * as TrainingService from './TrainingService.js';
 
 function zoneNotesSuffix(step: AiGeneratedWorkoutStep): string {
@@ -129,10 +130,12 @@ export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | 
       createdWorkouts.push(workout);
     }
 
-    await AiRepository.updateOutput(outputId, {
+    const updatedOutput = await AiRepository.updateOutput(outputId, {
       status: 'Accepted',
       createdTrainingPlanId: createdPlan.id,
     });
+
+    void MemoryEntryService.generateAndPersistMemoryEntry(updatedOutput).catch(() => undefined);
 
     return { ...createdPlan, plannedWorkouts: createdWorkouts } satisfies TrainingPlanDto;
   }
@@ -154,10 +157,12 @@ export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | 
     data: { aiCoachOutputId: outputId },
   });
 
-  await AiRepository.updateOutput(outputId, {
+  const updatedSingleOutput = await AiRepository.updateOutput(outputId, {
     status: 'Accepted',
     createdPlannedWorkoutId: workout.id,
   });
+
+  void MemoryEntryService.generateAndPersistMemoryEntry(updatedSingleOutput).catch(() => undefined);
 
   return workout;
 }

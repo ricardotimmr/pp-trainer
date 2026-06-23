@@ -13,4 +13,5 @@ export type AiProviderResult<T> = {
 export interface AiProvider {
   generateWeekPlan(prompt: BuiltPrompt): Promise<AiProviderResult<AiGeneratedWeekPlan>>;
   generateSingleWorkout(prompt: BuiltPrompt): Promise<AiProviderResult<AiGeneratedSingleWorkout>>;
+  generateMemoryEntry(prompt: BuiltPrompt): Promise<string>;
 }

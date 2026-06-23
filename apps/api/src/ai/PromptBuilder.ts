@@ -117,6 +117,34 @@ export function buildWeekPlanPrompt(
   };
 }
 
+export function buildMemoryEntryPrompt(
+  outputType: 'week_plan' | 'single_workout',
+  summary: string | null,
+  structuredOutput: unknown,
+): BuiltPrompt {
+  const typeLabel = outputType === 'week_plan' ? 'training week plan' : 'single workout';
+  const summaryLine = summary != null ? `Summary: ${summary}` : '';
+
+  return {
+    systemRole: 'You are an expert endurance sports coach writing brief coaching diary entries. Be factual, concise, and coach-voice. Write in present perfect tense.',
+    userContent: [
+      `Write a 2–3 sentence coaching diary entry summarising this ${typeLabel} recommendation.`,
+      `Focus on the key training objective, estimated load, and any notable context.`,
+      `Write it as if you are the coach reflecting on what was recommended.`,
+      summaryLine,
+      '',
+      '## Structured Output',
+      '```json',
+      JSON.stringify(structuredOutput, null, 2),
+      '```',
+      '',
+      'Return only the diary entry text — no preamble, no JSON, no bullet points.',
+    ]
+      .filter(Boolean)
+      .join('\n'),
+  };
+}
+
 export function buildSingleWorkoutPrompt(
   context: AthleteContextForAi,
   sport: string,
