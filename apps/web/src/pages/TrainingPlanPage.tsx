@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import type {
@@ -501,6 +501,17 @@ function AllWorkoutsSection({ workouts, plans, onAssign, onDelete, assigning, na
   const [assigningFor, setAssigningFor] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!confirmDeleteId) return;
+    function handleOutside(e: MouseEvent) {
+      if (!(e.target as Element).closest('.tp-workout-row__delete')) {
+        setConfirmDeleteId(null);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [confirmDeleteId]);
 
   if (workouts.length === 0) return null;
 

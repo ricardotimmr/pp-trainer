@@ -3081,6 +3081,12 @@ button:focus-visible {
   padding: 8px 12px;
   border: 1.5px solid var(--color-line);
   border-radius: 10px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.tp-workout-row:hover {
+  border-color: var(--color-line-strong);
+  background: color-mix(in srgb, var(--color-ink) 3%, var(--color-paper));
 }
 
 /* Button spans the first two columns (badge + info) and subgrids them. */
