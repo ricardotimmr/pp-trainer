@@ -1,4 +1,9 @@
-import type { AiCoachOutputDto, GenerateWeekPlanRequest, GenerateWorkoutRequest } from '@pp-trainer/shared';
+import type {
+  AiCoachOutputDto,
+  GenerateWeekPlanRequest,
+  GenerateWorkoutRequest,
+  TrainingPlanDto,
+} from '@pp-trainer/shared';
 
 import { apiFetch } from './apiClient';
 
@@ -15,5 +20,21 @@ export async function generateWorkout(data: GenerateWorkoutRequest): Promise<AiC
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+  });
+}
+
+export async function getOutput(id: string): Promise<AiCoachOutputDto> {
+  return apiFetch<AiCoachOutputDto>(`/api/ai/outputs/${encodeURIComponent(id)}`);
+}
+
+export async function acceptOutput(id: string): Promise<TrainingPlanDto> {
+  return apiFetch<TrainingPlanDto>(`/api/ai/outputs/${encodeURIComponent(id)}/accept`, {
+    method: 'POST',
+  });
+}
+
+export async function rejectOutput(id: string): Promise<void> {
+  await apiFetch<{ success: true }>(`/api/ai/outputs/${encodeURIComponent(id)}/reject`, {
+    method: 'POST',
   });
 }

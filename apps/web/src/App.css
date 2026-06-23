@@ -4604,6 +4604,344 @@ button:focus-visible {
   font-style: italic;
 }
 
+/* ── AI Week Plan Preview Page ───────────────────────────────────────────── */
+
+.ai-preview-layout {
+  display: grid;
+  gap: 36px;
+  padding-bottom: 100px; /* room for sticky bar */
+}
+
+/* ── Plan header ── */
+
+.ai-preview-header {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-preview-header__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--color-ink);
+}
+
+.ai-preview-header__range {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.ai-preview-header__focus {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--color-text);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* ── Summary ── */
+
+.ai-preview-summary {
+  padding: 18px 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-left: 3px solid var(--color-accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.ai-preview-summary__label {
+  margin: 0 0 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.ai-preview-summary__text {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--color-text);
+}
+
+/* ── Workout list ── */
+
+.ai-preview-workouts {
+  display: grid;
+  gap: 16px;
+}
+
+.ai-preview-workout-list {
+  display: grid;
+  gap: 0;
+}
+
+/* ── Workout card ── */
+
+.ai-preview-workout {
+  padding: 18px 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.ai-preview-workout:last-child {
+  border-bottom: 1px solid var(--color-line);
+}
+
+.ai-preview-workout__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.ai-preview-workout__badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.ai-preview-workout__meta {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.ai-preview-workout__date {
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.ai-preview-workout__weekday {
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.ai-preview-workout__duration {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.ai-preview-workout__title {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.ai-preview-workout__objective {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+.ai-preview-workout__bar {
+  margin-bottom: 14px;
+}
+
+.ai-preview-workout__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--color-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  transition: color 0.15s;
+}
+
+.ai-preview-workout__toggle:hover {
+  color: var(--color-accent);
+}
+
+.ai-preview-workout__toggle-icon {
+  font-size: 0.6rem;
+}
+
+.ai-preview-workout__coach-notes {
+  margin: 12px 0 0;
+  font-size: 0.82rem;
+  color: var(--color-muted);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* ── Step list ── */
+
+.ai-preview-step-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.ai-preview-step {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: 8px 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-line);
+  align-items: start;
+  font-size: 0.83rem;
+}
+
+.ai-preview-step__type {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+  padding-top: 1px;
+}
+
+.ai-preview-step__instruction {
+  color: var(--color-text);
+  line-height: 1.45;
+}
+
+.ai-preview-step__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.ai-preview-step__targets {
+  font-size: 0.7rem;
+  color: var(--color-accent);
+}
+
+/* ── Status badge ── */
+
+.ai-preview-status {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ai-preview-status--accepted {
+  background: color-mix(in srgb, var(--color-int-easy) 12%, transparent);
+  color: var(--color-int-easy);
+}
+
+.ai-preview-status--rejected,
+.ai-preview-status--invalid {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  color: var(--color-accent);
+}
+
+.ai-preview-status--draft {
+  background: color-mix(in srgb, var(--color-muted) 12%, transparent);
+  color: var(--color-muted);
+}
+
+/* ── Action bar (sticky bottom) ── */
+
+.ai-preview-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--color-surface);
+  border-top: 1.5px solid var(--color-line);
+  box-shadow: 0 -8px 24px rgba(16, 16, 20, 0.06);
+}
+
+.ai-preview-bar__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 24px;
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-accent) 20%, transparent);
+  font-size: 0.85rem;
+  color: var(--color-ink);
+}
+
+.ai-preview-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+}
+
+.ai-preview-bar__confirm {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ai-preview-bar__confirm-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  margin-right: 4px;
+}
+
+/* ── Danger button variant ── */
+
+.button--danger {
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+.button--danger:hover {
+  background: var(--color-accent-dark);
+}
+
+/* ── Ghost button variant ── */
+
+.button--ghost {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.button--ghost:hover {
+  color: var(--color-ink);
+  border-color: var(--color-line);
+}
+
 /* ── AI Request Form ─────────────────────────────────────────────────────── */
 
 .ai-request-form {

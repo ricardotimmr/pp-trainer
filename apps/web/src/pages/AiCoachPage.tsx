@@ -108,7 +108,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
         setInvalidOutput(true);
         return;
       }
-      navigate(`/ai-coach/preview/${output.id}`);
+      navigate(`/ai-coach/preview/week-plan/${output.id}`);
     } catch (err) {
       const msg = err instanceof ApiClientError ? err.message : 'Netzwerkfehler. Bitte erneut versuchen.';
       setError(msg);
@@ -137,7 +137,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
         setInvalidOutput(true);
         return;
       }
-      navigate(`/ai-coach/preview/${output.id}`);
+      navigate(`/ai-coach/preview/workout/${output.id}`);
     } catch (err) {
       const msg = err instanceof ApiClientError ? err.message : 'Netzwerkfehler. Bitte erneut versuchen.';
       setError(msg);
