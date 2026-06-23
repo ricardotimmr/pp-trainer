@@ -4604,6 +4604,131 @@ button:focus-visible {
   font-style: italic;
 }
 
+/* ── AI Request Form ─────────────────────────────────────────────────────── */
+
+.ai-request-form {
+  display: grid;
+  gap: 28px;
+}
+
+.ai-request-form__fields {
+  display: grid;
+  gap: 18px;
+}
+
+.ai-request-form__textarea {
+  min-height: 96px;
+}
+
+.ai-request-form__select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23161418' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+.ai-request-form__actions {
+  padding-top: 8px;
+}
+
+.ai-form-optional {
+  color: var(--color-muted);
+  font-weight: 400;
+  font-size: 0.78em;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.cw-input-with-unit {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.cw-input-with-unit .cw-input {
+  padding-right: 40px;
+}
+
+.cw-input-with-unit__label {
+  position: absolute;
+  right: 12px;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  pointer-events: none;
+  font-family: var(--font-mono);
+}
+
+/* ── AI Loading State ────────────────────────────────────────────────────── */
+
+.ai-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 32px 0;
+}
+
+.ai-loading__spinner {
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid var(--color-line-strong);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: ai-spin 0.75s linear infinite;
+}
+
+@keyframes ai-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ai-loading__label {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.ai-loading__hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-muted);
+}
+
+/* ── AI Error Banner ─────────────────────────────────────────────────────── */
+
+.ai-error-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: var(--color-ink);
+  line-height: 1.5;
+}
+
+.ai-error-banner--warn {
+  background: color-mix(in srgb, #f59e0b 8%, transparent);
+  border-color: color-mix(in srgb, #f59e0b 40%, transparent);
+}
+
+.ai-error-banner__dismiss {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--color-muted);
+  padding: 0 2px;
+}
+
+.ai-error-banner__dismiss:hover {
+  color: var(--color-ink);
+}
+
 @media (max-width: 900px) {
   .ai-coach-layout {
     grid-template-columns: 1fr;

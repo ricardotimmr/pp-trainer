@@ -1,5 +1,6 @@
 import { ActivitiesPage } from '../pages/ActivitiesPage';
 import { ActivityDetailPage } from '../pages/ActivityDetailPage';
+import { AiCoachPage } from '../pages/AiCoachPage';
 import { AiCoachPreviewPage } from '../pages/AiCoachPreviewPage';
 import { CreateWorkoutPage } from '../pages/CreateWorkoutPage';
 import { DashboardPage } from '../pages/DashboardPage';
@@ -75,6 +76,13 @@ export const routes: RouteConfig[] = [
     path: '/ai-coach',
     label: 'AI Coach',
     navVisible: true,
+    component: AiCoachPage,
+  },
+  {
+    id: 'aiCoachPreview',
+    path: '/ai-coach/preview/:id',
+    label: 'AI Coach Preview',
+    navVisible: false,
     component: AiCoachPreviewPage,
   },
   {

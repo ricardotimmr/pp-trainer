@@ -10,6 +10,7 @@ export type RouteId =
   | 'workoutDetail'
   | 'performance'
   | 'aiCoach'
+  | 'aiCoachPreview'
   | 'settings'
   | 'import'
   | 'devUiShowcase'
