@@ -28,7 +28,7 @@ describe('CreateTrainingPlanRequestSchema', () => {
   });
 
   it('fails when title is missing', () => {
-    const { title: _, ...withoutTitle } = valid;
+    const { title: _title, ...withoutTitle } = valid;
     const result = CreateTrainingPlanRequestSchema.safeParse(withoutTitle);
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -104,7 +104,7 @@ describe('CreatePlannedWorkoutRequestSchema', () => {
   });
 
   it('fails when sport is missing', () => {
-    const { sport: _, ...withoutSport } = valid;
+    const { sport: _sport, ...withoutSport } = valid;
     const result = CreatePlannedWorkoutRequestSchema.safeParse(withoutSport);
     expect(result.success).toBe(false);
   });

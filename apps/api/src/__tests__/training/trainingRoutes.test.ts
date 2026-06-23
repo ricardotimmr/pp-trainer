@@ -391,7 +391,7 @@ describe('POST /api/workouts', () => {
 
   it('returns 400 for a missing required sport field', async () => {
     const app = buildTestApp();
-    const { sport: _, ...withoutSport } = validWorkoutBody;
+    const { sport: _sport, ...withoutSport } = validWorkoutBody;
     const res = await app.inject({
       method: 'POST',
       url: '/api/workouts',
