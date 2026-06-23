@@ -3092,6 +3092,12 @@ button:focus-visible {
   text-align: left;
 }
 
+.tp-workout-row__btn .badge--sport {
+  width: 90px;
+  flex-shrink: 0;
+  justify-content: flex-start;
+}
+
 .tp-workout-row__info {
   display: flex;
   flex-direction: column;
