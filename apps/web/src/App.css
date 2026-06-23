@@ -2852,6 +2852,40 @@ button:focus-visible {
   flex-wrap: wrap;
 }
 
+/* ── Week view toggle ─────────────────────────────────────────────────────── */
+
+.tp-week-toggle {
+  display: inline-flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border: 1.5px solid var(--color-line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tp-week-toggle__btn {
+  padding: 5px 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: none;
+  border: none;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.tp-week-toggle__btn + .tp-week-toggle__btn {
+  border-left: 1.5px solid var(--color-line);
+}
+
+.tp-week-toggle__btn.is-active {
+  background: var(--color-ink);
+  color: var(--color-bg);
+}
+
 /* ── Plan list section ────────────────────────────────────────────────────── */
 
 .tp-plans {

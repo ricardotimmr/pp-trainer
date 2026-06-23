@@ -576,6 +576,7 @@ type WeekPlanContentProps = {
   summaryItems: { label: string; value: string }[];
   navigate: PageComponentProps['navigate'];
   actions?: React.ReactNode;
+  viewToggle?: React.ReactNode;
   footer?: React.ReactNode;
 };
 
@@ -588,6 +589,7 @@ function WeekPlanContent({
   summaryItems,
   navigate,
   actions,
+  viewToggle,
   footer,
 }: WeekPlanContentProps) {
   const weekRange = formatWeekRange(weekStart, weekEnd);
@@ -610,6 +612,8 @@ function WeekPlanContent({
           </div>
         ))}
       </dl>
+
+      {viewToggle}
 
       {workouts.length === 0 ? (
         <EmptyState
@@ -724,6 +728,7 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
   const [activating, setActivating] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
+  const [weekView, setWeekView] = useState<'all' | 'plan'>('all');
 
   function refreshAll() {
     weekPlanState.refresh();
@@ -763,6 +768,27 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
 
   const plans = plansState.status === 'success' ? plansState.plans : [];
   const allWorkouts = workoutsState.status === 'success' ? workoutsState.workouts : [];
+
+  const activePlanId = weekPlanState.status === 'success' ? weekPlanState.plan?.id : undefined;
+
+  const viewToggle = activePlanId ? (
+    <div className="tp-week-toggle">
+      <button
+        type="button"
+        className={`tp-week-toggle__btn${weekView === 'all' ? ' is-active' : ''}`}
+        onClick={() => setWeekView('all')}
+      >
+        All this week
+      </button>
+      <button
+        type="button"
+        className={`tp-week-toggle__btn${weekView === 'plan' ? ' is-active' : ''}`}
+        onClick={() => setWeekView('plan')}
+      >
+        Active plan only
+      </button>
+    </div>
+  ) : null;
 
   const sideContent = (
     <>
@@ -813,18 +839,27 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
     );
   }
 
-  const rendered = weekPlanState.plan ? (
-    <WeekPlanContent
-      title={weekPlanState.plan.title}
-      description={weekPlanState.plan.description}
-      weekStart={weekStart}
-      weekEnd={weekEnd}
-      workouts={weekPlanState.plan.plannedWorkouts as WorkoutCardData[]}
-      summaryItems={buildApiSummaryItems(weekPlanState.plan.plannedWorkouts)}
-      navigate={navigate}
-      actions={headerActions}
-      footer={sideContent}
-    />
+  const rendered = weekPlanState.plan ? (() => {
+    const allWeekWorkouts = weekPlanState.plan.plannedWorkouts;
+    const displayedWorkouts = weekView === 'plan' && activePlanId
+      ? allWeekWorkouts.filter((w) => w.trainingPlanId === activePlanId)
+      : allWeekWorkouts;
+
+    return (
+      <WeekPlanContent
+        title={weekPlanState.plan.title}
+        description={weekPlanState.plan.description}
+        weekStart={weekStart}
+        weekEnd={weekEnd}
+        workouts={displayedWorkouts as WorkoutCardData[]}
+        summaryItems={buildApiSummaryItems(displayedWorkouts)}
+        navigate={navigate}
+        actions={headerActions}
+        viewToggle={viewToggle}
+        footer={sideContent}
+      />
+    );
+  })() :
   ) : (
     <PageShell
       title="Training Plan"
