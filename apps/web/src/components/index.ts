@@ -9,6 +9,8 @@ export { ActivitySummaryStats } from './data/ActivitySummaryStats';
 export { WorkoutStepList } from './data/WorkoutStepList';
 export type { WorkoutStepData } from './data/WorkoutStepList';
 export { DashboardWidget } from './layout/DashboardWidget';
+export { SelectMenu } from './SelectMenu';
+export type { SelectMenuOption } from './SelectMenu';
 export { EmptyState } from './states/EmptyState';
 export { ErrorState } from './states/ErrorState';
 export { LoadingState } from './states/LoadingState';

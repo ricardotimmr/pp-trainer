@@ -2,7 +2,8 @@ import { type FormEvent, useState } from 'react';
 
 import type { GenerateWeekPlanRequest, GenerateWorkoutRequest } from '@pp-trainer/shared';
 
-import { SportBadge } from '../components';
+import { SelectMenu, SportBadge } from '../components';
+import type { SelectMenuOption } from '../components';
 import { generateWeekPlan, generateWorkout } from '../api/aiApi';
 import { ApiClientError } from '../api/apiClient';
 import { usePrototypeAthleteContext } from '../context/prototypeAthleteContextValue';
@@ -16,16 +17,16 @@ const WEEKDAY_SHORT: Record<string, string> = {
   thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun',
 };
 
-const SPORT_OPTIONS = [
+const SPORT_OPTIONS: SelectMenuOption[] = [
   { value: 'running', label: 'Running' },
   { value: 'cycling', label: 'Cycling' },
   { value: 'swimming', label: 'Swimming' },
   { value: 'strength', label: 'Strength' },
   { value: 'mobility', label: 'Mobility' },
   { value: 'other', label: 'Other' },
-] as const;
+];
 
-const INTENSITY_OPTIONS = [
+const INTENSITY_OPTIONS: SelectMenuOption[] = [
   { value: 'recovery', label: 'Recovery' },
   { value: 'easy', label: 'Easy' },
   { value: 'moderate', label: 'Moderate' },
@@ -34,7 +35,7 @@ const INTENSITY_OPTIONS = [
   { value: 'vo2max', label: 'VO₂max' },
   { value: 'race', label: 'Race' },
   { value: 'strength', label: 'Strength' },
-] as const;
+];
 
 function formatRunPace(secPerKm: number): string {
   const min = Math.floor(secPerKm / 60);
@@ -430,34 +431,26 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
                         <label className="cw-label cw-label--required" htmlFor="sport">
                           Sportart
                         </label>
-                        <select
+                        <SelectMenu
                           id="sport"
-                          className="cw-input ai-request-form__select"
                           value={sport}
-                          onChange={(e) => setSport(e.target.value)}
-                          required
-                        >
-                          {SPORT_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>{o.label}</option>
-                          ))}
-                        </select>
+                          options={SPORT_OPTIONS}
+                          onChange={setSport}
+                          disabled={loading}
+                        />
                       </div>
 
                       <div className="cw-field">
                         <label className="cw-label cw-label--required" htmlFor="intensity">
                           Intensität
                         </label>
-                        <select
+                        <SelectMenu
                           id="intensity"
-                          className="cw-input ai-request-form__select"
                           value={intensity}
-                          onChange={(e) => setIntensity(e.target.value)}
-                          required
-                        >
-                          {INTENSITY_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>{o.label}</option>
-                          ))}
-                        </select>
+                          options={INTENSITY_OPTIONS}
+                          onChange={setIntensity}
+                          disabled={loading}
+                        />
                       </div>
 
                       <div className="cw-field cw-field--metric">
