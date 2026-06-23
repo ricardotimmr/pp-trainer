@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import type {
@@ -104,7 +104,7 @@ type PlanFormFields = {
   startDate: string;
   endDate: string;
   description: string;
-  status: 'draft' | 'active';
+  status: TrainingPlanStatus;
 };
 
 type PlanFormProps = {
@@ -112,9 +112,12 @@ type PlanFormProps = {
   onChange: (f: PlanFormFields) => void;
   disabled: boolean;
   idPrefix: string;
+  showStatus?: boolean;
 };
 
-function PlanForm({ fields, onChange, disabled, idPrefix }: PlanFormProps) {
+const PLAN_STATUS_OPTIONS: TrainingPlanStatus[] = ['draft', 'active', 'completed', 'archived'];
+
+function PlanForm({ fields, onChange, disabled, idPrefix, showStatus = true }: PlanFormProps) {
   return (
     <>
       <div className="cw-field cw-field--full">
@@ -163,24 +166,26 @@ function PlanForm({ fields, onChange, disabled, idPrefix }: PlanFormProps) {
           disabled={disabled}
         />
       </div>
-      <div className="cw-field cw-field--full">
-        <span className="cw-label">Status</span>
-        <div className="tp-status-radios">
-          {(['draft', 'active'] as const).map((s) => (
-            <label key={s} className={`tp-status-radio${fields.status === s ? ' is-selected' : ''}`}>
-              <input
-                type="radio"
-                name={`${idPrefix}-status`}
-                value={s}
-                checked={fields.status === s}
-                onChange={() => onChange({ ...fields, status: s })}
-                disabled={disabled}
-              />
-              {planStatusLabels[s]}
-            </label>
-          ))}
+      {showStatus && (
+        <div className="cw-field cw-field--full">
+          <span className="cw-label">Status</span>
+          <div className="tp-status-radios">
+            {PLAN_STATUS_OPTIONS.map((s) => (
+              <label key={s} className={`tp-status-radio${fields.status === s ? ' is-selected' : ''}`}>
+                <input
+                  type="radio"
+                  name={`${idPrefix}-status`}
+                  value={s}
+                  checked={fields.status === s}
+                  onChange={() => onChange({ ...fields, status: s })}
+                  disabled={disabled}
+                />
+                {planStatusLabels[s]}
+              </label>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
@@ -265,7 +270,7 @@ function EditPlanModal({ plan, onClose, onSuccess }: EditPlanModalProps) {
     startDate: plan.startDate,
     endDate: plan.endDate,
     description: plan.description ?? '',
-    status: plan.status === 'active' ? 'active' : 'draft',
+    status: plan.status,
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -303,7 +308,7 @@ function EditPlanModal({ plan, onClose, onSuccess }: EditPlanModalProps) {
           <button type="button" className="cw-modal__close" onClick={onClose} aria-label="Close">✕</button>
         </div>
         <form className="cw-modal__body" onSubmit={handleSubmit} noValidate>
-          <PlanForm fields={fields} onChange={setFields} disabled={submitting} idPrefix="ep" />
+          <PlanForm fields={fields} onChange={setFields} disabled={submitting} idPrefix="ep" showStatus={false} />
           {error && <p className="cw-form__error">{error}</p>}
           <div className="cw-modal__footer">
             <button type="button" className="btn btn--secondary btn--sm" onClick={onClose} disabled={submitting}>Cancel</button>
@@ -792,17 +797,17 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
   const [weekView, setWeekView] = useState<'all' | 'plan'>('plan');
   const [actionError, setActionError] = useState<string | null>(null);
 
-  function refreshAll() {
+  const refreshAll = useCallback(() => {
     weekPlanState.refresh();
     plansState.refresh();
     workoutsState.refresh();
-  }
+  }, [weekPlanState.refresh, plansState.refresh, workoutsState.refresh]);
 
   async function handleActivate(id: string) {
     setActivating(id);
     setActionError(null);
     try {
-      await updateTrainingPlan(id, { status: 'active' } as UpdateTrainingPlanRequest);
+      await updateTrainingPlan(id, { status: 'active' });
       refreshAll();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Failed to activate plan.');

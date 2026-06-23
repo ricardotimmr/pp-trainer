@@ -12,7 +12,9 @@ import type {
 
 import { ApiError } from '../errors/ApiError.js';
 import {
+  DTO_TO_PRISMA_PLANNED_WORKOUT_SOURCE_MAP,
   DTO_TO_PRISMA_SPORT_MAP,
+  DTO_TO_PRISMA_TRAINING_PLAN_SOURCE_MAP,
   DTO_TO_PRISMA_TRAINING_PLAN_STATUS_MAP,
   DTO_TO_PRISMA_WORKOUT_INTENSITY_MAP,
   DTO_TO_PRISMA_WORKOUT_STATUS_MAP,
@@ -83,16 +85,21 @@ export async function createTrainingPlan(
   const profile = await AthleteRepository.findFirstAthleteProfile();
   if (!profile) throw ApiError.notFound('No athlete profile found');
 
+  const prismaStatus = DTO_TO_PRISMA_TRAINING_PLAN_STATUS_MAP[data.status];
   const plan = await TrainingRepository.createTrainingPlan({
     athleteProfileId: profile.id,
     title: data.title,
     ...(data.description != null && { description: data.description }),
     startDate: new Date(data.startDate),
     endDate: new Date(data.endDate),
-    status: DTO_TO_PRISMA_TRAINING_PLAN_STATUS_MAP[data.status],
-    source: 'Manual',
+    status: prismaStatus,
+    source: DTO_TO_PRISMA_TRAINING_PLAN_SOURCE_MAP[data.source ?? 'manual'],
     ...(data.goalId != null && { goalId: data.goalId }),
   });
+
+  if (prismaStatus === 'Active') {
+    await TrainingRepository.deactivateOtherActivePlans(profile.id, plan.id);
+  }
 
   return mapTrainingPlan(plan);
 }
@@ -104,14 +111,30 @@ export async function updateTrainingPlan(
   const existing = await TrainingRepository.findTrainingPlanById(id);
   if (!existing) throw ApiError.notFound('Training plan not found');
 
+  // M2: cross-check dates against existing values when only one side is updated
+  const newStart = data.startDate ? new Date(data.startDate) : existing.startDate;
+  const newEnd = data.endDate ? new Date(data.endDate) : existing.endDate;
+  if (newEnd < newStart) {
+    throw ApiError.badRequest('endDate must be on or after startDate');
+  }
+
+  const prismaStatus = data.status != null
+    ? DTO_TO_PRISMA_TRAINING_PLAN_STATUS_MAP[data.status]
+    : undefined;
+
   const plan = await TrainingRepository.updateTrainingPlan(id, {
     ...(data.title != null && { title: data.title }),
     ...(data.description !== undefined && { description: data.description }),
-    ...(data.startDate != null && { startDate: new Date(data.startDate) }),
-    ...(data.endDate != null && { endDate: new Date(data.endDate) }),
-    ...(data.status != null && { status: DTO_TO_PRISMA_TRAINING_PLAN_STATUS_MAP[data.status] }),
+    ...(data.startDate != null && { startDate: newStart }),
+    ...(data.endDate != null && { endDate: newEnd }),
+    ...(prismaStatus != null && { status: prismaStatus }),
     ...(data.goalId !== undefined && { goalId: data.goalId }),
   });
+
+  // H3: enforce single-active-plan
+  if (prismaStatus === 'Active') {
+    await TrainingRepository.deactivateOtherActivePlans(existing.athleteProfileId, id);
+  }
 
   return mapTrainingPlan(plan);
 }
@@ -179,7 +202,7 @@ export async function createWorkout(
     ...(data.objective != null && { objective: data.objective }),
     ...(data.description != null && { description: data.description }),
     ...(data.coachNotes != null && { coachNotes: data.coachNotes }),
-    source: 'Manual',
+    source: DTO_TO_PRISMA_PLANNED_WORKOUT_SOURCE_MAP[data.source ?? 'manual'],
     steps: data.steps.map(mapStepRequest),
   });
 
@@ -221,10 +244,10 @@ export async function deleteWorkout(id: string): Promise<void> {
   await TrainingRepository.deletePlannedWorkout(id);
 }
 
-export async function listWorkouts(): Promise<PlannedWorkoutDto[]> {
+export async function listWorkouts(from?: Date, to?: Date): Promise<PlannedWorkoutDto[]> {
   const profile = await AthleteRepository.findFirstAthleteProfile();
   if (!profile) return [];
-  const workouts = await TrainingRepository.listWorkouts(profile.id);
+  const workouts = await TrainingRepository.listWorkouts(profile.id, from, to);
   return workouts.map(mapPlannedWorkout);
 }
 

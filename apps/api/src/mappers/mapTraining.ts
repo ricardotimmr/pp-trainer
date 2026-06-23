@@ -73,7 +73,7 @@ export function mapPlannedWorkout(workout: WorkoutWithSteps): PlannedWorkoutDto 
     ...(workout.description != null && { description: workout.description }),
     ...(workout.coachNotes != null && { coachNotes: workout.coachNotes }),
     source: PLANNED_WORKOUT_SOURCE_MAP[workout.source],
-    steps: [...workout.steps].sort((a, b) => a.stepIndex - b.stepIndex).map(mapWorkoutStep),
+    steps: workout.steps.map(mapWorkoutStep),
   };
 }
 

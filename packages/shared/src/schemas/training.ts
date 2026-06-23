@@ -95,7 +95,11 @@ const TrainingPlanFieldsSchema = z.object({
   goalId: IdSchema.optional(),
 });
 
-export const CreateTrainingPlanRequestSchema = TrainingPlanFieldsSchema.refine(
+const TrainingPlanCreateFieldsSchema = TrainingPlanFieldsSchema.extend({
+  source: TrainingPlanSourceSchema.optional(),
+});
+
+export const CreateTrainingPlanRequestSchema = TrainingPlanCreateFieldsSchema.refine(
   (d) => d.endDate >= d.startDate,
   { message: 'endDate must be on or after startDate', path: ['endDate'] },
 );
@@ -152,6 +156,7 @@ export const CreatePlannedWorkoutRequestSchema = z.object({
   objective: z.string().optional(),
   description: z.string().optional(),
   coachNotes: z.string().optional(),
+  source: PlannedWorkoutSourceSchema.optional(),
   steps: z.array(CreateWorkoutStepRequestSchema).default([]),
 });
 

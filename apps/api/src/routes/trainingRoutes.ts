@@ -73,8 +73,12 @@ export async function trainingRoutes(app: FastifyInstance): Promise<void> {
     return reply.status(200).send(plan);
   });
 
-  app.get('/api/workouts', async () => {
-    return TrainingService.listWorkouts();
+  app.get('/api/workouts', async (request) => {
+    const { from, to } = request.query as { from?: string; to?: string };
+    return TrainingService.listWorkouts(
+      from ? new Date(from) : undefined,
+      to ? new Date(to) : undefined,
+    );
   });
 
   app.get('/api/workouts/:id', async (request) => {

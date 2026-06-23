@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { PlannedWorkoutDto, UpdateWorkoutStatusRequest } from '@pp-trainer/shared';
 
@@ -22,9 +22,10 @@ import { getWorkoutById, getWorkoutSteps } from '../mock/prototypeData.helpers';
 import type {
   SportType,
   WorkoutIntensity,
-  WorkoutStatus,
 } from '../mock/prototypeData.types';
 import type { PageComponentProps } from '../routes/routeTypes';
+
+type WorkoutStatus = PlannedWorkoutDto['status'];
 
 type WorkoutDetailData = {
   id: string;
@@ -56,6 +57,9 @@ function getStatusActions(status: WorkoutStatus): StatusAction[] {
   }
   if (status === 'cancelled') {
     return [{ label: 'Reopen as Planned', next: 'planned' }];
+  }
+  if (status === 'moved' || status === 'adjusted') {
+    return [{ label: 'Reset to Planned', next: 'planned' }];
   }
   return [];
 }
@@ -295,6 +299,16 @@ function WorkoutDetailApiMode({ params, navigate }: PageComponentProps) {
   const state = useWorkout(id);
   const [workoutOverride, setWorkoutOverride] = useState<PlannedWorkoutDto | null>(null);
 
+  // L8: clear the local override once the hook delivers fresh data after a refresh
+  const hookWorkout = state.status === 'success' ? state.workout : null;
+  const prevHookWorkout = useRef(hookWorkout);
+  useEffect(() => {
+    if (hookWorkout !== null && hookWorkout !== prevHookWorkout.current) {
+      prevHookWorkout.current = hookWorkout;
+      setWorkoutOverride(null);
+    }
+  }, [hookWorkout]);
+
   if (state.status === 'loading') {
     return (
       <PageShell title="Workout" eyebrow="Workout detail">
@@ -323,6 +337,7 @@ function WorkoutDetailApiMode({ params, navigate }: PageComponentProps) {
 
   function handleStatusSuccess(updated: PlannedWorkoutDto) {
     setWorkoutOverride(updated);
+    state.refresh();
     refreshWeekPlan();
   }
 
@@ -333,7 +348,7 @@ function WorkoutDetailApiMode({ params, navigate }: PageComponentProps) {
       statusActions={
         <WorkoutStatusActions
           workoutId={id}
-          status={workout.status as WorkoutStatus}
+          status={workout.status}
           onSuccess={handleStatusSuccess}
         />
       }

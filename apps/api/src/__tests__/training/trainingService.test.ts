@@ -7,6 +7,11 @@ import {
   createWorkout,
   deleteTrainingPlan,
   deleteWorkout,
+  getCurrentWeekPlan,
+  getTrainingPlanById,
+  getWorkoutById,
+  listTrainingPlans,
+  listWorkouts,
   updateTrainingPlan,
   updateWorkout,
 } from '../../services/TrainingService.js';
@@ -71,6 +76,111 @@ const minimalWorkoutInput = {
   steps: [] as never[],
 };
 
+// ── getCurrentWeekPlan() ──────────────────────────────────────────────────────
+
+describe('getCurrentWeekPlan()', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('returns null plan when no athlete profile exists', async () => {
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(null);
+    const result = await getCurrentWeekPlan();
+    expect(result).toEqual({ currentTrainingPlan: null });
+  });
+
+  it('returns null plan when no active plan found', async () => {
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(mockProfile);
+    vi.mocked(TrainingRepository.findActivePlanWithWeekWorkouts).mockResolvedValue(null);
+    const result = await getCurrentWeekPlan();
+    expect(result).toEqual({ currentTrainingPlan: null });
+  });
+
+  it('returns mapped plan when active plan exists', async () => {
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(mockProfile);
+    vi.mocked(TrainingRepository.findActivePlanWithWeekWorkouts).mockResolvedValue(mockPlanRow);
+    const result = await getCurrentWeekPlan();
+    expect(result.currentTrainingPlan).not.toBeNull();
+    expect(result.currentTrainingPlan?.id).toBe('plan-1');
+  });
+});
+
+// ── getTrainingPlanById() ─────────────────────────────────────────────────────
+
+describe('getTrainingPlanById()', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('throws 404 when plan does not exist', async () => {
+    vi.mocked(TrainingRepository.findTrainingPlanById).mockResolvedValue(null);
+    await expect(getTrainingPlanById('no-such-plan')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('returns mapped plan when plan exists', async () => {
+    vi.mocked(TrainingRepository.findTrainingPlanById).mockResolvedValue(mockPlanRow);
+    const result = await getTrainingPlanById('plan-1');
+    expect(result.id).toBe('plan-1');
+    expect(result.title).toBe('Base Phase');
+  });
+});
+
+// ── getWorkoutById() ──────────────────────────────────────────────────────────
+
+describe('getWorkoutById()', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('throws 404 when workout does not exist', async () => {
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(null);
+    await expect(getWorkoutById('no-such-workout')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('returns mapped workout when workout exists', async () => {
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(mockWorkoutRow);
+    const result = await getWorkoutById('wo-1');
+    expect(result.id).toBe('wo-1');
+    expect(result.title).toBe('Easy Run');
+    expect(result.sport).toBe('running');
+  });
+});
+
+// ── listTrainingPlans() ───────────────────────────────────────────────────────
+
+describe('listTrainingPlans()', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('returns empty array when no athlete profile exists', async () => {
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(null);
+    const result = await listTrainingPlans();
+    expect(result).toEqual([]);
+  });
+
+  it('returns mapped summaries when plans exist', async () => {
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(mockProfile);
+    vi.mocked(TrainingRepository.listTrainingPlans).mockResolvedValue([mockPlanRow]);
+    const result = await listTrainingPlans();
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('plan-1');
+  });
+});
+
+// ── listWorkouts() ────────────────────────────────────────────────────────────
+
+describe('listWorkouts()', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('returns empty array when no athlete profile exists', async () => {
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(null);
+    const result = await listWorkouts();
+    expect(result).toEqual([]);
+  });
+
+  it('passes date range params to repository', async () => {
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(mockProfile);
+    vi.mocked(TrainingRepository.listWorkouts).mockResolvedValue([mockWorkoutRow]);
+    const from = new Date('2024-06-01');
+    const to = new Date('2024-06-30');
+    await listWorkouts(from, to);
+    expect(TrainingRepository.listWorkouts).toHaveBeenCalledWith('profile-1', from, to);
+  });
+});
+
 // ── createTrainingPlan() ──────────────────────────────────────────────────────
 
 describe('createTrainingPlan()', () => {
@@ -83,6 +193,31 @@ describe('createTrainingPlan()', () => {
     expect(TrainingRepository.createTrainingPlan).toHaveBeenCalledWith(
       expect.objectContaining({ athleteProfileId: 'profile-1', source: 'Manual' }),
     );
+  });
+
+  it('uses provided source value', async () => {
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(mockProfile);
+    vi.mocked(TrainingRepository.createTrainingPlan).mockResolvedValue(mockPlanRow);
+    await createTrainingPlan({ ...minimalPlanInput, source: 'ai_generated' });
+    expect(TrainingRepository.createTrainingPlan).toHaveBeenCalledWith(
+      expect.objectContaining({ source: 'AiGenerated' }),
+    );
+  });
+
+  it('deactivates other active plans when creating an active plan (H3)', async () => {
+    // mockPlanRow already has status: 'Active'
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(mockProfile);
+    vi.mocked(TrainingRepository.createTrainingPlan).mockResolvedValue(mockPlanRow);
+    vi.mocked(TrainingRepository.deactivateOtherActivePlans).mockResolvedValue(undefined);
+    await createTrainingPlan({ ...minimalPlanInput, status: 'active' });
+    expect(TrainingRepository.deactivateOtherActivePlans).toHaveBeenCalledWith('profile-1', 'plan-1');
+  });
+
+  it('does not call deactivateOtherActivePlans for a draft plan', async () => {
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(mockProfile);
+    vi.mocked(TrainingRepository.createTrainingPlan).mockResolvedValue(mockPlanRow);
+    await createTrainingPlan(minimalPlanInput);
+    expect(TrainingRepository.deactivateOtherActivePlans).not.toHaveBeenCalled();
   });
 
   it('throws 404 when no athlete profile exists', async () => {
@@ -113,6 +248,37 @@ describe('updateTrainingPlan()', () => {
       'plan-1',
       expect.objectContaining({ title: 'Updated Title' }),
     );
+  });
+
+  it('throws BAD_REQUEST when new startDate would be after existing endDate (M2)', async () => {
+    const plan = Object.assign({}, mockPlanRow, { endDate: new Date('2024-06-10') }) as never;
+    vi.mocked(TrainingRepository.findTrainingPlanById).mockResolvedValue(plan);
+    await expect(
+      updateTrainingPlan('plan-1', { startDate: '2024-08-01' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('throws BAD_REQUEST when new endDate would be before existing startDate (M2)', async () => {
+    const plan = Object.assign({}, mockPlanRow, { startDate: new Date('2024-06-03') }) as never;
+    vi.mocked(TrainingRepository.findTrainingPlanById).mockResolvedValue(plan);
+    await expect(
+      updateTrainingPlan('plan-1', { endDate: '2024-05-01' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('deactivates other active plans when activating (H3)', async () => {
+    vi.mocked(TrainingRepository.findTrainingPlanById).mockResolvedValue(mockPlanRow);
+    vi.mocked(TrainingRepository.updateTrainingPlan).mockResolvedValue(mockPlanRow);
+    vi.mocked(TrainingRepository.deactivateOtherActivePlans).mockResolvedValue(undefined);
+    await updateTrainingPlan('plan-1', { status: 'active' });
+    expect(TrainingRepository.deactivateOtherActivePlans).toHaveBeenCalledWith('profile-1', 'plan-1');
+  });
+
+  it('does not call deactivateOtherActivePlans when status stays draft', async () => {
+    vi.mocked(TrainingRepository.findTrainingPlanById).mockResolvedValue(mockPlanRow);
+    vi.mocked(TrainingRepository.updateTrainingPlan).mockResolvedValue(mockPlanRow);
+    await updateTrainingPlan('plan-1', { title: 'No Status Change' });
+    expect(TrainingRepository.deactivateOtherActivePlans).not.toHaveBeenCalled();
   });
 });
 

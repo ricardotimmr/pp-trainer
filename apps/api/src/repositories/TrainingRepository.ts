@@ -203,9 +203,18 @@ export async function deletePlannedWorkout(id: string): Promise<void> {
   await prisma.plannedWorkout.delete({ where: { id } });
 }
 
-export async function listWorkouts(athleteProfileId: string): Promise<WorkoutWithSteps[]> {
+export async function listWorkouts(
+  athleteProfileId: string,
+  from?: Date,
+  to?: Date,
+): Promise<WorkoutWithSteps[]> {
   return prisma.plannedWorkout.findMany({
-    where: { athleteProfileId },
+    where: {
+      athleteProfileId,
+      ...(from != null || to != null
+        ? { scheduledDate: { ...(from != null && { gte: from }), ...(to != null && { lte: to }) } }
+        : {}),
+    },
     include: { steps: { orderBy: { stepIndex: 'asc' } } },
     orderBy: { scheduledDate: 'desc' },
   });
@@ -215,12 +224,12 @@ export async function deleteTrainingPlan(id: string): Promise<void> {
   await prisma.trainingPlan.delete({ where: { id } });
 }
 
-export async function findWorkoutsByTrainingPlan(
-  trainingPlanId: string,
-): Promise<WorkoutWithSteps[]> {
-  return prisma.plannedWorkout.findMany({
-    where: { trainingPlanId },
-    include: { steps: { orderBy: { stepIndex: 'asc' } } },
-    orderBy: { scheduledDate: 'asc' },
+export async function deactivateOtherActivePlans(
+  athleteProfileId: string,
+  excludeId: string,
+): Promise<void> {
+  await prisma.trainingPlan.updateMany({
+    where: { athleteProfileId, status: 'Active', id: { not: excludeId } },
+    data: { status: 'Draft' },
   });
 }

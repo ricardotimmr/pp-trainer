@@ -82,7 +82,7 @@ type SubStepDraft = {
   distanceKm: string;
   targetFrom: string;
   targetTo: string;
-  targetReps: string;
+  repetitions: string;
 };
 
 type SingleStep = {
@@ -95,7 +95,6 @@ type SingleStep = {
   repetitions: string;
   targetFrom: string;
   targetTo: string;
-  targetReps: string;
 };
 
 type RepeatBlock = {
@@ -114,11 +113,11 @@ function uid(): string {
 }
 
 function newSingleStep(stepType = 'main'): SingleStep {
-  return { kind: 'step', key: uid(), stepType, instruction: '', durationMinutes: '', distanceKm: '', repetitions: '', targetFrom: '', targetTo: '', targetReps: '' };
+  return { kind: 'step', key: uid(), stepType, instruction: '', durationMinutes: '', distanceKm: '', repetitions: '', targetFrom: '', targetTo: '' };
 }
 
 function newSubStep(stepType = 'interval'): SubStepDraft {
-  return { key: uid(), stepType, instruction: '', durationMinutes: '', distanceKm: '', targetFrom: '', targetTo: '', targetReps: '' };
+  return { key: uid(), stepType, instruction: '', durationMinutes: '', distanceKm: '', targetFrom: '', targetTo: '', repetitions: '' };
 }
 
 function newRepeatBlock(): RepeatBlock {
@@ -186,12 +185,11 @@ function buildStepsPayload(items: SessionItem[], sport: string): CreateWorkoutSt
     repetitions?: string,
     targetFrom?: string,
     targetTo?: string,
-    targetReps?: string,
   ) => {
     const step: CreateWorkoutStepRequest = {
       stepIndex: idx++,
       stepType: stepType as CreateWorkoutStepRequest['stepType'],
-      instruction: instruction.trim() || '—',
+      instruction: instruction.trim(),
     };
     const dur = parseFloat(durationMinutes);
     if (!isNaN(dur) && dur > 0) step.durationSeconds = Math.round(dur * 60);
@@ -217,9 +215,6 @@ function buildStepsPayload(items: SessionItem[], sport: string): CreateWorkoutSt
       const hi = parseInt(targetTo ?? '');
       if (!isNaN(lo) && lo > 0) step.targetPowerLowerWatts = lo;
       if (!isNaN(hi) && hi > 0) step.targetPowerUpperWatts = hi;
-    } else if (targetReps) {
-      const reps = parseInt(targetReps);
-      if (!isNaN(reps) && reps > 0) step.repetitions = reps;
     }
 
     steps.push(step);
@@ -227,12 +222,12 @@ function buildStepsPayload(items: SessionItem[], sport: string): CreateWorkoutSt
 
   for (const item of items) {
     if (item.kind === 'step') {
-      addStep(item.stepType, item.instruction, item.durationMinutes, item.distanceKm, item.repetitions, item.targetFrom, item.targetTo, item.targetReps);
+      addStep(item.stepType, item.instruction, item.durationMinutes, item.distanceKm, item.repetitions, item.targetFrom, item.targetTo);
     } else {
       const c = Math.max(1, item.count || 1);
       for (let r = 0; r < c; r++) {
         for (const sub of item.steps) {
-          addStep(sub.stepType, sub.instruction, sub.durationMinutes, sub.distanceKm, undefined, sub.targetFrom, sub.targetTo, sub.targetReps);
+          addStep(sub.stepType, sub.instruction, sub.durationMinutes, sub.distanceKm, sub.repetitions, sub.targetFrom, sub.targetTo);
         }
       }
     }
@@ -257,7 +252,7 @@ function getSportIntensityConfig(sport: string): SportIntensityConfig | null {
 }
 
 function formatCardIntensity(
-  item: { targetFrom: string; targetTo: string; targetReps: string },
+  item: { targetFrom: string; targetTo: string; repetitions: string },
   sport: string,
 ): string | null {
   const cfg = getSportIntensityConfig(sport);
@@ -269,7 +264,7 @@ function formatCardIntensity(
     if (item.targetFrom && item.targetTo) return `${item.targetFrom} – ${item.targetTo} W`;
     if (item.targetFrom) return `${item.targetFrom} W`;
   } else if (cfg.type === 'reps') {
-    if (item.targetReps) return `${item.targetReps} reps`;
+    if (item.repetitions) return `${item.repetitions} reps`;
   }
   return null;
 }
@@ -450,8 +445,8 @@ function RepeatBlockCard({ item, onEdit, onRemove }: { item: RepeatBlock; onEdit
 function IntensityFields({ cfg, idPrefix, item, onChange }: {
   cfg: SportIntensityConfig;
   idPrefix: string;
-  item: { targetFrom: string; targetTo: string; targetReps: string };
-  onChange: (patch: Partial<Pick<SubStepDraft, 'targetFrom' | 'targetTo' | 'targetReps'>>) => void;
+  item: { targetFrom: string; targetTo: string; repetitions: string };
+  onChange: (patch: Partial<Pick<SubStepDraft, 'targetFrom' | 'targetTo' | 'repetitions'>>) => void;
 }) {
   if (cfg.type === 'pace') return (
     <div className="cw-row">
@@ -475,7 +470,7 @@ function IntensityFields({ cfg, idPrefix, item, onChange }: {
   );
   return (
     <Field label="Exercise reps" htmlFor={`${idPrefix}-er`}>
-      <input id={`${idPrefix}-er`} className="cw-input" type="number" min="0" step="1" placeholder="e.g. 12" value={item.targetReps} onChange={(e) => onChange({ targetReps: e.target.value })} />
+      <input id={`${idPrefix}-er`} className="cw-input" type="number" min="0" step="1" placeholder="e.g. 12" value={item.repetitions} onChange={(e) => onChange({ repetitions: e.target.value })} />
     </Field>
   );
 }
@@ -671,6 +666,12 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
     if (!title.trim()) { setError('Title is required.'); return; }
     if (!scheduledDate) { setError('Scheduled date is required.'); return; }
 
+    const stepsPayload = buildStepsPayload(items, sport);
+    if (stepsPayload.some((s) => !s.instruction)) {
+      setError('Each step needs an instruction. Click the step card to add one.');
+      return;
+    }
+
     const payload: CreatePlannedWorkoutRequest = {
       title: title.trim(),
       sport: sport as CreatePlannedWorkoutRequest['sport'],
@@ -678,10 +679,10 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
       scheduledDate,
       intensity: intensity as CreatePlannedWorkoutRequest['intensity'],
       status: 'planned',
-      steps: buildStepsPayload(items, sport),
+      steps: stepsPayload,
     };
 
-    if (scheduledStartTime) payload.scheduledStartTime = `${scheduledDate}T${scheduledStartTime}:00`;
+    if (scheduledStartTime) payload.scheduledStartTime = `${scheduledDate}T${scheduledStartTime}:00Z`;
     const durMin = parseFloat(plannedDurationMinutes);
     if (!isNaN(durMin) && durMin > 0) payload.plannedDurationSeconds = Math.round(durMin * 60);
     const distKm = parseFloat(plannedDistanceKm);

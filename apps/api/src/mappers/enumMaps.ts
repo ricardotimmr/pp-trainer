@@ -245,6 +245,20 @@ export const DTO_TO_PRISMA_TRAINING_PLAN_STATUS_MAP: Record<TrainingPlanStatusDt
   archived: 'Archived',
 };
 
+export const DTO_TO_PRISMA_TRAINING_PLAN_SOURCE_MAP: Record<TrainingPlanSourceDto, TrainingPlanSource> = {
+  manual: 'Manual',
+  ai_generated: 'AiGenerated',
+  template: 'Template',
+  imported: 'Imported',
+};
+
+export const DTO_TO_PRISMA_PLANNED_WORKOUT_SOURCE_MAP: Record<PlannedWorkoutSourceDto, PlannedWorkoutSource> = {
+  manual: 'Manual',
+  ai_generated: 'AiGenerated',
+  template: 'Template',
+  imported: 'Imported',
+};
+
 export const DTO_TO_PRISMA_WORKOUT_STATUS_MAP: Record<WorkoutStatusDto, WorkoutStatus> = {
   planned: 'Planned',
   completed: 'Completed',
