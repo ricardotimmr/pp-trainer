@@ -19,30 +19,31 @@ const minimalContext: AthleteContextForAi = {
 const provider = new MockProvider();
 
 describe('MockProvider.generateWeekPlan', () => {
-  it('returns a valid AiGeneratedWeekPlan', async () => {
+  it('returns a valid AiGeneratedWeekPlan in data field', async () => {
     const prompt = buildWeekPlanPrompt(minimalContext, '2026-06-23');
     const result = await provider.generateWeekPlan(prompt);
-    const parsed = AiGeneratedWeekPlanSchema.safeParse(result);
+    expect(result.data).not.toBeNull();
+    const parsed = AiGeneratedWeekPlanSchema.safeParse(result.data);
     expect(parsed.success).toBe(true);
   });
 
   it('uses the weekStartDate from the prompt', async () => {
     const prompt = buildWeekPlanPrompt(minimalContext, '2026-07-07');
     const result = await provider.generateWeekPlan(prompt);
-    expect(result.weekStartDate).toBe('2026-07-07');
-    expect(result.weekEndDate).toBe('2026-07-13');
+    expect(result.data?.weekStartDate).toBe('2026-07-07');
+    expect(result.data?.weekEndDate).toBe('2026-07-13');
   });
 
   it('returns at least one workout', async () => {
     const prompt = buildWeekPlanPrompt(minimalContext, '2026-06-23');
     const result = await provider.generateWeekPlan(prompt);
-    expect(result.workouts.length).toBeGreaterThanOrEqual(1);
+    expect(result.data?.workouts.length).toBeGreaterThanOrEqual(1);
   });
 
   it('all workouts have unique stepIndices within each workout', async () => {
     const prompt = buildWeekPlanPrompt(minimalContext, '2026-06-23');
     const result = await provider.generateWeekPlan(prompt);
-    for (const workout of result.workouts) {
+    for (const workout of result.data?.workouts ?? []) {
       const indices = workout.steps.map((s) => s.stepIndex);
       expect(new Set(indices).size).toBe(indices.length);
     }
@@ -51,34 +52,55 @@ describe('MockProvider.generateWeekPlan', () => {
   it('falls back to today when prompt has no date', async () => {
     const promptWithoutDate = buildSingleWorkoutPrompt(minimalContext, 'Running', 'Easy');
     const result = await provider.generateWeekPlan(promptWithoutDate);
-    expect(result.weekStartDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(result.data?.weekStartDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('rawOutput matches data', async () => {
+    const prompt = buildWeekPlanPrompt(minimalContext, '2026-06-23');
+    const result = await provider.generateWeekPlan(prompt);
+    expect(result.rawOutput).toBe(result.data);
+  });
+
+  it('validationErrors is undefined for valid output', async () => {
+    const prompt = buildWeekPlanPrompt(minimalContext, '2026-06-23');
+    const result = await provider.generateWeekPlan(prompt);
+    expect(result.validationErrors).toBeUndefined();
   });
 });
 
 describe('MockProvider.generateSingleWorkout', () => {
-  it('returns a valid AiGeneratedSingleWorkout', async () => {
+  it('returns a valid AiGeneratedSingleWorkout in data field', async () => {
     const prompt = buildSingleWorkoutPrompt(minimalContext, 'Running', 'Interval training', 3600);
     const result = await provider.generateSingleWorkout(prompt);
-    const parsed = AiGeneratedSingleWorkoutSchema.safeParse(result);
+    expect(result.data).not.toBeNull();
+    const parsed = AiGeneratedSingleWorkoutSchema.safeParse(result.data);
     expect(parsed.success).toBe(true);
   });
 
   it('has at least one step', async () => {
     const prompt = buildSingleWorkoutPrompt(minimalContext, 'Running', 'Tempo', 3600);
     const result = await provider.generateSingleWorkout(prompt);
-    expect(result.workout.steps.length).toBeGreaterThanOrEqual(1);
+    expect(result.data?.workout.steps.length).toBeGreaterThanOrEqual(1);
   });
 
   it('all steps have unique stepIndices', async () => {
     const prompt = buildSingleWorkoutPrompt(minimalContext, 'Running', 'Interval', 3600);
     const result = await provider.generateSingleWorkout(prompt);
-    const indices = result.workout.steps.map((s) => s.stepIndex);
+    const indices = result.data?.workout.steps.map((s) => s.stepIndex) ?? [];
     expect(new Set(indices).size).toBe(indices.length);
   });
 
   it('workout has objective or description', async () => {
     const prompt = buildSingleWorkoutPrompt(minimalContext, 'Running', 'Easy jog');
     const result = await provider.generateSingleWorkout(prompt);
-    expect(result.workout.objective != null || result.workout.description != null).toBe(true);
+    expect(
+      result.data?.workout.objective != null || result.data?.workout.description != null,
+    ).toBe(true);
+  });
+
+  it('validationErrors is undefined for valid output', async () => {
+    const prompt = buildSingleWorkoutPrompt(minimalContext, 'Running', 'Easy jog');
+    const result = await provider.generateSingleWorkout(prompt);
+    expect(result.validationErrors).toBeUndefined();
   });
 });

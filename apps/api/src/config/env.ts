@@ -45,8 +45,8 @@ function parseNodeEnv(rawNodeEnv: string | undefined): ApiConfig['nodeEnv'] {
 }
 
 function parseAiProvider(raw: string | undefined): AiProvider {
-  if (raw === 'openai') return 'openai';
-  return 'anthropic';
+  if (raw === 'anthropic') return 'anthropic';
+  return 'openai';
 }
 
 export function getApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {

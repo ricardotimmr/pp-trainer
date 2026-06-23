@@ -7,7 +7,7 @@ import {
 } from '@pp-trainer/shared';
 
 import { ApiError } from '../errors/ApiError.js';
-import type { AiProvider } from './AiProvider.js';
+import type { AiProvider, AiProviderResult } from './AiProvider.js';
 import type { BuiltPrompt } from './PromptBuilder.js';
 
 const TOOL_NAME_WEEK_PLAN = 'output_week_plan';
@@ -24,7 +24,7 @@ export class AnthropicProvider implements AiProvider {
     this.model = model ?? DEFAULT_MODEL;
   }
 
-  async generateWeekPlan(prompt: BuiltPrompt): Promise<AiGeneratedWeekPlan> {
+  async generateWeekPlan(prompt: BuiltPrompt): Promise<AiProviderResult<AiGeneratedWeekPlan>> {
     const raw = await this.callWithTool(prompt, TOOL_NAME_WEEK_PLAN, {
       name: TOOL_NAME_WEEK_PLAN,
       description: 'Output the generated training week plan as structured JSON',
@@ -37,12 +37,12 @@ export class AnthropicProvider implements AiProvider {
 
     const parsed = AiGeneratedWeekPlanSchema.safeParse(raw);
     if (!parsed.success) {
-      throw ApiError.unprocessable('AI returned an invalid week plan structure', parsed.error.issues);
+      return { data: null, rawOutput: raw, validationErrors: parsed.error.issues };
     }
-    return parsed.data;
+    return { data: parsed.data, rawOutput: raw };
   }
 
-  async generateSingleWorkout(prompt: BuiltPrompt): Promise<AiGeneratedSingleWorkout> {
+  async generateSingleWorkout(prompt: BuiltPrompt): Promise<AiProviderResult<AiGeneratedSingleWorkout>> {
     const raw = await this.callWithTool(prompt, TOOL_NAME_SINGLE_WORKOUT, {
       name: TOOL_NAME_SINGLE_WORKOUT,
       description: 'Output the generated single workout as structured JSON',
@@ -55,12 +55,9 @@ export class AnthropicProvider implements AiProvider {
 
     const parsed = AiGeneratedSingleWorkoutSchema.safeParse(raw);
     if (!parsed.success) {
-      throw ApiError.unprocessable(
-        'AI returned an invalid single workout structure',
-        parsed.error.issues,
-      );
+      return { data: null, rawOutput: raw, validationErrors: parsed.error.issues };
     }
-    return parsed.data;
+    return { data: parsed.data, rawOutput: raw };
   }
 
   private async callWithTool(
@@ -81,16 +78,16 @@ export class AnthropicProvider implements AiProvider {
     } catch (err: unknown) {
       if (err instanceof Anthropic.APIError) {
         if (err.status === 429) throw ApiError.rateLimited();
-        if (err.status >= 500) throw ApiError.serviceUnavailable('Anthropic API unavailable');
+        throw ApiError.badGateway(`Anthropic API error: ${err.message}`);
       }
-      throw ApiError.internalError('Failed to call Anthropic API');
+      throw ApiError.badGateway();
     }
 
     const toolUse = response.content.find(
       (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
     );
     if (toolUse == null) {
-      throw ApiError.unprocessable('Anthropic did not return a tool use block');
+      throw ApiError.badGateway('AI provider did not return a structured response');
     }
 
     const input = toolUse.input as Record<string, unknown>;

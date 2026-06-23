@@ -2,12 +2,12 @@ import type { AiGeneratedSingleWorkout, AiGeneratedWeekPlan } from '@pp-trainer/
 
 import { getApiConfig } from '../config/env.js';
 import { ApiError } from '../errors/ApiError.js';
-import type { AiProvider } from './AiProvider.js';
+import type { AthleteContextForAi } from '../types/athleteContext.js';
+import type { AiProvider, AiProviderResult } from './AiProvider.js';
 import { AnthropicProvider } from './AnthropicProvider.js';
 import { MockProvider } from './MockProvider.js';
 import { OpenAiProvider } from './OpenAiProvider.js';
 import { buildSingleWorkoutPrompt, buildWeekPlanPrompt } from './PromptBuilder.js';
-import type { AthleteContextForAi } from '../types/athleteContext.js';
 
 function createProvider(): AiProvider {
   const config = getApiConfig();
@@ -33,7 +33,7 @@ export async function generateWeekPlan(
   context: AthleteContextForAi,
   weekStartDate: string,
   userInstruction?: string,
-): Promise<AiGeneratedWeekPlan> {
+): Promise<AiProviderResult<AiGeneratedWeekPlan>> {
   const provider = createProvider();
   const prompt = buildWeekPlanPrompt(context, weekStartDate, userInstruction);
   return provider.generateWeekPlan(prompt);
@@ -45,7 +45,7 @@ export async function generateSingleWorkout(
   objective: string,
   plannedDurationSeconds?: number,
   userInstruction?: string,
-): Promise<AiGeneratedSingleWorkout> {
+): Promise<AiProviderResult<AiGeneratedSingleWorkout>> {
   const provider = createProvider();
   const prompt = buildSingleWorkoutPrompt(context, sport, objective, plannedDurationSeconds, userInstruction);
   return provider.generateSingleWorkout(prompt);

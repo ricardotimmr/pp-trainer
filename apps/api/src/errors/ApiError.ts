@@ -4,6 +4,7 @@ export type ApiErrorCode =
   | 'BAD_REQUEST'
   | 'INTERNAL_SERVER_ERROR'
   | 'SERVICE_UNAVAILABLE'
+  | 'BAD_GATEWAY'
   | 'RATE_LIMITED'
   | 'CONFLICT'
   | 'UNPROCESSABLE';
@@ -14,6 +15,7 @@ const HTTP_STATUS_MAP: Record<ApiErrorCode, number> = {
   BAD_REQUEST: 400,
   INTERNAL_SERVER_ERROR: 500,
   SERVICE_UNAVAILABLE: 503,
+  BAD_GATEWAY: 502,
   RATE_LIMITED: 429,
   CONFLICT: 409,
   UNPROCESSABLE: 422,
@@ -50,6 +52,10 @@ export class ApiError extends Error {
 
   static serviceUnavailable(message = 'Service unavailable'): ApiError {
     return new ApiError('SERVICE_UNAVAILABLE', message);
+  }
+
+  static badGateway(message = 'AI provider request failed — please try again'): ApiError {
+    return new ApiError('BAD_GATEWAY', message);
   }
 
   static rateLimited(message = 'Too many requests — please try again later'): ApiError {

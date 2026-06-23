@@ -7,7 +7,7 @@ import {
 } from '@pp-trainer/shared';
 
 import { ApiError } from '../errors/ApiError.js';
-import type { AiProvider } from './AiProvider.js';
+import type { AiProvider, AiProviderResult } from './AiProvider.js';
 import type { BuiltPrompt } from './PromptBuilder.js';
 
 const DEFAULT_MODEL = 'gpt-4o';
@@ -22,25 +22,22 @@ export class OpenAiProvider implements AiProvider {
     this.model = model ?? DEFAULT_MODEL;
   }
 
-  async generateWeekPlan(prompt: BuiltPrompt): Promise<AiGeneratedWeekPlan> {
+  async generateWeekPlan(prompt: BuiltPrompt): Promise<AiProviderResult<AiGeneratedWeekPlan>> {
     const raw = await this.callWithJsonFormat(prompt);
     const parsed = AiGeneratedWeekPlanSchema.safeParse(raw);
     if (!parsed.success) {
-      throw ApiError.unprocessable('AI returned an invalid week plan structure', parsed.error.issues);
+      return { data: null, rawOutput: raw, validationErrors: parsed.error.issues };
     }
-    return parsed.data;
+    return { data: parsed.data, rawOutput: raw };
   }
 
-  async generateSingleWorkout(prompt: BuiltPrompt): Promise<AiGeneratedSingleWorkout> {
+  async generateSingleWorkout(prompt: BuiltPrompt): Promise<AiProviderResult<AiGeneratedSingleWorkout>> {
     const raw = await this.callWithJsonFormat(prompt);
     const parsed = AiGeneratedSingleWorkoutSchema.safeParse(raw);
     if (!parsed.success) {
-      throw ApiError.unprocessable(
-        'AI returned an invalid single workout structure',
-        parsed.error.issues,
-      );
+      return { data: null, rawOutput: raw, validationErrors: parsed.error.issues };
     }
-    return parsed.data;
+    return { data: parsed.data, rawOutput: raw };
   }
 
   private async callWithJsonFormat(prompt: BuiltPrompt): Promise<unknown> {
@@ -58,20 +55,20 @@ export class OpenAiProvider implements AiProvider {
     } catch (err: unknown) {
       if (err instanceof OpenAI.APIError) {
         if (err.status === 429) throw ApiError.rateLimited();
-        if (err.status >= 500) throw ApiError.serviceUnavailable('OpenAI API unavailable');
+        throw ApiError.badGateway(`OpenAI API error: ${err.message}`);
       }
-      throw ApiError.internalError('Failed to call OpenAI API');
+      throw ApiError.badGateway();
     }
 
     const content = response.choices[0]?.message.content;
     if (content == null) {
-      throw ApiError.unprocessable('OpenAI returned an empty response');
+      throw ApiError.badGateway('AI provider returned an empty response');
     }
 
     try {
       return JSON.parse(content);
     } catch {
-      throw ApiError.unprocessable('OpenAI returned invalid JSON');
+      throw ApiError.badGateway('AI provider returned invalid JSON');
     }
   }
 }
