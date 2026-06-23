@@ -859,8 +859,7 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
         footer={sideContent}
       />
     );
-  })() :
-  ) : (
+  })() : (
     <PageShell
       title="Training Plan"
       eyebrow={`Training Plan · ${formatWeekRange(weekStart, weekEnd)}`}
