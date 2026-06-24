@@ -271,3 +271,70 @@ describe('POST /api/ai/generate-workout', () => {
     expect(res.statusCode).toBe(429);
   });
 });
+
+// ── GET /api/ai/history ───────────────────────────────────────────────────────
+
+describe('GET /api/ai/history', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('returns 200 with array of outputs using default limit', async () => {
+    vi.mocked(AiService.getHistory).mockResolvedValue([mockOutput as never]);
+    const app = buildTestApp();
+
+    const res = await app.inject({ method: 'GET', url: '/api/ai/history' });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json<typeof mockOutput[]>();
+    expect(body).toHaveLength(1);
+    expect(body[0].id).toBe('output-1');
+    expect(AiService.getHistory).toHaveBeenCalledWith(10);
+  });
+
+  it('passes custom limit to service', async () => {
+    vi.mocked(AiService.getHistory).mockResolvedValue([]);
+    const app = buildTestApp();
+
+    const res = await app.inject({ method: 'GET', url: '/api/ai/history?limit=25' });
+
+    expect(res.statusCode).toBe(200);
+    expect(AiService.getHistory).toHaveBeenCalledWith(25);
+  });
+
+  it('returns 200 with empty array when no outputs exist', async () => {
+    vi.mocked(AiService.getHistory).mockResolvedValue([]);
+    const app = buildTestApp();
+
+    const res = await app.inject({ method: 'GET', url: '/api/ai/history' });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([]);
+  });
+
+  it('returns 400 for limit=0', async () => {
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/ai/history?limit=0' });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('returns 400 for limit exceeding max (51)', async () => {
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/ai/history?limit=51' });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('returns 400 for non-numeric limit', async () => {
+    const app = buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/ai/history?limit=abc' });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('accepts limit=50 (max valid)', async () => {
+    vi.mocked(AiService.getHistory).mockResolvedValue([]);
+    const app = buildTestApp();
+
+    const res = await app.inject({ method: 'GET', url: '/api/ai/history?limit=50' });
+
+    expect(res.statusCode).toBe(200);
+    expect(AiService.getHistory).toHaveBeenCalledWith(50);
+  });
+});

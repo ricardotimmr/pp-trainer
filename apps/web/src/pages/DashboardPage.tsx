@@ -1,3 +1,5 @@
+import type { PlannedWorkoutDto } from '@pp-trainer/shared';
+
 import {
   ActivityCard,
   ActivitySummaryStats,
@@ -8,14 +10,7 @@ import {
   SportBadge,
   WorkoutCard,
 } from '../components';
-import { DATA_MODE } from '../config/dataMode';
-import { usePrototypeAthleteContext } from '../context/prototypeAthleteContextValue';
-import { useDashboardApi } from '../hooks/useDashboardApi';
-import type { WeekVolume } from '../hooks/useDashboardApi';
-import { PageShell } from '../layout/PageShell';
-import { getDashboardSummary } from '../mock/prototypeData.helpers';
-import type { SportType } from '../mock/prototypeData.types';
-import type { PageComponentProps } from '../routes/routeTypes';
+import type { WorkoutCardData } from '../components/cards/WorkoutCard';
 import {
   formatDate,
   formatDistance,
@@ -23,15 +18,19 @@ import {
   goalPriorityLabels,
   sportLabels,
 } from '../components/prototypeFormatters';
+import { useDashboard } from '../hooks/useDashboard';
+import type { WeekVolume } from '../hooks/useDashboard';
+import { PageShell } from '../layout/PageShell';
+import type { SportType } from '../mock/prototypeData.types';
+import type { PageComponentProps } from '../routes/routeTypes';
+
+type SportSplitItem = { sport: SportType; durationSeconds: number };
 
 type WeekBalancePanelProps = {
   plannedSeconds: number;
   completedSeconds: number;
   remainingSeconds: number;
-  sportSplit: {
-    sport: SportType;
-    durationSeconds: number;
-  }[];
+  sportSplit: SportSplitItem[];
 };
 
 function WeekBalancePanel({
@@ -65,45 +64,42 @@ function WeekBalancePanel({
           <dd>{formatDuration(remainingSeconds)}</dd>
         </div>
       </dl>
-      <div className="dashboard-week-balance__bar" aria-hidden="true">
-        {sportSplit.map((item) => {
-          const width =
-            plannedSeconds > 0
-              ? Math.max(3, (item.durationSeconds / plannedSeconds) * 100)
-              : 0;
-
-          return (
-            <span
-              key={item.sport}
-              className={`dashboard-week-balance__segment dashboard-week-balance__segment--${item.sport}`}
-              style={{ width: `${width}%` }}
-            />
-          );
-        })}
-      </div>
-      <div className="dashboard-week-balance__legend">
-        {sportSplit.map((item) => (
-          <div key={item.sport}>
-            <span
-              className={`dashboard-week-balance__dot dashboard-week-balance__dot--${item.sport}`}
-            />
-            <span>
-              {sportLabels[item.sport]} {formatDuration(item.durationSeconds)}
-            </span>
+      {sportSplit.length > 0 && (
+        <>
+          <div className="dashboard-week-balance__bar" aria-hidden="true">
+            {sportSplit.map((item) => {
+              const width =
+                plannedSeconds > 0
+                  ? Math.max(3, (item.durationSeconds / plannedSeconds) * 100)
+                  : 0;
+              return (
+                <span
+                  key={item.sport}
+                  className={`dashboard-week-balance__segment dashboard-week-balance__segment--${item.sport}`}
+                  style={{ width: `${width}%` }}
+                />
+              );
+            })}
           </div>
-        ))}
-      </div>
+          <div className="dashboard-week-balance__legend">
+            {sportSplit.map((item) => (
+              <div key={item.sport}>
+                <span
+                  className={`dashboard-week-balance__dot dashboard-week-balance__dot--${item.sport}`}
+                />
+                <span>
+                  {sportLabels[item.sport]} {formatDuration(item.durationSeconds)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </section>
   );
 }
 
-type SportSplitItem = { sport: SportType; durationSeconds: number };
-
-function WeekCompletedPanel({
-  weekVolume,
-}: {
-  weekVolume: WeekVolume;
-}) {
+function WeekCompletedPanel({ weekVolume }: { weekVolume: WeekVolume }) {
   const sportSplit: SportSplitItem[] = (
     Object.entries(weekVolume.bySport) as [SportType, number][]
   )
@@ -161,13 +157,29 @@ function WeekCompletedPanel({
   );
 }
 
-function DashboardApiMode({ navigate }: PageComponentProps) {
-  const state = useDashboardApi();
+function toWorkoutCardData(w: PlannedWorkoutDto): WorkoutCardData {
+  return {
+    id: w.id,
+    sport: w.sport as SportType,
+    intensity: w.intensity as WorkoutCardData['intensity'],
+    status: w.status as WorkoutCardData['status'],
+    title: w.title,
+    objective: w.objective ?? undefined,
+    description: w.description ?? undefined,
+    scheduledDate: w.scheduledDate,
+    scheduledStartTime: w.scheduledStartTime ?? undefined,
+    plannedDurationSeconds: w.plannedDurationSeconds ?? undefined,
+    plannedDistanceMeters: w.plannedDistanceMeters ?? undefined,
+  };
+}
+
+export function DashboardPage({ navigate }: PageComponentProps) {
+  const state = useDashboard();
 
   if (state.status === 'loading') {
     return (
-      <PageShell title="Dashboard" description="Loading from local backend...">
-        <LoadingState title="Loading dashboard" description="Fetching from local backend..." />
+      <PageShell title="Dashboard" description="Loading your training data...">
+        <LoadingState title="Loading dashboard" description="Fetching your training data..." />
       </PageShell>
     );
   }
@@ -180,20 +192,51 @@ function DashboardApiMode({ navigate }: PageComponentProps) {
     );
   }
 
-  const { recentActivities, weekVolume, weekStart, weekEnd } = state;
+  const {
+    weekStart,
+    weekEnd,
+    recentActivities,
+    weekVolume,
+    plannedWorkouts,
+    plannedSummary,
+    upcomingWorkouts,
+    mainGoal,
+    secondaryGoals,
+    watchlistGoals,
+    settings,
+  } = state.data;
+
+  const hasPlan = plannedWorkouts.length > 0;
+  const plannedSeconds = plannedSummary.totalSeconds;
+  const completedSeconds = plannedSummary.completedSeconds;
+  const remainingSeconds = plannedSummary.remainingSeconds;
+  const sportSplit: SportSplitItem[] = (
+    Object.entries(plannedSummary.bySport) as [SportType, number][]
+  )
+    .filter(([, dur]) => dur > 0)
+    .map(([sport, durationSeconds]) => ({ sport, durationSeconds }));
 
   return (
     <PageShell
       title="Dashboard"
-      description="Current week activity volume and recent activities from the local backend."
+      description="Your current training week, upcoming workouts, and recent activity."
       actions={
-        <button
-          type="button"
-          className="button button--secondary"
-          onClick={() => navigate('/activities')}
-        >
-          View activities
-        </button>
+        <>
+          <button
+            type="button"
+            className="button button--primary"
+            onClick={() => navigate('/training-plan')}
+          >
+            Open training plan
+          </button>
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => navigate('/activities')}
+          >
+            View activities
+          </button>
+        </>
       }
     >
       <div className="dashboard-page">
@@ -202,14 +245,105 @@ function DashboardApiMode({ navigate }: PageComponentProps) {
             <p className="dashboard-hero__eyebrow">
               {formatDate(weekStart)} to {formatDate(weekEnd)}
             </p>
-            <h2>Current week</h2>
-            <p>No active training plan.</p>
+            {hasPlan ? (
+              <>
+                <h2>Current training week</h2>
+                <p>
+                  {plannedWorkouts.length} workout{plannedWorkouts.length !== 1 ? 's' : ''}{' '}
+                  planned this week
+                </p>
+              </>
+            ) : (
+              <>
+                <h2>No active plan</h2>
+                <p>Generate a week plan with AI Coach to get started.</p>
+              </>
+            )}
           </div>
-          <WeekCompletedPanel weekVolume={weekVolume} />
+
+          {hasPlan ? (
+            <WeekBalancePanel
+              plannedSeconds={plannedSeconds}
+              completedSeconds={completedSeconds}
+              remainingSeconds={remainingSeconds}
+              sportSplit={sportSplit}
+            />
+          ) : (
+            <WeekCompletedPanel weekVolume={weekVolume} />
+          )}
         </section>
 
         <div className="dashboard-layout">
+          {/* Left / main column */}
           <div className="dashboard-col--main">
+            {hasPlan && (
+              <DashboardWidget title="Weekly summary" eyebrow="Training load">
+                <div className="dashboard-metric-grid">
+                  <div className="dashboard-metric is-accent">
+                    <p>Total duration</p>
+                    <strong>{formatDuration(plannedSummary.totalSeconds)}</strong>
+                    <span>Across all planned sports</span>
+                  </div>
+                  <div className="dashboard-metric">
+                    <p>Total distance</p>
+                    <strong>{formatDistance(plannedSummary.totalDistanceMeters)}</strong>
+                    <span>Bike, run and swim combined</span>
+                  </div>
+                  <div className="dashboard-metric">
+                    <p>Easy</p>
+                    <strong>{formatDuration(plannedSummary.easySeconds)}</strong>
+                    <span>Low intensity work</span>
+                  </div>
+                  <div className="dashboard-metric">
+                    <p>Moderate / hard</p>
+                    <strong>{formatDuration(plannedSummary.moderateHardSeconds)}</strong>
+                    <span>Quality and strength</span>
+                  </div>
+                </div>
+              </DashboardWidget>
+            )}
+
+            <DashboardWidget
+              title="Upcoming workouts"
+              eyebrow="Next sessions"
+              action={
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={() => navigate('/training-plan')}
+                >
+                  View plan
+                </button>
+              }
+            >
+              {upcomingWorkouts.length > 0 ? (
+                <div className="dashboard-card-grid">
+                  {upcomingWorkouts.slice(0, 4).map((workout) => (
+                    <WorkoutCard
+                      key={workout.id}
+                      workout={toWorkoutCardData(workout)}
+                      onOpen={(workoutId) => navigate(`/workouts/${workoutId}`)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="No upcoming workouts"
+                  description="Generate a week plan with AI Coach to schedule sessions."
+                  variant="inline"
+                  action={
+                    <button
+                      type="button"
+                      className="button button--primary"
+                      onClick={() => navigate('/ai-coach')}
+                    >
+                      Open AI Coach
+                    </button>
+                  }
+                />
+              )}
+            </DashboardWidget>
+
             <DashboardWidget
               title="Recent activities"
               eyebrow="Training history"
@@ -239,212 +373,7 @@ function DashboardApiMode({ navigate }: PageComponentProps) {
               ) : (
                 <EmptyState
                   title="No recent activities"
-                  description="Completed training will appear here once activity data exists."
-                  variant="inline"
-                />
-              )}
-            </DashboardWidget>
-          </div>
-        </div>
-      </div>
-    </PageShell>
-  );
-}
-
-export function DashboardPage({ navigate, params }: PageComponentProps) {
-  if (DATA_MODE === 'api') {
-    return <DashboardApiMode navigate={navigate} params={params} />;
-  }
-  return <DashboardPageMock navigate={navigate} params={params} />;
-}
-
-function DashboardPageMock({ navigate }: PageComponentProps) {
-  const dashboard = getDashboardSummary();
-  const { mainGoal, secondaryGoals, watchlistGoals } =
-    usePrototypeAthleteContext();
-  const isLoading = false;
-  const week = dashboard.currentWeek;
-  const plannedSeconds = week.plannedDurationSeconds ?? 0;
-  const completedSeconds = week.completedPlannedDurationSeconds ?? 0;
-  const remainingSeconds = Math.max(plannedSeconds - completedSeconds, 0);
-  const sportSplit = [
-    {
-      sport: 'cycling' as const,
-      durationSeconds: week.cyclingDurationSeconds ?? 0,
-    },
-    {
-      sport: 'running' as const,
-      durationSeconds: week.runningDurationSeconds ?? 0,
-    },
-    {
-      sport: 'swimming' as const,
-      durationSeconds: week.swimmingDurationSeconds ?? 0,
-    },
-    {
-      sport: 'strength' as const,
-      durationSeconds: week.strengthDurationSeconds ?? 0,
-    },
-  ].filter((item) => item.durationSeconds > 0);
-
-  if (isLoading) {
-    return (
-      <PageShell
-        title="Dashboard"
-        description="Preparing the current prototype dashboard from mock data."
-      >
-        <LoadingState
-          title="Loading dashboard"
-          description="The dashboard shell is ready while training overview data is prepared."
-        />
-      </PageShell>
-    );
-  }
-
-  return (
-    <PageShell
-      title="Dashboard"
-      description={
-        <>
-          Prototype dashboard for {dashboard.athleteProfile.displayName}:
-          current training week, recent activities, upcoming workouts and a
-          short AI coach hint.
-        </>
-      }
-      actions={
-        <>
-          <button
-            type="button"
-            className="button button--primary"
-            onClick={() => navigate('/training-plan')}
-          >
-            Open training plan
-          </button>
-          <button
-            type="button"
-            className="button button--secondary"
-            onClick={() => navigate('/activities')}
-          >
-            View activities
-          </button>
-        </>
-      }
-    >
-      <div className="dashboard-page">
-        <section className="dashboard-hero" aria-label="Current training week">
-          <div className="dashboard-hero__intro">
-            <p className="dashboard-hero__eyebrow">
-              {formatDate(week.weekStartDate)} to {formatDate(week.weekEndDate)}
-            </p>
-            <h2>{dashboard.currentTrainingPlan.title}</h2>
-            {dashboard.currentTrainingPlan.description ? (
-              <p>{dashboard.currentTrainingPlan.description}</p>
-            ) : null}
-          </div>
-          <WeekBalancePanel
-            plannedSeconds={plannedSeconds}
-            completedSeconds={completedSeconds}
-            remainingSeconds={remainingSeconds}
-            sportSplit={sportSplit}
-          />
-        </section>
-
-        <div className="dashboard-layout">
-          {/* Left / main column */}
-          <div className="dashboard-col--main">
-            <DashboardWidget title="Weekly summary" eyebrow="Training load">
-              <div className="dashboard-metric-grid">
-                <div className="dashboard-metric is-accent">
-                  <p>Total duration</p>
-                  <strong>{formatDuration(week.totalDurationSeconds)}</strong>
-                  <span>Across all planned sports</span>
-                </div>
-                <div className="dashboard-metric">
-                  <p>Total distance</p>
-                  <strong>{formatDistance(week.totalDistanceMeters)}</strong>
-                  <span>Bike, run and swim combined</span>
-                </div>
-                <div className="dashboard-metric">
-                  <p>Easy</p>
-                  <strong>{formatDuration(week.easyDurationSeconds)}</strong>
-                  <span>Low intensity work</span>
-                </div>
-                <div className="dashboard-metric">
-                  <p>Moderate / hard</p>
-                  <strong>
-                    {formatDuration(
-                      (week.moderateDurationSeconds ?? 0) +
-                        (week.hardDurationSeconds ?? 0),
-                    )}
-                  </strong>
-                  <span>Quality and strength</span>
-                </div>
-              </div>
-            </DashboardWidget>
-
-            <DashboardWidget
-              title="Upcoming workouts"
-              eyebrow="Next sessions"
-              action={
-                <button
-                  type="button"
-                  className="button button--secondary"
-                  onClick={() => navigate('/training-plan')}
-                >
-                  View plan
-                </button>
-              }
-            >
-              {dashboard.upcomingWorkouts.length > 0 ? (
-                <div className="dashboard-card-grid">
-                  {dashboard.upcomingWorkouts.map((workout) => (
-                    <WorkoutCard
-                      key={workout.id}
-                      workout={workout}
-                      onOpen={(workoutId) => navigate(`/workouts/${workoutId}`)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState
-                  title="No upcoming workouts"
-                  description="Planned workouts will appear here when the active week contains sessions."
-                  variant="inline"
-                />
-              )}
-            </DashboardWidget>
-
-            <DashboardWidget
-              title="Recent activities"
-              eyebrow="Training history"
-              action={
-                <button
-                  type="button"
-                  className="button button--secondary"
-                  onClick={() => navigate('/activities')}
-                >
-                  View all
-                </button>
-              }
-            >
-              {dashboard.recentActivities.length > 0 ? (
-                <>
-                  <ActivitySummaryStats activities={dashboard.recentActivities} />
-                  <div className="list-stack">
-                    {dashboard.recentActivities.slice(0, 3).map((activity) => (
-                      <ActivityCard
-                        key={activity.id}
-                        activity={activity}
-                        onOpen={(activityId) =>
-                          navigate(`/activities/${activityId}`)
-                        }
-                      />
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <EmptyState
-                  title="No recent activities"
-                  description="Completed training will appear here once activity data exists."
+                  description="Completed workouts will appear here once you import activity data."
                   variant="inline"
                 />
               )}
@@ -463,7 +392,7 @@ function DashboardPageMock({ navigate }: PageComponentProps) {
                   <div className="dashboard-goal">
                     <div className="badge-row">
                       {mainGoal.sport ? (
-                        <SportBadge sport={mainGoal.sport} />
+                        <SportBadge sport={mainGoal.sport as SportType} />
                       ) : null}
                       <span className="badge badge--source">
                         {goalPriorityLabels[mainGoal.priority]}
@@ -480,19 +409,15 @@ function DashboardPageMock({ navigate }: PageComponentProps) {
                       ) : null}
                     </div>
                     <h3>{mainGoal.title}</h3>
-                    {mainGoal.description ? (
-                      <p>{mainGoal.description}</p>
-                    ) : null}
+                    {mainGoal.description ? <p>{mainGoal.description}</p> : null}
                     {mainGoal.targetDate ? (
-                      <span>
-                        Target: {formatDate(mainGoal.targetDate)}
-                      </span>
+                      <span>Target: {formatDate(mainGoal.targetDate)}</span>
                     ) : null}
                   </div>
                 ) : (
                   <EmptyState
                     title="No active goal"
-                    description="Athlete goals will appear here once configured."
+                    description="Configure goals in your athlete profile to track progress."
                     variant="inline"
                   />
                 )}
@@ -504,30 +429,28 @@ function DashboardPageMock({ navigate }: PageComponentProps) {
                   <h2 className="open-panel__title">Primary sports</h2>
                 </header>
                 <div className="dashboard-sport-list">
-                  {dashboard.athleteProfile.primarySports.map((sport) => (
-                    <SportBadge key={sport} sport={sport} />
+                  {settings.athleteProfile.primarySports.map((sport) => (
+                    <SportBadge key={sport} sport={sport as SportType} />
                   ))}
                 </div>
               </section>
             </div>
 
             <div className="coach-block">
-              <p className="coach-block__label">AI Coach · Hint</p>
-              <p className="coach-block__body">{dashboard.aiCoachPreview.summary}</p>
-              {dashboard.aiCoachPreview.rawText ? (
-                <blockquote className="coach-block__quote">
-                  {dashboard.aiCoachPreview.rawText}
-                </blockquote>
-              ) : null}
+              <p className="coach-block__label">AI Coach</p>
+              <p className="coach-block__body">
+                {hasPlan
+                  ? 'Your week is planned. Use AI Coach to generate individual workouts or adjust the current plan.'
+                  : 'No plan for this week yet. Let AI Coach build a personalised training week based on your goals and availability.'}
+              </p>
               <button
                 type="button"
                 className="button button--primary"
                 onClick={() => navigate('/ai-coach')}
               >
-                Open AI coach →
+                Open AI Coach →
               </button>
             </div>
-
           </div>
         </div>
       </div>

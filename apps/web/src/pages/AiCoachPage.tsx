@@ -1,15 +1,51 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 
-import type { GenerateWeekPlanRequest, GenerateWorkoutRequest } from '@pp-trainer/shared';
+import type {
+  AiCoachOutputDto,
+  GenerateWeekPlanRequest,
+  GenerateWorkoutRequest,
+} from '@pp-trainer/shared';
 
 import { SelectMenu, SportBadge } from '../components';
 import type { SelectMenuOption } from '../components';
-import { generateWeekPlan, generateWorkout } from '../api/aiApi';
+import { fetchAiHistory, generateWeekPlan, generateWorkout } from '../api/aiApi';
 import { ApiClientError } from '../api/apiClient';
 import { useAiCoachSidebar } from '../hooks/useAiCoachSidebar';
 import { PageShell } from '../layout/PageShell';
-import { formatDuration } from '../components/prototypeFormatters';
+import { formatDate, formatDuration } from '../components/prototypeFormatters';
 import type { PageComponentProps } from '../routes/routeTypes';
+
+type HistoryState =
+  | { status: 'loading' }
+  | { status: 'ready'; proposals: AiCoachOutputDto[] }
+  | { status: 'error' };
+
+const OUTPUT_TYPE_LABELS: Record<AiCoachOutputDto['outputType'], string> = {
+  week_plan: 'Week Plan',
+  single_workout: 'Single Workout',
+  week_analysis: 'Week Analysis',
+  plan_adjustment: 'Plan Adjustment',
+  recommendation: 'Recommendation',
+  text_answer: 'Answer',
+};
+
+function proposalPreviewUrl(proposal: AiCoachOutputDto): string {
+  return proposal.outputType === 'week_plan'
+    ? `/ai-coach/preview/week-plan/${proposal.id}`
+    : `/ai-coach/preview/workout/${proposal.id}`;
+}
+
+function proposalTitle(proposal: AiCoachOutputDto): string {
+  if (proposal.structuredOutput != null) {
+    const out = proposal.structuredOutput as Record<string, unknown>;
+    if (proposal.outputType === 'week_plan' && typeof out.title === 'string') return out.title;
+    if (proposal.outputType === 'single_workout') {
+      const w = out.workout as Record<string, unknown> | undefined;
+      if (typeof w?.title === 'string') return w.title;
+    }
+  }
+  return OUTPUT_TYPE_LABELS[proposal.outputType];
+}
 
 const WEEKDAY_SHORT: Record<string, string> = {
   monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed',
@@ -48,12 +84,16 @@ function formatSwimPace(secPer100m: number): string {
   return `${min}:${sec.toString().padStart(2, '0')} /100m`;
 }
 
+function toLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function nextMondayIso(): string {
   const d = new Date();
   const day = d.getDay();
   const diff = day === 0 ? 1 : day === 1 ? 7 : 8 - day;
   d.setDate(d.getDate() + diff);
-  return d.toISOString().split('T')[0];
+  return toLocalDate(d);
 }
 
 export function AiCoachPage({ navigate }: PageComponentProps) {
@@ -73,6 +113,22 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
   const [workoutInstruction, setWorkoutInstruction] = useState('');
 
   const sidebarState = useAiCoachSidebar();
+
+  const [historyState, setHistoryState] = useState<HistoryState>({ status: 'loading' });
+
+  function refreshHistory() {
+    fetchAiHistory(5)
+      .then((proposals) => setHistoryState({ status: 'ready', proposals }))
+      .catch(() => setHistoryState({ status: 'error' }));
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAiHistory(5)
+      .then((proposals) => { if (!cancelled) setHistoryState({ status: 'ready', proposals }); })
+      .catch(() => { if (!cancelled) setHistoryState({ status: 'error' }); });
+    return () => { cancelled = true; };
+  }, []);
 
   function switchMode(next: 'week_plan' | 'single_workout') {
     setMode(next);
@@ -96,8 +152,10 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
 
       if (output.validationStatus === 'invalid') {
         setInvalidOutput(true);
+        refreshHistory();
         return;
       }
+      refreshHistory();
       navigate(`/ai-coach/preview/week-plan/${output.id}`);
     } catch (err) {
       const msg = err instanceof ApiClientError ? err.message : 'Network error. Please try again.';
@@ -114,7 +172,8 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
     setLoading(true);
 
     try {
-      const durationSec = durationMinutes ? parseInt(durationMinutes, 10) * 60 : undefined;
+      const parsedMin = parseInt(durationMinutes, 10);
+      const durationSec = durationMinutes !== '' && !isNaN(parsedMin) ? parsedMin * 60 : undefined;
       const request: GenerateWorkoutRequest = {
         sport: sport as GenerateWorkoutRequest['sport'],
         intensity: intensity as GenerateWorkoutRequest['intensity'],
@@ -125,8 +184,10 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
 
       if (output.validationStatus === 'invalid') {
         setInvalidOutput(true);
+        refreshHistory();
         return;
       }
+      refreshHistory();
       navigate(`/ai-coach/preview/workout/${output.id}`);
     } catch (err) {
       const msg = err instanceof ApiClientError ? err.message : 'Network error. Please try again.';
@@ -513,6 +574,57 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
 
         </div>{/* .ai-coach__generate */}
       </div>
+
+      {/* ── Recent proposals ─────────────────────────────────── */}
+      <section className="ai-proposals" aria-label="Recent proposals">
+        <header className="ai-proposals__header">
+          <p className="ai-proposals__eyebrow">History</p>
+          <h2 className="ai-proposals__title">Recent proposals</h2>
+        </header>
+
+        {historyState.status === 'loading' && (
+          <p className="ai-proposals__meta">Loading proposals…</p>
+        )}
+
+        {historyState.status === 'error' && (
+          <p className="ai-proposals__meta">Could not load proposals.</p>
+        )}
+
+        {historyState.status === 'ready' && historyState.proposals.length === 0 && (
+          <p className="ai-proposals__meta">No previous proposals yet.</p>
+        )}
+
+        {historyState.status === 'ready' && historyState.proposals.length > 0 && (
+          <ol className="ai-proposals__list">
+            {historyState.proposals.map((proposal) => (
+              <li
+                key={proposal.id}
+                className={`ai-proposals__item${proposal.status === 'rejected' ? ' is-rejected' : ''}`}
+              >
+                <button
+                  type="button"
+                  className="workout-card workout-card--button"
+                  onClick={() => navigate(proposalPreviewUrl(proposal))}
+                >
+                  <div className="workout-card__topline">
+                    <span className="badge badge--source">
+                      {OUTPUT_TYPE_LABELS[proposal.outputType]}
+                    </span>
+                    <span className={`badge badge--status badge--status-${proposal.status}`}>
+                      {proposal.status === 'accepted' ? 'Accepted' : proposal.status === 'rejected' ? 'Rejected' : 'Draft'}
+                    </span>
+                  </div>
+                  <h3>{proposalTitle(proposal)}</h3>
+                  {proposal.summary && (
+                    <p className="ai-proposals__rationale">{proposal.summary}</p>
+                  )}
+                  <p className="ai-proposals__date">{formatDate(proposal.createdAt?.split('T')[0] ?? '')}</p>
+                </button>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
     </PageShell>
   );
 }

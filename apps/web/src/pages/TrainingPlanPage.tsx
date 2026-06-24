@@ -35,7 +35,11 @@ import {
 import type { PlannedWorkout } from '../mock/prototypeData.types';
 import type { PageComponentProps } from '../routes/routeTypes';
 
-const TODAY = new Date().toISOString().split('T')[0];
+function toLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Intentionally not module-level: recomputes on each render so date stays current.
 
 function getWeekDates(startDate: string, endDate: string): string[] {
   const dates: string[] = [];
@@ -53,12 +57,11 @@ function getCurrentWeekRange(): { weekStart: string; weekEnd: string } {
   const daysFromMonday = (now.getDay() + 6) % 7;
   const monday = new Date(now);
   monday.setDate(now.getDate() - daysFromMonday);
-  monday.setHours(0, 0, 0, 0);
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
   return {
-    weekStart: monday.toISOString().split('T')[0],
-    weekEnd: sunday.toISOString().split('T')[0],
+    weekStart: toLocalDate(monday),
+    weekEnd: toLocalDate(sunday),
   };
 }
 
@@ -341,14 +344,18 @@ function PlanRow({ plan, onActivate, onDeactivate, onEdit, onDelete, activating,
   const [expanded, setExpanded] = useState(false);
   const [planDetail, setPlanDetail] = useState<TrainingPlanDto | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [detailError, setDetailError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   async function handleToggle() {
     if (!expanded && !planDetail) {
       setLoadingDetail(true);
+      setDetailError(false);
       try {
         const detail = await fetchTrainingPlanById(plan.id);
         setPlanDetail(detail);
+      } catch {
+        setDetailError(true);
       } finally {
         setLoadingDetail(false);
       }
@@ -445,7 +452,9 @@ function PlanRow({ plan, onActivate, onDeactivate, onEdit, onDelete, activating,
       {expanded && (
         <div className="tp-plan-row__workouts">
           {loadingDetail ? (
-            <p className="tp-plan-row__workouts-empty">Loading…</p>
+            <LoadingState title="Loading workouts" variant="inline" />
+          ) : detailError ? (
+            <ErrorState title="Could not load workouts" variant="inline" />
           ) : planDetail && planDetail.plannedWorkouts.length > 0 ? (
             <ul className="tp-plan-workouts">
               {planDetail.plannedWorkouts.map((w) => (
@@ -713,6 +722,7 @@ function WeekPlanContent({
 }: WeekPlanContentProps) {
   const weekRange = formatWeekRange(weekStart, weekEnd);
   const weekDates = getWeekDates(weekStart, weekEnd);
+  const TODAY = toLocalDate(new Date());
 
   const workoutsByDate = workouts.reduce<Record<string, WorkoutCardData[]>>((acc, w) => {
     const key = w.scheduledDate;
@@ -923,6 +933,8 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
 
   const plans = plansState.status === 'success' ? plansState.plans : [];
   const allWorkouts = workoutsState.status === 'success' ? workoutsState.workouts : [];
+  const plansError = plansState.status === 'error' ? plansState.message : null;
+  const workoutsError = workoutsState.status === 'error' ? workoutsState.message : null;
 
   const activePlanId = weekPlanState.status === 'success' ? weekPlanState.plan?.id : undefined;
 
@@ -956,25 +968,33 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
 
   const sideContent = (
     <>
-      <PlanListSection
-        plans={plans}
-        onActivate={handleActivate}
-        onDeactivate={handleDeactivate}
-        onEdit={setEditingPlan}
-        onDelete={handleDelete}
-        activating={activating}
-        deactivating={deactivating}
-        deleting={deleting}
-        navigate={navigate}
-      />
-      <AllWorkoutsSection
-        workouts={allWorkouts}
-        plans={plans}
-        onAssign={handleAssign}
-        onDelete={handleDeleteWorkout}
-        assigning={assigning}
-        navigate={navigate}
-      />
+      {plansError ? (
+        <ErrorState title="Could not load plans" description={plansError} variant="inline" />
+      ) : (
+        <PlanListSection
+          plans={plans}
+          onActivate={handleActivate}
+          onDeactivate={handleDeactivate}
+          onEdit={setEditingPlan}
+          onDelete={handleDelete}
+          activating={activating}
+          deactivating={deactivating}
+          deleting={deleting}
+          navigate={navigate}
+        />
+      )}
+      {workoutsError ? (
+        <ErrorState title="Could not load workouts" description={workoutsError} variant="inline" />
+      ) : (
+        <AllWorkoutsSection
+          workouts={allWorkouts}
+          plans={plans}
+          onAssign={handleAssign}
+          onDelete={handleDeleteWorkout}
+          assigning={assigning}
+          navigate={navigate}
+        />
+      )}
     </>
   );
 

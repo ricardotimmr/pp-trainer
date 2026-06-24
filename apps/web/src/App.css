@@ -2619,6 +2619,9 @@ button:focus-visible {
 .badge--status-moved      { --badge-color: #f59e0b; }
 .badge--status-adjusted   { --badge-color: #3b82f6; }
 .badge--status-cancelled  { --badge-color: var(--color-line-strong); }
+.badge--status-draft      { --badge-color: var(--color-muted); }
+.badge--status-accepted   { --badge-color: #22c55e; }
+.badge--status-rejected   { --badge-color: var(--color-line-strong); }
 
 .dashboard-widget {
   min-width: 0;
@@ -2759,6 +2762,7 @@ button:focus-visible {
 .workout-card--button:hover .badge--status {
   border-color: rgba(255, 255, 255, 0.45);
   color: rgba(255, 255, 255, 0.8);
+  --badge-color: rgba(255, 255, 255, 0.8);
 }
 .workout-card--button:hover .badge--status::before {
   background: rgba(255, 255, 255, 0.8);
@@ -4503,6 +4507,81 @@ button:focus-visible {
   color: var(--color-text);
 }
 
+/* Recent proposals panel */
+
+.ai-proposals {
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1.5px solid var(--color-line);
+}
+
+.ai-proposals__header {
+  margin-bottom: 20px;
+}
+
+.ai-proposals__eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.ai-proposals__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.ai-proposals__meta {
+  font-size: 0.88rem;
+  color: var(--color-muted);
+}
+
+.ai-proposals__list {
+  display: flex;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ai-proposals__item {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+}
+
+.ai-proposals__item .workout-card {
+  flex: 1;
+  align-content: start;
+}
+
+.ai-proposals__item.is-rejected {
+  opacity: 0.4;
+}
+
+.ai-proposals__item .workout-card h3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.ai-proposals__item .workout-card p.ai-proposals__rationale {
+  font-size: 0.78rem;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.ai-proposals__item .workout-card p.ai-proposals__date {
+  font-size: 0.78rem;
+  margin-top: 4px;
+}
+
 /* Output panel */
 
 .ai-coach__output {
@@ -5094,6 +5173,12 @@ button:focus-visible {
   padding: 14px 24px;
   max-width: var(--content-max-width);
   margin: 0 auto;
+}
+
+.ai-preview-bar__hint {
+  font-size: 0.78rem;
+  color: var(--color-ink-muted);
+  margin: 0;
 }
 
 .ai-preview-bar__confirm {

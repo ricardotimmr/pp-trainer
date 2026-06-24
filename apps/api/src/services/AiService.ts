@@ -7,6 +7,13 @@ import * as AiRepository from '../repositories/AiRepository.js';
 import * as AthleteRepository from '../repositories/AthleteRepository.js';
 import * as AthleteContextBuilder from './AthleteContextBuilder.js';
 
+export async function getHistory(limit: number): Promise<AiCoachOutputDto[]> {
+  const profile = await AthleteRepository.findFirstAthleteProfile();
+  if (profile == null) return [];
+  const outputs = await AiRepository.findRecentOutputs(profile.id, limit);
+  return outputs.map(mapAiCoachOutput);
+}
+
 export async function generateWeekPlan(request: GenerateWeekPlanRequest): Promise<AiCoachOutputDto> {
   const profile = await AthleteRepository.findFirstAthleteProfile();
   if (profile == null) throw ApiError.notFound('Athlete profile not found');

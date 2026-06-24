@@ -4,9 +4,24 @@
 
 ## Current Status
 
-**Phase 6: AI Coach MVP — complete**
+**Phase 7: MVP Integration and Stabilization — complete. MVP reached.**
 
-The AI Coach is fully integrated. The user can generate an AI training week plan or single workout, review the structured preview, and accept or reject it. Accepted outputs create real `TrainingPlan` and `PlannedWorkout` records with `source: 'AiGenerated'`. All phases 0–6 are complete.
+All five MVP flows work end-to-end on real data. The app no longer requires mock mode for any core path. All phases 0–7 are complete.
+
+**What Phase 7 delivered:**
+
+- Dashboard fully on real data — athlete profile, goals, planned workouts, completed activity volume, upcoming workout all from live API (`useDashboard` hook with parallel fetches)
+- Workout status transition state machine — `validateStatusTransition` in `WorkoutService` enforces valid transitions at the API level (422 on invalid)
+- Plan-date alignment validation — `assertDateWithinPlanRange` prevents workouts being assigned outside their plan's date range
+- Single active plan DB constraint — partial unique index on `TrainingPlan` prevents multiple active plans per athlete at the DB level
+- `GET /api/ai/history` — returns last N AI-generated proposals for the athlete
+- Recent proposals panel on AI Coach page — proposal cards show plan/workout title, coach rationale, status badge; clicking navigates to preview
+- Zone FK resolution in `AiAcceptService` — AI zone names matched to `TrainingZone` IDs (case-insensitive) when accepting a workout or plan; unmatched zones silently skipped
+- AI-accepted week plans auto-activate — accepting a week plan moves any current active plan to Draft and activates the new one atomically; user sees a hint before confirming
+- Empty, loading, and error states standardized across all pages
+- Timezone bugs fixed across Dashboard, Training Plan, and AI Coach (local date extraction instead of UTC `toISOString`)
+- Root `vitest.config.ts` excluding Playwright e2e tests
+- 680 unit and integration tests — all passing
 
 **What Phase 6 delivered:**
 
@@ -18,12 +33,10 @@ The AI Coach is fully integrated. The user can generate an AI training week plan
 - `GET /api/ai/outputs/:id`, `POST /api/ai/outputs/:id/accept`, `POST /api/ai/outputs/:id/reject` — output lifecycle
 - Frontend: `AiCoachPage`, `AiWeekPlanPreviewPage`, `AiWorkoutPreviewPage` — request flow, structured preview, accept/reject
 - `AiBadge` — visual indicator on AI-generated plans and workouts in Training Plan and Workout Detail pages
-- Session bar and zone name display fixes across all workout detail views
-- 618 unit and integration tests — all passing without a database
 
 **What was already complete (Phases 1–5):**
 
-Training plans, workouts, steps, manual creation UI, activity import (FIT/GPX/TCX/JSON), dashboard, athlete profile, training zones, import history — all on live backend data.
+Training plans, workouts, steps, manual creation UI, activity import (FIT/GPX/TCX/JSON), athlete profile, training zones, import history — all on live backend data.
 
 ## Repository Structure
 
@@ -153,9 +166,17 @@ All endpoints return `{ error: { code, message } }` on failure.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/training-plans/current-week` | Active training plan with all planned workouts and steps for the current week |
-| `GET` | `/api/training-plans/:id` | Training plan by ID |
+| `GET` | `/api/training-plans` | All training plans for the athlete |
+| `POST` | `/api/training-plans` | Create a training plan |
+| `GET` | `/api/training-plans/current-week` | Active training plan with workouts and steps for the current week |
+| `GET` | `/api/training-plans/:id` | Training plan by ID with all workouts |
+| `PATCH` | `/api/training-plans/:id/activate` | Activate a plan (deactivates current active plan) |
+| `DELETE` | `/api/training-plans/:id` | Delete a training plan |
+| `GET` | `/api/workouts` | Planned workouts. Query params: `from`, `to` (YYYY-MM-DD), `trainingPlanId` |
+| `POST` | `/api/workouts` | Create a planned workout (with optional steps) |
 | `GET` | `/api/workouts/:id` | Planned workout by ID with steps |
+| `PUT` | `/api/workouts/:id` | Update a planned workout or its status |
+| `DELETE` | `/api/workouts/:id` | Delete a planned workout |
 
 ### Performance
 
@@ -179,7 +200,7 @@ The frontend has two data modes controlled by `VITE_DATA_MODE`:
 
 **`mock` (default)** — all pages read from `apps/web/src/mock/prototypeData.helpers.ts`. No backend or database needed. This is the safe default during development.
 
-**`api`** — Activities, Dashboard and Import pages fetch from the backend API. Loading and error states are handled throughout. Training plan, AI coach and performance pages still read from mock helpers until migrated in a future phase.
+**`api`** — All core MVP pages (Dashboard, Activities, Training Plan, Workout Detail, AI Coach, Import) fetch from the backend API. Loading and error states are handled throughout. The Settings page still reads from prototype mock data — API migration is planned for Phase 8.
 
 The switch is intentionally explicit — setting `VITE_DATA_MODE=api` with no backend running shows a clear error state rather than silently falling back to mock data.
 
@@ -245,7 +266,8 @@ Phase 3   Backend and Database        done
 Phase 4   Activity Import             done
 Phase 5   Training Planning Core      done
 Phase 6   AI Coach MVP                done
-Phase 7   MVP Integration             upcoming
+Phase 7   MVP Integration             done  ← MVP reached
+Phase 8   First Stable Prototype      next
 ```
 
 Full roadmap: `docs/07-roadmap.md`
@@ -562,8 +584,9 @@ Phase 6 integrates the AI Coach. The user requests a training week or single wor
 | `POST` | `/api/ai/generate-week-plan` | Generate a structured week plan — returns `AiCoachOutputDto` |
 | `POST` | `/api/ai/generate-workout` | Generate a single workout — returns `AiCoachOutputDto` |
 | `GET` | `/api/ai/outputs/:id` | Get an AI output by ID |
-| `POST` | `/api/ai/outputs/:id/accept` | Accept: creates `TrainingPlan` + `PlannedWorkout` records |
+| `POST` | `/api/ai/outputs/:id/accept` | Accept: creates `TrainingPlan` + `PlannedWorkout` records; week plans auto-activate |
 | `POST` | `/api/ai/outputs/:id/reject` | Reject: sets output status to `rejected` |
+| `GET` | `/api/ai/history` | Recent AI outputs for the athlete. Query param: `limit` (default 10, max 50) |
 
 ### Environment variables (Phase 6 additions)
 

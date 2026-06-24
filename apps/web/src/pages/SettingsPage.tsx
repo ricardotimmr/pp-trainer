@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { SportBadge, ZoneBand, ZoneList } from '../components';
+import { EmptyState, SportBadge, ZoneBand, ZoneList } from '../components';
 import { usePrototypeAthleteContext } from '../context/prototypeAthleteContextValue';
 import { PageShell } from '../layout/PageShell';
 import {
@@ -463,11 +463,11 @@ export function SettingsPage() {
                   })}
                 </div>
               ) : (
-                <p className="settings-empty">No active goal set.</p>
+                <EmptyState title="No active goal set" variant="inline" />
               )}
             </div>
             {allGoals.length === 0 && (
-              <p className="settings-empty">No goals configured.</p>
+              <EmptyState title="No goals configured" variant="inline" />
             )}
 
             {profile.preferredTrainingDays && profile.preferredTrainingDays.length > 0 && (

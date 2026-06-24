@@ -39,3 +39,7 @@ export async function rejectOutput(id: string): Promise<void> {
     method: 'POST',
   });
 }
+
+export async function fetchAiHistory(limit = 5): Promise<AiCoachOutputDto[]> {
+  return apiFetch<AiCoachOutputDto[]>(`/api/ai/history?limit=${limit}`);
+}
