@@ -41,3 +41,9 @@ Phase 7 or later could add a partial unique index: `CREATE UNIQUE INDEX one_acti
 ## Prompt versioning
 
 Prompt templates live directly in `PromptBuilder.ts`. If the prompt structure changes significantly, there is no version tag on the prompt itself — only the `AthleteContext` has `contextVersion: 'v1'`. Phase 7 could add a `promptVersion` field to `AiCoachOutput` if prompt reproducibility becomes important for debugging or evaluation.
+
+## Recent proposals panel on AI Coach page
+
+The AI Coach page currently has no history of past AI-generated proposals. The `AiCoachOutput` records already exist in the DB with status (`Draft`, `Accepted`, `Rejected`). A "Recent proposals" block below the generate form would let the user re-open, compare, or accept a previous output without triggering a new generation.
+
+This needs more design thinking: how many proposals to show, which statuses to surface, whether to link directly to the preview page, and how to handle expired/invalid outputs. Pairs well with the "AI request history endpoint" item above — the backend query is the same.
