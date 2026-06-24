@@ -352,6 +352,12 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
                 >
                   Discard
                 </button>
+
+                {canAct && (
+                  <p className="ai-preview-bar__hint">
+                    Accepting will activate this plan and deactivate your current active plan.
+                  </p>
+                )}
               </>
             ) : (
               <div className="ai-preview-bar__confirm">

@@ -59,3 +59,46 @@ Rescheduling workouts by dragging them across days in the Training Plan week vie
 Currently the flow is: generate → preview → accept (then edit in Workout Detail). Phase 8 could allow editing steps inline on the AI preview page before accepting.
 
 **Phase 8.**
+
+## SettingsPage API migration
+
+`SettingsPage` is the last page still using `usePrototypeAthleteContext` (prototype mock data). Migrating it requires write-capable API endpoints for:
+- Athlete profile (weight, height, thresholds)
+- Training zones (CRUD per zone set)
+- Goals (create, update, delete, priority)
+- Availability / active days
+
+These are read-only in the current API. Until this migration is done, SettingsPage shows prototype data, not live DB data.
+
+**Phase 8.**
+
+## DATA_MODE dead code cleanup
+
+5 pages still contain `DATA_MODE` branches (`if (DATA_MODE === 'mock') ...`) that are never executed because `VITE_DATA_MODE=api` is set in `.env`. These paths exist as a safety net from the Phase 2 → API migration. Once SettingsPage is migrated and mock mode is fully retired, remove all `DATA_MODE` checks and the mock data imports.
+
+**Phase 8 — after SettingsPage migration.**
+
+## Delete outdated Phase 2 e2e tests
+
+3 Playwright spec files reference prototype mock data and no longer apply to the real API:
+- `apps/web/e2e/phase-2-routes.spec.ts`
+- `apps/web/e2e/phase-2-empty-states.spec.ts`
+- `apps/web/e2e/activity-detail.spec.ts`
+
+Currently excluded from Vitest via root `vitest.config.ts`. Should be deleted or rewritten for Phase 7+ API flows.
+
+**Phase 8.**
+
+## Toast / success notification after AI accept
+
+After accepting an AI plan or workout, the user is silently navigated to `/training-plan` or `/workouts/:id` with no visual confirmation. A brief success toast ("Plan activated" / "Workout added") would improve the UX.
+
+**Phase 8.**
+
+## FIT cadence for running — device verification needed
+
+`PlannedWorkout` steps pass `rec.cadence` as-is from `fit-file-parser`. Whether the library returns strides/min (raw FIT) or steps/min (device-normalized) depends on the library version and device firmware. The chart renders correctly if the value is present, but the unit may be off by 2× on some devices.
+
+Monitor once real running FIT files are imported. If users report wrong cadence values, check whether the value needs to be doubled.
+
+**Monitor in Phase 8.**

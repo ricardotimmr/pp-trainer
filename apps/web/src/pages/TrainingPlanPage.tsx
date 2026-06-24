@@ -35,7 +35,11 @@ import {
 import type { PlannedWorkout } from '../mock/prototypeData.types';
 import type { PageComponentProps } from '../routes/routeTypes';
 
-const TODAY = new Date().toISOString().split('T')[0];
+function toLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const TODAY = toLocalDate(new Date());
 
 function getWeekDates(startDate: string, endDate: string): string[] {
   const dates: string[] = [];
@@ -53,12 +57,11 @@ function getCurrentWeekRange(): { weekStart: string; weekEnd: string } {
   const daysFromMonday = (now.getDay() + 6) % 7;
   const monday = new Date(now);
   monday.setDate(now.getDate() - daysFromMonday);
-  monday.setHours(0, 0, 0, 0);
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
   return {
-    weekStart: monday.toISOString().split('T')[0],
-    weekEnd: sunday.toISOString().split('T')[0],
+    weekStart: toLocalDate(monday),
+    weekEnd: toLocalDate(sunday),
   };
 }
 

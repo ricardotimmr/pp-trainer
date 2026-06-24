@@ -199,13 +199,18 @@ export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | 
     );
 
     const { txPlan, txWorkouts, txOutput } = await prisma.$transaction(async (tx) => {
+      await tx.trainingPlan.updateMany({
+        where: { athleteProfileId: profile.id, status: 'Active' },
+        data: { status: 'Draft' },
+      });
+
       const txPlan = await tx.trainingPlan.create({
         data: {
           athleteProfileId: profile.id,
           title: plan.title,
           startDate: new Date(plan.weekStartDate),
           endDate: new Date(plan.weekEndDate),
-          status: 'Draft',
+          status: 'Active',
           source: 'AiGenerated',
           aiCoachOutputId: outputId,
           ...(plan.focus != null && { description: plan.focus }),

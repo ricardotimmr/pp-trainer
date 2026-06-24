@@ -80,12 +80,16 @@ function formatSwimPace(secPer100m: number): string {
   return `${min}:${sec.toString().padStart(2, '0')} /100m`;
 }
 
+function toLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function nextMondayIso(): string {
   const d = new Date();
   const day = d.getDay();
   const diff = day === 0 ? 1 : day === 1 ? 7 : 8 - day;
   d.setDate(d.getDate() + diff);
-  return d.toISOString().split('T')[0];
+  return toLocalDate(d);
 }
 
 export function AiCoachPage({ navigate }: PageComponentProps) {
