@@ -445,7 +445,7 @@ function PlanRow({ plan, onActivate, onDeactivate, onEdit, onDelete, activating,
       {expanded && (
         <div className="tp-plan-row__workouts">
           {loadingDetail ? (
-            <p className="tp-plan-row__workouts-empty">Loading…</p>
+            <LoadingState title="Loading workouts" variant="inline" />
           ) : planDetail && planDetail.plannedWorkouts.length > 0 ? (
             <ul className="tp-plan-workouts">
               {planDetail.plannedWorkouts.map((w) => (
