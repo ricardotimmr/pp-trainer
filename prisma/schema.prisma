@@ -273,6 +273,7 @@ model AthleteProfile {
   importJobs              ImportJob[]
   athleteContextSnapshots AthleteContextSnapshot[]
   aiCoachOutputs          AiCoachOutput[]
+  coachingMemoryEntries   CoachingMemoryEntry[]
 }
 
 model TrainingGoal {
@@ -809,4 +810,20 @@ model AiCoachOutput {
   @@index([outputType, status])
   @@index([createdTrainingPlanId])
   @@index([createdPlannedWorkoutId])
+}
+
+model CoachingMemoryEntry {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  aiCoachOutputId String?
+  outputType      AiCoachOutputType
+
+  entryText     String
+  weekStartDate String?
+
+  @@index([athleteProfileId, createdAt])
 }

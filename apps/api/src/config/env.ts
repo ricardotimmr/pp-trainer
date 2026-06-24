@@ -1,3 +1,5 @@
+export type AiProvider = 'anthropic' | 'openai';
+
 export type ApiConfig = {
   host: string;
   port: number;
@@ -5,6 +7,13 @@ export type ApiConfig = {
   nodeEnv: 'development' | 'test' | 'production';
   importMaxFileSizeMb: number;
   importStoragePath: string;
+  ai: {
+    provider: AiProvider;
+    mock: boolean;
+    anthropicApiKey?: string;
+    openaiApiKey?: string;
+    model?: string;
+  };
 };
 
 const validNodeEnvs = ['development', 'test', 'production'] as const;
@@ -35,6 +44,11 @@ function parseNodeEnv(rawNodeEnv: string | undefined): ApiConfig['nodeEnv'] {
   return nodeEnv as ApiConfig['nodeEnv'];
 }
 
+function parseAiProvider(raw: string | undefined): AiProvider {
+  if (raw === 'anthropic') return 'anthropic';
+  return 'openai';
+}
+
 export function getApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   return {
     host: env.API_HOST ?? '127.0.0.1',
@@ -43,5 +57,12 @@ export function getApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     nodeEnv: parseNodeEnv(env.NODE_ENV),
     importMaxFileSizeMb: Number(env.IMPORT_MAX_FILE_SIZE_MB ?? 20),
     importStoragePath: env.IMPORT_STORAGE_PATH ?? './storage/imports',
+    ai: {
+      provider: parseAiProvider(env.AI_PROVIDER),
+      mock: env.AI_MOCK === 'true',
+      anthropicApiKey: env.ANTHROPIC_API_KEY,
+      openaiApiKey: env.OPENAI_API_KEY,
+      model: env.AI_MODEL,
+    },
   };
 }

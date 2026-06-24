@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { TrainingPlanDto } from '@pp-trainer/shared';
 
@@ -12,10 +12,14 @@ export type CurrentWeekPlanState =
 export function useCurrentWeekPlan(): CurrentWeekPlanState & { refresh: () => void } {
   const [state, setState] = useState<CurrentWeekPlanState>({ status: 'loading' });
   const [tick, setTick] = useState(0);
+  const isInitial = useRef(true);
 
   useEffect(() => {
     let cancelled = false;
-    setState({ status: 'loading' });
+    if (isInitial.current) {
+      isInitial.current = false;
+      setState({ status: 'loading' });
+    }
     fetchCurrentWeekPlan()
       .then((response) => {
         if (!cancelled) setState({ status: 'success', plan: response.currentTrainingPlan });

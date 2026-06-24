@@ -4,25 +4,26 @@
 
 ## Current Status
 
-**Phase 4: Activity Import and Normalization — complete**
+**Phase 6: AI Coach MVP — complete**
 
-The full activity import pipeline is operational. FIT, GPX, TCX binary and XML files are parsed, normalized into the internal activity model, deduplicated and persisted. The JSON import endpoint covers the python-garminconnect integration path. The Dashboard and Import pages are migrated to API mode.
+The AI Coach is fully integrated. The user can generate an AI training week plan or single workout, review the structured preview, and accept or reject it. Accepted outputs create real `TrainingPlan` and `PlannedWorkout` records with `source: 'AiGenerated'`. All phases 0–6 are complete.
 
-**What Phase 4 delivered:**
+**What Phase 6 delivered:**
 
-- `POST /api/imports/activity-file` — FIT, GPX and TCX file uploads with multipart parsing, storage and pipeline dispatch
-- `POST /api/imports/activity-json` — structured JSON import with Zod validation and duplicate detection
-- `GET /api/imports` / `GET /api/imports/:id` — import history with status, error messages and file metadata
-- FIT parser (`fit-file-parser`), GPX/TCX parser (`fast-xml-parser`) with 5 s metric downsampling
-- `ActivityNormalizer` — sport-specific mapping to `Prisma.ActivityUncheckedCreateInput`
-- Deduplication layer — exact SHA-256 hash match + similarity check (sport, startTime ±60 s, duration ±5%)
-- Dashboard API mode — weekly volume from real activities, no active plan handled gracefully
-- Import page API mode — drag-and-drop upload, JSON import, status result blocks, paginated history with filter tabs
-- 361 unit and integration tests — all passing without a database
+- `AthleteContextBuilder` — builds compact `AthleteContext v1` from real DB data (profile, goals, availability, zones, recent activities, current week summary)
+- `AthleteContextSnapshot` persistence before every AI request for auditability
+- `AnthropicProvider` — Anthropic Claude (`claude-opus-4-8` default) via SDK tool use for structured output
+- `MockProvider` — returns realistic fixture JSON when `AI_MOCK=true`; no real API calls needed during development
+- `POST /api/ai/generate-week-plan` and `POST /api/ai/generate-workout` — full generation pipeline with validation
+- `GET /api/ai/outputs/:id`, `POST /api/ai/outputs/:id/accept`, `POST /api/ai/outputs/:id/reject` — output lifecycle
+- Frontend: `AiCoachPage`, `AiWeekPlanPreviewPage`, `AiWorkoutPreviewPage` — request flow, structured preview, accept/reject
+- `AiBadge` — visual indicator on AI-generated plans and workouts in Training Plan and Workout Detail pages
+- Session bar and zone name display fixes across all workout detail views
+- 618 unit and integration tests — all passing without a database
 
-**What is still mock-only (Phase 5+):**
+**What was already complete (Phases 1–5):**
 
-Training plan, workouts, goals, AI coach and performance pages still read from `apps/web/src/mock/` prototype helpers. No create/update/delete mutations for training plans exist yet.
+Training plans, workouts, steps, manual creation UI, activity import (FIT/GPX/TCX/JSON), dashboard, athlete profile, training zones, import history — all on live backend data.
 
 ## Repository Structure
 
@@ -229,7 +230,7 @@ This runs in sequence:
 1. `build:shared` + `typecheck:shared` — shared package compiles cleanly
 2. `typecheck:api` — API TypeScript is clean
 3. `lint:api` — no ESLint errors
-4. `test:api` — all 361 unit tests pass (no database required)
+4. `test:api` — all 618 unit tests pass (no database required)
 5. `db:validate:seed` — seed payload structure is internally consistent
 
 CI (GitHub Actions) runs the same steps on every push and pull request to `main`.
@@ -243,7 +244,7 @@ Phase 2   Frontend Prototype          done
 Phase 3   Backend and Database        done
 Phase 4   Activity Import             done
 Phase 5   Training Planning Core      done
-Phase 6   AI Coach MVP                upcoming
+Phase 6   AI Coach MVP                done
 Phase 7   MVP Integration             upcoming
 ```
 
@@ -544,11 +545,72 @@ curl -s http://localhost:3000/api/training-plans/current-week | jq .
 
 All plans and workouts created through the API in Phase 5 carry `"source": "manual"`. When the AI Coach (Phase 6) creates plans and workouts it will use `"source": "aiCoach"`. This distinction allows the UI to attribute content origin and allows future filtering by source.
 
-### Phase 6 next steps
+### source field
 
-Phase 6 (AI Coach MVP) will:
+All plans and workouts created through the API in Phase 5 carry `"source": "manual"`. AI Coach-generated content uses `"source": "aiCoach"`.
 
-- Add `POST /api/ai-coach/generate-plan` which produces `TrainingPlan` + `PlannedWorkout` records using `source: 'aiCoach'`
-- Add `POST /api/ai-coach/suggest-workout` for single-session recommendations
-- Add `POST /api/context/snapshot` to build and persist the athlete context used in AI prompts
-- Introduce stricter workout status transitions (state machine guard) where the current permissive `PUT /api/workouts/:id` approach may need guarding for AI-generated content
+---
+
+## Phase 6: AI Coach MVP
+
+Phase 6 integrates the AI Coach. The user requests a training week or single workout, the backend builds an athlete context, calls the AI provider, validates the structured output, and returns a preview. The user accepts or rejects — no training entities are created without explicit confirmation.
+
+### AI endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/ai/generate-week-plan` | Generate a structured week plan — returns `AiCoachOutputDto` |
+| `POST` | `/api/ai/generate-workout` | Generate a single workout — returns `AiCoachOutputDto` |
+| `GET` | `/api/ai/outputs/:id` | Get an AI output by ID |
+| `POST` | `/api/ai/outputs/:id/accept` | Accept: creates `TrainingPlan` + `PlannedWorkout` records |
+| `POST` | `/api/ai/outputs/:id/reject` | Reject: sets output status to `rejected` |
+
+### Environment variables (Phase 6 additions)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `ANTHROPIC_API_KEY` | yes (for live AI) | — | Anthropic Claude API key — backend only, never in frontend |
+| `AI_MOCK` | no | `false` | Set to `true` to return fixture data without real API calls |
+| `AI_MODEL` | no | `claude-opus-4-8` | Override the Claude model |
+
+### AI Coach flow
+
+```txt
+POST /api/ai/generate-week-plan  (or generate-workout)
+        ↓
+AthleteContextBuilder → compact AthleteContext v1
+        ↓
+AthleteContextSnapshot persisted
+        ↓
+AiProviderClient → AnthropicProvider (tool use / structured output)
+        ↓
+Output validated with Zod schema
+        ↓
+AiCoachOutput stored (status: draft, validationStatus: valid | invalid)
+        ↓
+Frontend preview
+        ↓
+User accepts → TrainingPlan + PlannedWorkout created (source: AiGenerated)
+User rejects → status: rejected, no training entities created
+```
+
+### Accept response
+
+```json
+{
+  "trainingPlanId": "plan-uuid",
+  "plannedWorkoutIds": ["workout-uuid-1", "workout-uuid-2"]
+}
+```
+
+For single workout accept:
+
+```json
+{
+  "plannedWorkoutId": "workout-uuid"
+}
+```
+
+### Validation rules
+
+AI outputs that fail Zod schema validation are stored with `validationStatus: 'invalid'`. They are returned to the frontend (to allow retry) but cannot be accepted — `POST /api/ai/outputs/:id/accept` returns `422` for invalid outputs. Double-accept or double-reject returns `409`.

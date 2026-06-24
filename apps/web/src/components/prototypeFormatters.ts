@@ -60,13 +60,12 @@ export const formatDuration = (seconds?: number) => {
   }
 
   const hours = Math.floor(seconds / 3600);
-  const minutes = Math.round((seconds % 3600) / 60);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
 
-  if (hours === 0) {
-    return `${minutes} min`;
-  }
-
-  return `${hours}h ${minutes.toString().padStart(2, '0')}m`;
+  if (hours === 0 && secs === 0) return `${mins} min`;
+  if (hours === 0) return `${mins}m ${secs}s`;
+  return secs === 0 ? `${hours}h ${mins.toString().padStart(2, '0')}m` : `${hours}h ${mins.toString().padStart(2, '0')}m ${secs}s`;
 };
 
 export const formatDistance = (meters?: number) => {

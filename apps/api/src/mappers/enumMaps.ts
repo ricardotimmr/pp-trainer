@@ -1,5 +1,8 @@
 import type {
   ActivityType,
+  AiCoachOutputStatus,
+  AiCoachOutputType,
+  AiOutputValidationStatus,
   DataSourceType,
   GoalPriority,
   ImportedFileType,
@@ -20,6 +23,9 @@ import type {
 } from '@prisma/client';
 import type {
   ActivityTypeDto,
+  AiCoachOutputStatusDto,
+  AiCoachOutputTypeDto,
+  AiOutputValidationStatusDto,
   DataSourceTypeDto,
   GoalPriorityDto,
   ImportedFileTypeDto,
@@ -293,6 +299,29 @@ export const DTO_TO_PRISMA_WORKOUT_INTENSITY_MAP: Record<WorkoutIntensityDto, Wo
   vo2max: 'Vo2Max',
   race: 'Race',
   strength: 'Strength',
+};
+
+export const AI_COACH_OUTPUT_TYPE_MAP: Record<AiCoachOutputType, AiCoachOutputTypeDto> = {
+  WeekPlan: 'week_plan',
+  SingleWorkout: 'single_workout',
+  WeekAnalysis: 'week_analysis',
+  PlanAdjustment: 'plan_adjustment',
+  Recommendation: 'recommendation',
+  TextAnswer: 'text_answer',
+};
+
+export const AI_COACH_OUTPUT_STATUS_MAP: Record<AiCoachOutputStatus, AiCoachOutputStatusDto> = {
+  Draft: 'draft',
+  Accepted: 'accepted',
+  Rejected: 'rejected',
+  Archived: 'archived',
+};
+
+export const AI_OUTPUT_VALIDATION_STATUS_MAP: Record<AiOutputValidationStatus, AiOutputValidationStatusDto> = {
+  NotValidated: 'not_validated',
+  Valid: 'valid',
+  Invalid: 'invalid',
+  PartiallyValid: 'partially_valid',
 };
 
 export const DTO_TO_PRISMA_WORKOUT_STEP_TYPE_MAP: Record<WorkoutStepTypeDto, WorkoutStepType> = {

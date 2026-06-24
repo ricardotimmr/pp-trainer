@@ -13,6 +13,7 @@ export type WorkoutStepData = {
   stepType: WorkoutStepType;
   title?: string;
   instruction: string;
+  zoneName?: string;
   durationSeconds?: number;
   distanceMeters?: number;
   repetitions?: number;
@@ -83,8 +84,13 @@ export function WorkoutStepList({ steps }: WorkoutStepListProps) {
             </span>
             <span className="workout-step__type">{typeLabel}</span>
             <h3 className="workout-step__title">{title}</h3>
-            {metrics && (
-              <p className="workout-step__metrics">{metrics}</p>
+            {(metrics || step.zoneName) && (
+              <p className="workout-step__metrics">
+                {metrics}
+                {step.zoneName && (
+                  <span className="workout-step__zone">{step.zoneName}</span>
+                )}
+              </p>
             )}
             {instruction && (
               <p className="workout-step__instruction">{instruction}</p>

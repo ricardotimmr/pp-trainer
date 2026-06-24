@@ -54,6 +54,21 @@ export type SimilarActivityParams = {
   durationSeconds: number;
 };
 
+export async function countActivitiesAllTime(athleteProfileId: string): Promise<number> {
+  return prisma.activity.count({ where: { athleteProfileId } });
+}
+
+export async function findActivitiesForHistory(
+  athleteProfileId: string,
+  fromDate: Date,
+): Promise<Pick<Activity, 'sport' | 'startTime' | 'durationSeconds' | 'distanceMeters'>[]> {
+  return prisma.activity.findMany({
+    where: { athleteProfileId, startTime: { gte: fromDate } },
+    select: { sport: true, startTime: true, durationSeconds: true, distanceMeters: true },
+    orderBy: { startTime: 'asc' },
+  });
+}
+
 export async function findSimilarActivity(
   params: SimilarActivityParams,
 ): Promise<Pick<Activity, 'id'> | null> {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { PlannedWorkoutDto } from '@pp-trainer/shared';
 
@@ -12,10 +12,14 @@ export type WorkoutsState =
 export function useWorkouts(): WorkoutsState & { refresh: () => void } {
   const [tick, setTick] = useState(0);
   const [state, setState] = useState<WorkoutsState>({ status: 'loading' });
+  const isInitial = useRef(true);
 
   useEffect(() => {
     let cancelled = false;
-    setState({ status: 'loading' });
+    if (isInitial.current) {
+      isInitial.current = false;
+      setState({ status: 'loading' });
+    }
     fetchWorkouts()
       .then((workouts) => {
         if (!cancelled) setState({ status: 'success', workouts });
