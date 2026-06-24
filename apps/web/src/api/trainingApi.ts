@@ -47,6 +47,10 @@ export async function fetchWorkouts(): Promise<PlannedWorkoutDto[]> {
   return apiFetch<PlannedWorkoutDto[]>('/api/workouts');
 }
 
+export async function fetchWorkoutsForWeek(from: string, to: string): Promise<PlannedWorkoutDto[]> {
+  return apiFetch<PlannedWorkoutDto[]>(`/api/workouts?from=${from}&to=${to}`);
+}
+
 export async function fetchWorkoutById(id: string): Promise<PlannedWorkoutDto> {
   return apiFetch<PlannedWorkoutDto>(`/api/workouts/${encodeURIComponent(id)}`);
 }

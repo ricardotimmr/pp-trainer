@@ -45,7 +45,7 @@ export async function generateWorkout(request: GenerateWorkoutRequest): Promise<
   const context = await AthleteContextBuilder.buildContext(profile.id);
   const snapshot = await AthleteContextBuilder.persistSnapshot(profile.id, context);
 
-  const objective = request.userInstruction ?? `${request.intensity} ${request.sport} workout`;
+  const objective = `${request.intensity} ${request.sport} workout`;
 
   const result = await AiProviderClient.generateSingleWorkout(
     context,

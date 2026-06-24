@@ -6,9 +6,8 @@ import { SelectMenu, SportBadge } from '../components';
 import type { SelectMenuOption } from '../components';
 import { generateWeekPlan, generateWorkout } from '../api/aiApi';
 import { ApiClientError } from '../api/apiClient';
-import { usePrototypeAthleteContext } from '../context/prototypeAthleteContextValue';
+import { useAiCoachSidebar } from '../hooks/useAiCoachSidebar';
 import { PageShell } from '../layout/PageShell';
-import { getWeeklySummary } from '../mock/prototypeData.helpers';
 import { formatDuration, sportLabels } from '../components/prototypeFormatters';
 import type { PageComponentProps } from '../routes/routeTypes';
 
@@ -73,16 +72,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
   const [durationMinutes, setDurationMinutes] = useState('');
   const [workoutInstruction, setWorkoutInstruction] = useState('');
 
-  const { mainGoal, profile, secondaryGoals, watchlistGoals } = usePrototypeAthleteContext();
-  const weeklySummary = getWeeklySummary();
-
-  const hasThresholdBaselines = Boolean(
-    profile.currentFtpWatts
-      || profile.maxHeartRateBpm
-      || profile.restingHeartRateBpm
-      || profile.runningThresholdPaceSecPerKm
-      || profile.swimmingThresholdPaceSecPer100m,
-  );
+  const sidebarState = useAiCoachSidebar();
 
   function switchMode(next: 'week_plan' | 'single_workout') {
     setMode(next);
@@ -157,146 +147,158 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
         {/* ── Left: athlete context ─────────────────────────────── */}
         <aside className="ai-coach__context">
 
-          <section className="ai-context-section">
-            <p className="ai-context-section__label">Athlete</p>
-            <dl className="ai-context-dl">
-              <div><dt>Name</dt><dd>{profile.displayName}</dd></div>
-              {profile.bodyWeightKg && (
-                <div><dt>Weight</dt><dd>{profile.bodyWeightKg} kg</dd></div>
-              )}
-              {profile.heightCm && (
-                <div><dt>Height</dt><dd>{profile.heightCm} cm</dd></div>
-              )}
-            </dl>
-            <div className="ai-context-sports">
-              {profile.primarySports.map((s) => (
-                <SportBadge key={s} sport={s} />
-              ))}
-            </div>
-          </section>
+          {sidebarState.status === 'ready' && (() => {
+            const { settings, mainGoal, secondaryGoals, watchlistGoals, activeDays, weekLoad } = sidebarState.data;
+            const { athleteProfile } = settings;
+            const { thresholds } = athleteProfile;
+            const hasThresholds = Boolean(
+              thresholds.currentFtpWatts || thresholds.maxHeartRateBpm
+              || thresholds.restingHeartRateBpm || thresholds.runningThresholdPaceSecPerKm
+              || thresholds.swimmingThresholdPaceSecPer100m,
+            );
 
-          <section className="ai-context-section">
-            <p className="ai-context-section__label">Thresholds</p>
-            {hasThresholdBaselines ? (
-              <dl className="ai-context-dl">
-                {profile.currentFtpWatts && (
-                  <div><dt>Bike FTP</dt><dd>{profile.currentFtpWatts} W</dd></div>
-                )}
-                {profile.maxHeartRateBpm && (
-                  <div><dt>HR max</dt><dd>{profile.maxHeartRateBpm} bpm</dd></div>
-                )}
-                {profile.restingHeartRateBpm && (
-                  <div><dt>HR rest</dt><dd>{profile.restingHeartRateBpm} bpm</dd></div>
-                )}
-                {profile.runningThresholdPaceSecPerKm && (
-                  <div>
-                    <dt>Run threshold</dt>
-                    <dd>{formatRunPace(profile.runningThresholdPaceSecPerKm)}</dd>
-                  </div>
-                )}
-                {profile.swimmingThresholdPaceSecPer100m && (
-                  <div>
-                    <dt>Swim threshold</dt>
-                    <dd>{formatSwimPace(profile.swimmingThresholdPaceSecPer100m)}</dd>
-                  </div>
-                )}
-              </dl>
-            ) : (
-              <p className="ai-context-empty">No threshold baselines set.</p>
-            )}
-          </section>
-
-          {mainGoal && (
-            <section className="ai-context-section">
-              <p className="ai-context-section__label">Main goal</p>
-              <p className="ai-context-goal__title">{mainGoal.title}</p>
-              {mainGoal.targetDate && (
-                <p className="ai-context-goal__date">
-                  {new Intl.DateTimeFormat('en', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  }).format(new Date(`${mainGoal.targetDate}T12:00:00Z`))}
-                </p>
-              )}
-            </section>
-          )}
-
-          {secondaryGoals.length > 0 && (
-            <section className="ai-context-section">
-              <p className="ai-context-section__label">Secondary goals</p>
-              <ul className="ai-context-goal-list">
-                {secondaryGoals.map((goal) => (
-                  <li key={goal.id}>
-                    <span>{goal.title}</span>
-                    {goal.targetDate && (
-                      <em>
-                        {new Intl.DateTimeFormat('en', {
-                          month: 'short',
-                          day: 'numeric',
-                        }).format(new Date(`${goal.targetDate}T12:00:00Z`))}
-                      </em>
+            return (
+              <>
+                <section className="ai-context-section">
+                  <p className="ai-context-section__label">Athlete</p>
+                  <dl className="ai-context-dl">
+                    <div><dt>Name</dt><dd>{athleteProfile.displayName}</dd></div>
+                    {athleteProfile.bodyWeightKg && (
+                      <div><dt>Weight</dt><dd>{athleteProfile.bodyWeightKg} kg</dd></div>
                     )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+                    {athleteProfile.heightCm && (
+                      <div><dt>Height</dt><dd>{athleteProfile.heightCm} cm</dd></div>
+                    )}
+                  </dl>
+                  <div className="ai-context-sports">
+                    {athleteProfile.primarySports.map((s) => (
+                      <SportBadge key={s} sport={s} />
+                    ))}
+                  </div>
+                </section>
 
-          {watchlistGoals.length > 0 && (
-            <section className="ai-context-section">
-              <p className="ai-context-section__label">Watchlist</p>
-              <ul className="ai-context-goal-list ai-context-goal-list--muted">
-                {watchlistGoals.map((goal) => (
-                  <li key={goal.id}>
-                    <span>{goal.title}</span>
-                    <em>tracked only</em>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+                <section className="ai-context-section">
+                  <p className="ai-context-section__label">Thresholds</p>
+                  {hasThresholds ? (
+                    <dl className="ai-context-dl">
+                      {thresholds.currentFtpWatts && (
+                        <div><dt>Bike FTP</dt><dd>{thresholds.currentFtpWatts} W</dd></div>
+                      )}
+                      {thresholds.maxHeartRateBpm && (
+                        <div><dt>HR max</dt><dd>{thresholds.maxHeartRateBpm} bpm</dd></div>
+                      )}
+                      {thresholds.restingHeartRateBpm && (
+                        <div><dt>HR rest</dt><dd>{thresholds.restingHeartRateBpm} bpm</dd></div>
+                      )}
+                      {thresholds.runningThresholdPaceSecPerKm && (
+                        <div>
+                          <dt>Run threshold</dt>
+                          <dd>{formatRunPace(thresholds.runningThresholdPaceSecPerKm)}</dd>
+                        </div>
+                      )}
+                      {thresholds.swimmingThresholdPaceSecPer100m && (
+                        <div>
+                          <dt>Swim threshold</dt>
+                          <dd>{formatSwimPace(thresholds.swimmingThresholdPaceSecPer100m)}</dd>
+                        </div>
+                      )}
+                    </dl>
+                  ) : (
+                    <p className="ai-context-empty">No threshold baselines set.</p>
+                  )}
+                </section>
 
-          {profile.preferredTrainingDays && profile.preferredTrainingDays.length > 0 && (
-            <section className="ai-context-section">
-              <p className="ai-context-section__label">Weekly availability</p>
-              <ul className="ai-context-availability">
-                {profile.preferredTrainingDays.map((day) => (
-                  <li key={day.weekday} className="ai-context-availability__day">
-                    <span className="ai-context-availability__weekday">
-                      {WEEKDAY_SHORT[day.weekday]}
-                    </span>
-                    <span className="ai-context-availability__duration">
-                      {day.maxDurationMinutes} min
-                    </span>
-                    <span className="ai-context-availability__sports">
-                      {day.preferredSports?.map((s) => sportLabels[s]).join(' · ')}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+                {mainGoal && (
+                  <section className="ai-context-section">
+                    <p className="ai-context-section__label">Main goal</p>
+                    <p className="ai-context-goal__title">{mainGoal.title}</p>
+                    {mainGoal.targetDate && (
+                      <p className="ai-context-goal__date">
+                        {new Intl.DateTimeFormat('en', {
+                          month: 'short', day: 'numeric', year: 'numeric',
+                        }).format(new Date(`${mainGoal.targetDate}T12:00:00Z`))}
+                      </p>
+                    )}
+                  </section>
+                )}
 
-          <section className="ai-context-section">
-            <p className="ai-context-section__label">Current week load</p>
-            <dl className="ai-context-dl">
-              <div><dt>Sessions</dt><dd>{weeklySummary.activityCount}</dd></div>
-              <div>
-                <dt>Total time</dt>
-                <dd>{formatDuration(weeklySummary.plannedDurationSeconds)}</dd>
-              </div>
-              {weeklySummary.cyclingDurationSeconds ? (
-                <div><dt>Bike</dt><dd>{formatDuration(weeklySummary.cyclingDurationSeconds)}</dd></div>
-              ) : null}
-              {weeklySummary.runningDurationSeconds ? (
-                <div><dt>Run</dt><dd>{formatDuration(weeklySummary.runningDurationSeconds)}</dd></div>
-              ) : null}
-              {weeklySummary.swimmingDurationSeconds ? (
-                <div><dt>Swim</dt><dd>{formatDuration(weeklySummary.swimmingDurationSeconds)}</dd></div>
-              ) : null}
-            </dl>
-          </section>
+                {secondaryGoals.length > 0 && (
+                  <section className="ai-context-section">
+                    <p className="ai-context-section__label">Secondary goals</p>
+                    <ul className="ai-context-goal-list">
+                      {secondaryGoals.map((goal) => (
+                        <li key={goal.id}>
+                          <span>{goal.title}</span>
+                          {goal.targetDate && (
+                            <em>
+                              {new Intl.DateTimeFormat('en', {
+                                month: 'short', day: 'numeric',
+                              }).format(new Date(`${goal.targetDate}T12:00:00Z`))}
+                            </em>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                {watchlistGoals.length > 0 && (
+                  <section className="ai-context-section">
+                    <p className="ai-context-section__label">Watchlist</p>
+                    <ul className="ai-context-goal-list ai-context-goal-list--muted">
+                      {watchlistGoals.map((goal) => (
+                        <li key={goal.id}>
+                          <span>{goal.title}</span>
+                          <em>tracked only</em>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                {activeDays.length > 0 && (
+                  <section className="ai-context-section">
+                    <p className="ai-context-section__label">Weekly availability</p>
+                    <ul className="ai-context-availability">
+                      {activeDays.map((day) => (
+                        <li key={day.weekday} className="ai-context-availability__day">
+                          <span className="ai-context-availability__weekday">
+                            {WEEKDAY_SHORT[day.weekday]}
+                          </span>
+                          <span className="ai-context-availability__duration">
+                            {day.maxDurationMinutes} min
+                          </span>
+                          <span className="ai-context-availability__sports">
+                            {day.preferredSports.map((s) => sportLabels[s]).join(' · ')}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                <section className="ai-context-section">
+                  <p className="ai-context-section__label">Current week load</p>
+                  <dl className="ai-context-dl">
+                    <div><dt>Sessions</dt><dd>{weekLoad.workoutCount}</dd></div>
+                    <div>
+                      <dt>Total time</dt>
+                      <dd>{formatDuration(weekLoad.plannedDurationSeconds)}</dd>
+                    </div>
+                    {weekLoad.cyclingDurationSeconds > 0 && (
+                      <div><dt>Bike</dt><dd>{formatDuration(weekLoad.cyclingDurationSeconds)}</dd></div>
+                    )}
+                    {weekLoad.runningDurationSeconds > 0 && (
+                      <div><dt>Run</dt><dd>{formatDuration(weekLoad.runningDurationSeconds)}</dd></div>
+                    )}
+                    {weekLoad.swimmingDurationSeconds > 0 && (
+                      <div><dt>Swim</dt><dd>{formatDuration(weekLoad.swimmingDurationSeconds)}</dd></div>
+                    )}
+                  </dl>
+                </section>
+              </>
+            );
+          })()}
 
         </aside>
 

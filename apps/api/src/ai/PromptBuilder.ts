@@ -30,18 +30,18 @@ const WEEK_PLAN_SCHEMA_HINT = `Return a JSON object:
   "workouts": [
     {
       "title": string,
-      "sport": string (e.g. "Running", "Cycling"),
-      "workoutType": string (e.g. "Endurance", "Interval", "Recovery"),
+      "sport": string (e.g. "running", "cycling", "swimming", "strength", "mobility", "other"),
+      "workoutType": string (e.g. "endurance", "interval", "recovery"),
       "scheduledDate": "YYYY-MM-DD" (optional),
       "plannedDurationSeconds": number (optional),
       "plannedDistanceMeters": number (optional),
-      "intensity": string (e.g. "Easy", "Moderate", "Hard"),
+      "intensity": string (e.g. "easy", "moderate", "hard"),
       "objective": string (optional, but required if no description),
       "description": string (optional),
       "steps": [
         {
           "stepIndex": number (0-based, unique per workout),
-          "stepType": string (e.g. "WarmUp", "CoolDown", "Steady", "Interval", "Rest", "Repeat"),
+          "stepType": string (e.g. "warmup", "main", "interval", "recovery", "cooldown", "technique", "rest", "other"),
           "instruction": string,
           "title": string (optional),
           "durationSeconds": number (optional),
@@ -54,6 +54,8 @@ const WEEK_PLAN_SCHEMA_HINT = `Return a JSON object:
           "targetPowerUpperWatts": number (optional),
           "targetPaceLowerSecPerKm": number (optional),
           "targetPaceUpperSecPerKm": number (optional),
+          "targetSwimPaceLowerSecPer100m": number (optional),
+          "targetSwimPaceUpperSecPer100m": number (optional),
           "restSeconds": number (optional),
           "notes": string (optional)
         }
@@ -67,7 +69,7 @@ const SINGLE_WORKOUT_SCHEMA_HINT = `Return a JSON object:
 {
   "workout": {
     "title": string,
-    "sport": string (e.g. "running", "cycling"),
+    "sport": string (e.g. "running", "cycling", "swimming", "strength", "mobility", "other"),
     "workoutType": string (e.g. "endurance", "interval", "recovery"),
     "plannedDurationSeconds": number (optional),
     "intensity": string (e.g. "easy", "moderate", "tempo", "threshold", "vo2max"),
@@ -76,7 +78,7 @@ const SINGLE_WORKOUT_SCHEMA_HINT = `Return a JSON object:
     "steps": [
       {
         "stepIndex": number (0-based, unique),
-        "stepType": string (e.g. "warmup", "main", "interval", "recovery", "cooldown", "rest"),
+        "stepType": string (e.g. "warmup", "main", "interval", "recovery", "cooldown", "technique", "rest", "other"),
         "instruction": string,
         "durationSeconds": number (optional),
         "distanceMeters": number (optional),
@@ -84,7 +86,14 @@ const SINGLE_WORKOUT_SCHEMA_HINT = `Return a JSON object:
         "targetHeartRateZoneName": string (optional),
         "targetPowerZoneName": string (optional),
         "targetPaceZoneName": string (optional),
-        "restSeconds": number (optional)
+        "targetPowerLowerWatts": number (optional),
+        "targetPowerUpperWatts": number (optional),
+        "targetPaceLowerSecPerKm": number (optional),
+        "targetPaceUpperSecPerKm": number (optional),
+        "targetSwimPaceLowerSecPer100m": number (optional),
+        "targetSwimPaceUpperSecPer100m": number (optional),
+        "restSeconds": number (optional),
+        "notes": string (optional)
       }
     ],
     "coachNotes": string (optional)

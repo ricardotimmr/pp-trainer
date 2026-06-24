@@ -31,6 +31,14 @@ function formatPaceRange(lower?: number, upper?: number): string | undefined {
   return `≤ ${fmt(upper!)} /km`;
 }
 
+function formatSwimPaceRange(lower?: number, upper?: number): string | undefined {
+  if (!lower && !upper) return undefined;
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  if (lower && upper) return `${fmt(lower)}–${fmt(upper)} /100m`;
+  if (lower) return `≥ ${fmt(lower)} /100m`;
+  return `≤ ${fmt(upper!)} /100m`;
+}
+
 function formatPowerRange(lower?: number, upper?: number): string | undefined {
   if (!lower && !upper) return undefined;
   if (lower && upper) return `${lower}–${upper} W`;
@@ -62,8 +70,10 @@ function StatusBadge({ status }: { status: AiCoachOutputDto['status'] }) {
 function StepRow({ step }: { step: AiGeneratedWorkoutStep }) {
   const targets: string[] = [];
   const pace = formatPaceRange(step.targetPaceLowerSecPerKm, step.targetPaceUpperSecPerKm);
+  const swimPace = formatSwimPaceRange(step.targetSwimPaceLowerSecPer100m, step.targetSwimPaceUpperSecPer100m);
   const power = formatPowerRange(step.targetPowerLowerWatts, step.targetPowerUpperWatts);
   if (pace) targets.push(pace);
+  if (swimPace) targets.push(swimPace);
   if (power) targets.push(power);
   if (step.targetHeartRateZoneName) targets.push(step.targetHeartRateZoneName);
   if (step.targetPowerZoneName) targets.push(step.targetPowerZoneName);
@@ -92,8 +102,11 @@ function StepRow({ step }: { step: AiGeneratedWorkoutStep }) {
 function WorkoutCard({ workout }: { workout: AiGeneratedWorkout }) {
   const [expanded, setExpanded] = useState(false);
   const hasSteps = workout.steps.length > 0;
-  const stepsWithDuration = workout.steps.filter((s) => s.durationSeconds);
-  const totalStepSec = stepsWithDuration.reduce((sum, s) => sum + (s.durationSeconds ?? 0), 0);
+  const sortedSteps = [...workout.steps].sort((a, b) => a.stepIndex - b.stepIndex);
+  const stepBarFlex = (s: AiGeneratedWorkoutStep) => s.durationSeconds ?? s.distanceMeters ?? 0;
+  const hasBarData = sortedSteps.some((s) => stepBarFlex(s) > 0);
+  const hasDistanceOnlyStep = sortedSteps.some((s) => !s.durationSeconds && (s.distanceMeters ?? 0) > 0);
+  const totalStepSec = sortedSteps.reduce((sum, s) => sum + (s.durationSeconds ?? 0), 0);
 
   return (
     <div className="ai-preview-workout">
@@ -132,17 +145,19 @@ function WorkoutCard({ workout }: { workout: AiGeneratedWorkout }) {
         <p className="ai-preview-workout__objective">{workout.description}</p>
       )}
 
-      {stepsWithDuration.length > 0 && (
+      {hasBarData && (
         <div className="session-bar ai-preview-workout__bar" aria-hidden="true">
-          {stepsWithDuration.map((step) => (
+          {sortedSteps.map((step) => (
             <div
               key={step.stepIndex}
               className={`session-bar__segment session-bar__segment--${step.stepType}`}
-              style={{ flex: step.durationSeconds }}
-              title={`${STEP_TYPE_LABELS[step.stepType]}: ${formatDuration(step.durationSeconds)}`}
+              style={{ flex: stepBarFlex(step) }}
+              title={step.durationSeconds
+                ? `${STEP_TYPE_LABELS[step.stepType]}: ${formatDuration(step.durationSeconds)}`
+                : STEP_TYPE_LABELS[step.stepType] ?? step.stepType}
             />
           ))}
-          {totalStepSec < (workout.plannedDurationSeconds ?? 0) && (
+          {!hasDistanceOnlyStep && totalStepSec < (workout.plannedDurationSeconds ?? 0) && (
             <div
               className="session-bar__segment session-bar__segment--other"
               style={{ flex: (workout.plannedDurationSeconds ?? 0) - totalStepSec }}
@@ -295,8 +310,8 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
         <div className="ai-preview-workouts">
           <p className="ai-output__label">{plan.workouts.length} workout{plan.workouts.length === 1 ? '' : 's'} this week</p>
           <div className="ai-preview-workout-list">
-            {plan.workouts.map((workout, i) => (
-              <WorkoutCard key={i} workout={workout} />
+            {plan.workouts.map((workout) => (
+              <WorkoutCard key={`${workout.scheduledDate ?? ''}-${workout.title}`} workout={workout} />
             ))}
           </div>
         </div>

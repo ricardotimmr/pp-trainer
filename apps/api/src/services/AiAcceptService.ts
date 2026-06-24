@@ -11,11 +11,19 @@ import type { AiCoachOutputDto } from '@pp-trainer/shared';
 
 import { ApiError } from '../errors/ApiError.js';
 import { prisma } from '../lib/prisma.js';
+import {
+  DTO_TO_PRISMA_PLANNED_WORKOUT_SOURCE_MAP,
+  DTO_TO_PRISMA_SPORT_MAP,
+  DTO_TO_PRISMA_WORKOUT_INTENSITY_MAP,
+  DTO_TO_PRISMA_WORKOUT_STATUS_MAP,
+  DTO_TO_PRISMA_WORKOUT_STEP_TYPE_MAP,
+  DTO_TO_PRISMA_WORKOUT_TYPE_MAP,
+} from '../mappers/enumMaps.js';
 import { mapAiCoachOutput } from '../mappers/mapAi.js';
+import { mapPlannedWorkout, mapTrainingPlan } from '../mappers/mapTraining.js';
 import * as AiRepository from '../repositories/AiRepository.js';
 import * as AthleteRepository from '../repositories/AthleteRepository.js';
 import * as MemoryEntryService from './MemoryEntryService.js';
-import * as TrainingService from './TrainingService.js';
 
 function buildZoneNotes(step: AiGeneratedWorkoutStep): string | undefined {
   const parts: string[] = [];
@@ -25,51 +33,61 @@ function buildZoneNotes(step: AiGeneratedWorkoutStep): string | undefined {
   return parts.length > 0 ? parts.join(' · ') : undefined;
 }
 
-function mapAiStepsToCreateRequests(steps: AiGeneratedWorkoutStep[]) {
-  return steps.map((step) => {
-    const notes = buildZoneNotes(step) ?? step.notes ?? undefined;
-    return {
-      stepIndex: step.stepIndex,
-      stepType: step.stepType,
-      instruction: step.instruction,
-      ...(step.title != null && { title: step.title }),
-      ...(step.durationSeconds != null && { durationSeconds: step.durationSeconds }),
-      ...(step.distanceMeters != null && { distanceMeters: step.distanceMeters }),
-      ...(step.repetitions != null && { repetitions: step.repetitions }),
-      ...(step.targetPowerLowerWatts != null && { targetPowerLowerWatts: step.targetPowerLowerWatts }),
-      ...(step.targetPowerUpperWatts != null && { targetPowerUpperWatts: step.targetPowerUpperWatts }),
-      ...(step.targetPaceLowerSecPerKm != null && { targetPaceLowerSecPerKm: step.targetPaceLowerSecPerKm }),
-      ...(step.targetPaceUpperSecPerKm != null && { targetPaceUpperSecPerKm: step.targetPaceUpperSecPerKm }),
-      ...(step.targetSwimPaceLowerSecPer100m != null && { targetSwimPaceLowerSecPer100m: step.targetSwimPaceLowerSecPer100m }),
-      ...(step.targetSwimPaceUpperSecPer100m != null && { targetSwimPaceUpperSecPer100m: step.targetSwimPaceUpperSecPer100m }),
-      ...(step.restSeconds != null && { restSeconds: step.restSeconds }),
-      ...(notes != null && { notes }),
-    };
-  });
+function mapAiStepsToPrisma(steps: AiGeneratedWorkoutStep[]) {
+  return [...steps]
+    .sort((a, b) => a.stepIndex - b.stepIndex)
+    .map((step) => {
+      const notes = buildZoneNotes(step) ?? step.notes ?? undefined;
+      return {
+        stepIndex: step.stepIndex,
+        stepType: DTO_TO_PRISMA_WORKOUT_STEP_TYPE_MAP[step.stepType],
+        instruction: step.instruction,
+        ...(step.title != null && { title: step.title }),
+        ...(step.durationSeconds != null && { durationSeconds: step.durationSeconds }),
+        ...(step.distanceMeters != null && { distanceMeters: step.distanceMeters }),
+        ...(step.repetitions != null && { repetitions: step.repetitions }),
+        ...(step.targetPowerLowerWatts != null && { targetPowerLowerWatts: step.targetPowerLowerWatts }),
+        ...(step.targetPowerUpperWatts != null && { targetPowerUpperWatts: step.targetPowerUpperWatts }),
+        ...(step.targetPaceLowerSecPerKm != null && { targetPaceLowerSecPerKm: step.targetPaceLowerSecPerKm }),
+        ...(step.targetPaceUpperSecPerKm != null && { targetPaceUpperSecPerKm: step.targetPaceUpperSecPerKm }),
+        ...(step.targetSwimPaceLowerSecPer100m != null && { targetSwimPaceLowerSecPer100m: step.targetSwimPaceLowerSecPer100m }),
+        ...(step.targetSwimPaceUpperSecPer100m != null && { targetSwimPaceUpperSecPer100m: step.targetSwimPaceUpperSecPer100m }),
+        ...(step.restSeconds != null && { restSeconds: step.restSeconds }),
+        ...(notes != null && { notes }),
+      };
+    });
 }
 
-function mapAiWorkoutToCreateRequest(
+function buildWorkoutPrismaInput(
   aiWorkout: AiGeneratedWorkout,
+  athleteProfileId: string,
   fallbackDate: string,
-  trainingPlanId?: string,
 ) {
   return {
-    ...(trainingPlanId != null && { trainingPlanId }),
+    athleteProfileId,
     title: aiWorkout.title,
-    sport: aiWorkout.sport,
-    workoutType: aiWorkout.workoutType,
-    scheduledDate: aiWorkout.scheduledDate ?? fallbackDate,
+    sport: DTO_TO_PRISMA_SPORT_MAP[aiWorkout.sport],
+    workoutType: DTO_TO_PRISMA_WORKOUT_TYPE_MAP[aiWorkout.workoutType],
+    scheduledDate: new Date(aiWorkout.scheduledDate ?? fallbackDate),
     ...(aiWorkout.plannedDurationSeconds != null && { plannedDurationSeconds: aiWorkout.plannedDurationSeconds }),
     ...(aiWorkout.plannedDistanceMeters != null && { plannedDistanceMeters: aiWorkout.plannedDistanceMeters }),
-    intensity: aiWorkout.intensity,
-    status: 'planned' as const,
+    intensity: DTO_TO_PRISMA_WORKOUT_INTENSITY_MAP[aiWorkout.intensity],
+    status: DTO_TO_PRISMA_WORKOUT_STATUS_MAP['planned'],
     ...(aiWorkout.objective != null && { objective: aiWorkout.objective }),
     ...(aiWorkout.description != null && { description: aiWorkout.description }),
     ...(aiWorkout.coachNotes != null && { coachNotes: aiWorkout.coachNotes }),
-    source: 'ai_generated' as const,
-    steps: mapAiStepsToCreateRequests(aiWorkout.steps),
+    source: DTO_TO_PRISMA_PLANNED_WORKOUT_SOURCE_MAP['ai_generated'],
+    steps: mapAiStepsToPrisma(aiWorkout.steps),
   };
 }
+
+const WORKOUT_STEPS_INCLUDE = { steps: { orderBy: { stepIndex: 'asc' } } } as const;
+const PLAN_WORKOUTS_INCLUDE = {
+  plannedWorkouts: {
+    include: WORKOUT_STEPS_INCLUDE,
+    orderBy: { scheduledDate: 'asc' as const },
+  },
+} as const;
 
 async function assertDraftOwnership(outputId: string, athleteProfileId: string) {
   const output = await AiRepository.findOutput(outputId);
@@ -107,40 +125,56 @@ export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | 
     }
     const plan = parsed.data;
 
-    const createdPlan = await TrainingService.createTrainingPlan({
-      title: plan.title,
-      startDate: plan.weekStartDate,
-      endDate: plan.weekEndDate,
-      status: 'draft',
-      source: 'ai_generated',
-      ...(plan.focus != null && { description: plan.focus }),
-    });
+    // Pre-compute all Prisma-mapped inputs outside the transaction (pure mapping, no DB calls)
+    const workoutInputs = plan.workouts.map((w) =>
+      buildWorkoutPrismaInput(w, profile.id, plan.weekStartDate),
+    );
 
-    await prisma.trainingPlan.update({
-      where: { id: createdPlan.id },
-      data: { aiCoachOutputId: outputId },
-    });
-
-    const createdWorkouts: PlannedWorkoutDto[] = [];
-    for (const aiWorkout of plan.workouts) {
-      const workout = await TrainingService.createWorkout(
-        mapAiWorkoutToCreateRequest(aiWorkout, plan.weekStartDate, createdPlan.id),
-      );
-      await prisma.plannedWorkout.update({
-        where: { id: workout.id },
-        data: { aiCoachOutputId: outputId },
+    const { txPlan, txWorkouts, txOutput } = await prisma.$transaction(async (tx) => {
+      const txPlan = await tx.trainingPlan.create({
+        data: {
+          athleteProfileId: profile.id,
+          title: plan.title,
+          startDate: new Date(plan.weekStartDate),
+          endDate: new Date(plan.weekEndDate),
+          status: 'Draft',
+          source: 'AiGenerated',
+          aiCoachOutputId: outputId,
+          ...(plan.focus != null && { description: plan.focus }),
+        },
+        include: PLAN_WORKOUTS_INCLUDE,
       });
-      createdWorkouts.push(workout);
-    }
 
-    const updatedOutput = await AiRepository.updateOutput(outputId, {
-      status: 'Accepted',
-      createdTrainingPlanId: createdPlan.id,
+      const txWorkouts = [];
+      for (const { steps, ...workoutData } of workoutInputs) {
+        const w = await tx.plannedWorkout.create({
+          data: {
+            ...workoutData,
+            trainingPlanId: txPlan.id,
+            aiCoachOutputId: outputId,
+            steps: { create: steps },
+          },
+          include: WORKOUT_STEPS_INCLUDE,
+        });
+        txWorkouts.push(w);
+      }
+
+      const txOutput = await tx.aiCoachOutput.update({
+        where: { id: outputId },
+        data: { status: 'Accepted', createdTrainingPlanId: txPlan.id },
+      });
+
+      return { txPlan, txWorkouts, txOutput };
     });
 
-    void MemoryEntryService.generateAndPersistMemoryEntry(updatedOutput).catch(() => undefined);
+    void MemoryEntryService.generateAndPersistMemoryEntry(txOutput).catch(() => undefined);
 
-    return { ...createdPlan, plannedWorkouts: createdWorkouts } satisfies TrainingPlanDto;
+    return mapTrainingPlan({
+      ...txPlan,
+      plannedWorkouts: txWorkouts.sort(
+        (a, b) => a.scheduledDate.getTime() - b.scheduledDate.getTime(),
+      ),
+    }) satisfies TrainingPlanDto;
   }
 
   // single_workout
@@ -151,23 +185,30 @@ export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | 
   const aiWorkout = parsed.data.workout;
   const today = new Date().toISOString().split('T')[0];
 
-  const workout = await TrainingService.createWorkout(
-    mapAiWorkoutToCreateRequest(aiWorkout, today),
-  );
+  // Pre-compute Prisma input outside the transaction
+  const { steps, ...workoutData } = buildWorkoutPrismaInput(aiWorkout, profile.id, today);
 
-  await prisma.plannedWorkout.update({
-    where: { id: workout.id },
-    data: { aiCoachOutputId: outputId },
+  const { txWorkout, txOutput } = await prisma.$transaction(async (tx) => {
+    const txWorkout = await tx.plannedWorkout.create({
+      data: {
+        ...workoutData,
+        aiCoachOutputId: outputId,
+        steps: { create: steps },
+      },
+      include: WORKOUT_STEPS_INCLUDE,
+    });
+
+    const txOutput = await tx.aiCoachOutput.update({
+      where: { id: outputId },
+      data: { status: 'Accepted', createdPlannedWorkoutId: txWorkout.id },
+    });
+
+    return { txWorkout, txOutput };
   });
 
-  const updatedSingleOutput = await AiRepository.updateOutput(outputId, {
-    status: 'Accepted',
-    createdPlannedWorkoutId: workout.id,
-  });
+  void MemoryEntryService.generateAndPersistMemoryEntry(txOutput).catch(() => undefined);
 
-  void MemoryEntryService.generateAndPersistMemoryEntry(updatedSingleOutput).catch(() => undefined);
-
-  return workout;
+  return mapPlannedWorkout(txWorkout);
 }
 
 export async function rejectOutput(outputId: string): Promise<{ success: true }> {

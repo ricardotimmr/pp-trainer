@@ -268,7 +268,7 @@ describe('generateWorkout', () => {
     expect(vi.mocked(AiProviderClient.generateSingleWorkout)).toHaveBeenCalledWith(
       mockContext,
       'cycling',
-      'Three threshold blocks',
+      'threshold cycling workout',
       3600,
       'Three threshold blocks',
     );
