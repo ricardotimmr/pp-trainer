@@ -2560,6 +2560,21 @@ button:focus-visible {
 .badge--intensity-vo2max     { --badge-color: var(--color-int-vo2max); }
 .badge--intensity-race       { --badge-color: var(--color-int-race); }
 
+/* AI Coach: accent dot + accent border */
+.badge--ai {
+  border: 1.5px solid var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+.badge--ai::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  flex: none;
+}
+
 /* Source: dashed neutral */
 .badge--source {
   border: 1.5px dashed var(--color-line-strong);
@@ -3000,6 +3015,9 @@ button:focus-visible {
 }
 
 .tp-plan-row__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 600;
   font-size: 0.9rem;
   color: var(--color-ink);

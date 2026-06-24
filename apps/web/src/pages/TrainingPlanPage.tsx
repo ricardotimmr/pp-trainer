@@ -9,7 +9,7 @@ import type {
   UpdateTrainingPlanRequest,
 } from '@pp-trainer/shared';
 
-import { EmptyState, ErrorState, LoadingState, WorkoutCard } from '../components';
+import { AiBadge, EmptyState, ErrorState, LoadingState, WorkoutCard } from '../components';
 import type { WorkoutCardData } from '../components';
 import { SportBadge } from '../components';
 import { WorkoutStatusBadge } from '../components/badges/WorkoutStatusBadge';
@@ -371,7 +371,10 @@ function PlanRow({ plan, onActivate, onDeactivate, onEdit, onDelete, activating,
         >
           <span className="tp-plan-row__chevron">{expanded ? '▾' : '▸'}</span>
           <div className="tp-plan-row__info">
-            <span className="tp-plan-row__title">{plan.title}</span>
+            <span className="tp-plan-row__title">
+              {plan.title}
+              {plan.source === 'ai_generated' && <AiBadge />}
+            </span>
             <span className="tp-plan-row__dates">{plan.startDate} – {plan.endDate}</span>
           </div>
         </button>
@@ -454,6 +457,7 @@ function PlanRow({ plan, onActivate, onDeactivate, onEdit, onDelete, activating,
                   >
                     <SportBadge sport={w.sport} />
                     <span className="tp-plan-workout-row__title">{w.title}</span>
+                    {w.source === 'ai_generated' && <AiBadge />}
                     <span className="tp-plan-workout-row__date">{formatDate(w.scheduledDate)}</span>
                     <WorkoutStatusBadge status={w.status as 'planned'} />
                   </button>

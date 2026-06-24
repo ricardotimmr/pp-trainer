@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { PlannedWorkoutDto, UpdateWorkoutStatusRequest, WorkoutStepDto } from '@pp-trainer/shared';
 
 import {
+  AiBadge,
   ErrorState,
   IntensityBadge,
   LoadingState,
@@ -62,6 +63,7 @@ type WorkoutDetailData = {
   sport: SportType;
   intensity: WorkoutIntensity;
   status: WorkoutStatus;
+  source?: string;
   scheduledDate: string;
   scheduledStartTime?: string;
   plannedDurationSeconds?: number;
@@ -192,6 +194,12 @@ function WorkoutDetailContent({ workout, steps, statusActions, deleteAction }: W
             <WorkoutStatusBadge status={workout.status} />
           </dd>
         </div>
+        {workout.source === 'ai_generated' && (
+          <div>
+            <dt>Source</dt>
+            <dd><AiBadge /></dd>
+          </div>
+        )}
       </dl>
 
       {statusActions}

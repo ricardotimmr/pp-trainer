@@ -1,3 +1,4 @@
+export { AiBadge } from './badges/AiBadge';
 export { IntensityBadge } from './badges/IntensityBadge';
 export { SourceBadge } from './badges/SourceBadge';
 export { SportBadge } from './badges/SportBadge';
