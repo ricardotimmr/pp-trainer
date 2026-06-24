@@ -102,3 +102,18 @@ After accepting an AI plan or workout, the user is silently navigated to `/train
 Monitor once real running FIT files are imported. If users report wrong cadence values, check whether the value needs to be doubled.
 
 **Monitor in Phase 8.**
+
+## Authentication layer — single-user hardcoding must be removed before multi-user
+
+Every service and route calls `AthleteRepository.findFirstAthleteProfile()` — a hardcoded "take the first athlete" query with no user identity context. All ownership checks (e.g. `output.athleteProfileId !== profile.id`) are only as secure as this lookup. There is no auth middleware, no JWT validation, and no session context anywhere in the request pipeline.
+
+This is by design for the single-user MVP prototype. However, any extension toward multi-user requires:
+
+1. An authentication layer (JWT / session / OAuth) that identifies the requesting user
+2. All service functions to receive a `userId` or `athleteProfileId` from the request context instead of querying `findFirst`
+3. All ownership checks to be re-evaluated against the authenticated identity
+4. A migration plan for existing single-user data
+
+**Do not add multi-user features without first replacing `findFirstAthleteProfile` throughout the codebase.**
+
+**Phase 9+ (or whenever multi-user becomes a requirement).**
