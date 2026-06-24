@@ -14,6 +14,7 @@ import {
   listWorkouts,
   updateTrainingPlan,
   updateWorkout,
+  validateStatusTransition,
 } from '../../services/TrainingService.js';
 
 vi.mock('../../lib/prisma.js', () => ({ prisma: {}, disconnectPrisma: vi.fn() }));
@@ -345,6 +346,213 @@ describe('updateWorkout()', () => {
         ] as never[],
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+});
+
+// ── validateStatusTransition() ────────────────────────────────────────────────
+
+describe('validateStatusTransition()', () => {
+  // Valid transitions — must not throw
+  it.each([
+    ['Planned',   'Completed'],
+    ['Planned',   'Missed'],
+    ['Planned',   'Cancelled'],
+    ['Completed', 'Planned'],
+    ['Missed',    'Planned'],
+    ['Cancelled', 'Planned'],
+    ['Moved',     'Planned'],
+    ['Moved',     'Completed'],
+    ['Moved',     'Cancelled'],
+    ['Adjusted',  'Planned'],
+    ['Adjusted',  'Completed'],
+    ['Adjusted',  'Cancelled'],
+  ] as const)('allows %s → %s', (from, to) => {
+    expect(() => validateStatusTransition(from, to)).not.toThrow();
+  });
+
+  // Same-status is always a no-op — must not throw
+  it.each([
+    ['Planned'],
+    ['Completed'],
+    ['Cancelled'],
+    ['Missed'],
+  ] as const)('allows no-op %s → %s', (status) => {
+    expect(() => validateStatusTransition(status, status)).not.toThrow();
+  });
+
+  // Invalid transitions — must throw UNPROCESSABLE
+  it.each([
+    ['Completed', 'Cancelled'],
+    ['Completed', 'Missed'],
+    ['Missed',    'Cancelled'],
+    ['Missed',    'Completed'],
+    ['Cancelled', 'Completed'],
+    ['Cancelled', 'Missed'],
+    ['Planned',   'Planned'], // same → no-op allowed above, listed here for completeness (passes)
+  ] as [string, string][])('rejects %s → %s with UNPROCESSABLE', (from, to) => {
+    if (from === to) {
+      expect(() => validateStatusTransition(from as never, to as never)).not.toThrow();
+    } else {
+      expect(() => validateStatusTransition(from as never, to as never)).toThrow(
+        expect.objectContaining({ code: 'UNPROCESSABLE' }),
+      );
+    }
+  });
+});
+
+// ── updateWorkout() status guard (integration) ────────────────────────────────
+
+describe('updateWorkout() status transition guard', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('rejects Completed → Cancelled with 422', async () => {
+    const completedWorkout = Object.assign({}, mockWorkoutRow, { status: 'Completed' }) as never;
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(completedWorkout);
+    await expect(
+      updateWorkout('wo-1', { status: 'cancelled' }),
+    ).rejects.toMatchObject({ code: 'UNPROCESSABLE' });
+  });
+
+  it('rejects Cancelled → Completed with 422', async () => {
+    const cancelledWorkout = Object.assign({}, mockWorkoutRow, { status: 'Cancelled' }) as never;
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(cancelledWorkout);
+    await expect(
+      updateWorkout('wo-1', { status: 'completed' }),
+    ).rejects.toMatchObject({ code: 'UNPROCESSABLE' });
+  });
+
+  it('rejects Missed → Cancelled with 422', async () => {
+    const missedWorkout = Object.assign({}, mockWorkoutRow, { status: 'Missed' }) as never;
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(missedWorkout);
+    await expect(
+      updateWorkout('wo-1', { status: 'cancelled' }),
+    ).rejects.toMatchObject({ code: 'UNPROCESSABLE' });
+  });
+
+  it('allows Planned → Completed and calls repository', async () => {
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(mockWorkoutRow);
+    vi.mocked(TrainingRepository.updatePlannedWorkout).mockResolvedValue(mockWorkoutRow);
+    await updateWorkout('wo-1', { status: 'completed' });
+    expect(TrainingRepository.updatePlannedWorkout).toHaveBeenCalledWith(
+      'wo-1',
+      expect.objectContaining({ status: 'Completed' }),
+    );
+  });
+
+  it('allows Completed → Planned and calls repository', async () => {
+    const completedWorkout = Object.assign({}, mockWorkoutRow, { status: 'Completed' }) as never;
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(completedWorkout);
+    vi.mocked(TrainingRepository.updatePlannedWorkout).mockResolvedValue(mockWorkoutRow);
+    await updateWorkout('wo-1', { status: 'planned' });
+    expect(TrainingRepository.updatePlannedWorkout).toHaveBeenCalledWith(
+      'wo-1',
+      expect.objectContaining({ status: 'Planned' }),
+    );
+  });
+
+  it('allows Cancelled → Planned and calls repository', async () => {
+    const cancelledWorkout = Object.assign({}, mockWorkoutRow, { status: 'Cancelled' }) as never;
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(cancelledWorkout);
+    vi.mocked(TrainingRepository.updatePlannedWorkout).mockResolvedValue(mockWorkoutRow);
+    await updateWorkout('wo-1', { status: 'planned' });
+    expect(TrainingRepository.updatePlannedWorkout).toHaveBeenCalledWith(
+      'wo-1',
+      expect.objectContaining({ status: 'Planned' }),
+    );
+  });
+});
+
+// ── plan-date alignment: createWorkout() ─────────────────────────────────────
+
+describe('createWorkout() plan-date alignment', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('rejects scheduledDate before plan.startDate with 422', async () => {
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(mockProfile);
+    vi.mocked(TrainingRepository.findTrainingPlanById).mockResolvedValue(mockPlanRow);
+    await expect(
+      createWorkout({ ...minimalWorkoutInput, trainingPlanId: 'plan-1', scheduledDate: '2024-05-01' }),
+    ).rejects.toMatchObject({ code: 'UNPROCESSABLE' });
+  });
+
+  it('rejects scheduledDate after plan.endDate with 422', async () => {
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(mockProfile);
+    vi.mocked(TrainingRepository.findTrainingPlanById).mockResolvedValue(mockPlanRow);
+    await expect(
+      createWorkout({ ...minimalWorkoutInput, trainingPlanId: 'plan-1', scheduledDate: '2024-09-01' }),
+    ).rejects.toMatchObject({ code: 'UNPROCESSABLE' });
+  });
+
+  it('accepts scheduledDate within plan range', async () => {
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(mockProfile);
+    vi.mocked(TrainingRepository.findTrainingPlanById).mockResolvedValue(mockPlanRow);
+    vi.mocked(TrainingRepository.createPlannedWorkout).mockResolvedValue(mockWorkoutRow);
+    await expect(
+      createWorkout({ ...minimalWorkoutInput, trainingPlanId: 'plan-1' }),
+    ).resolves.not.toThrow();
+  });
+
+  it('accepts workout with no scheduledDate assigned to a plan', async () => {
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(mockProfile);
+    vi.mocked(TrainingRepository.findTrainingPlanById).mockResolvedValue(mockPlanRow);
+    vi.mocked(TrainingRepository.createPlannedWorkout).mockResolvedValue(mockWorkoutRow);
+    const { scheduledDate: _, ...inputWithoutDate } = minimalWorkoutInput;
+    await expect(
+      createWorkout({ ...inputWithoutDate, scheduledDate: undefined as never, trainingPlanId: 'plan-1' }),
+    ).resolves.not.toThrow();
+  });
+});
+
+// ── plan-date alignment: updateWorkout() ─────────────────────────────────────
+
+describe('updateWorkout() plan-date alignment', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  const workoutWithPlan = Object.assign({}, mockWorkoutRow, {
+    trainingPlanId: 'plan-1',
+    scheduledDate: new Date('2024-06-10'),
+  }) as never;
+
+  it('rejects moving scheduledDate outside existing plan range with 422', async () => {
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(workoutWithPlan);
+    vi.mocked(TrainingRepository.findTrainingPlanById).mockResolvedValue(mockPlanRow);
+    await expect(
+      updateWorkout('wo-1', { scheduledDate: '2024-09-30' }),
+    ).rejects.toMatchObject({ code: 'UNPROCESSABLE' });
+  });
+
+  it('rejects reassigning to a plan where existing date is out of range with 422', async () => {
+    const otherPlan = Object.assign({}, mockPlanRow, {
+      id: 'plan-2',
+      startDate: new Date('2025-01-01'),
+      endDate: new Date('2025-03-31'),
+    }) as never;
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(workoutWithPlan);
+    vi.mocked(TrainingRepository.findTrainingPlanById).mockResolvedValue(otherPlan);
+    await expect(
+      updateWorkout('wo-1', { trainingPlanId: 'plan-2' }),
+    ).rejects.toMatchObject({ code: 'UNPROCESSABLE' });
+  });
+
+  it('accepts date update within the plan range', async () => {
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(workoutWithPlan);
+    vi.mocked(TrainingRepository.findTrainingPlanById).mockResolvedValue(mockPlanRow);
+    vi.mocked(TrainingRepository.updatePlannedWorkout).mockResolvedValue(mockWorkoutRow);
+    await expect(updateWorkout('wo-1', { scheduledDate: '2024-07-01' })).resolves.not.toThrow();
+  });
+
+  it('accepts unassigning from a plan (trainingPlanId: null) without date check', async () => {
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(workoutWithPlan);
+    vi.mocked(TrainingRepository.updatePlannedWorkout).mockResolvedValue(mockWorkoutRow);
+    await expect(updateWorkout('wo-1', { trainingPlanId: null })).resolves.not.toThrow();
+    expect(TrainingRepository.findTrainingPlanById).not.toHaveBeenCalled();
+  });
+
+  it('skips date check when neither plan nor date is changing', async () => {
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(workoutWithPlan);
+    vi.mocked(TrainingRepository.updatePlannedWorkout).mockResolvedValue(mockWorkoutRow);
+    await expect(updateWorkout('wo-1', { title: 'Renamed' })).resolves.not.toThrow();
+    expect(TrainingRepository.findTrainingPlanById).not.toHaveBeenCalled();
   });
 });
 
