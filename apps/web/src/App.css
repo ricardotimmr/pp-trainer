@@ -3210,8 +3210,49 @@ button:focus-visible {
   color: var(--color-ink);
 }
 
-.tp-workout-row__select {
-  max-width: 150px;
+.tp-workout-row__plan-btn.is-assigned:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.tp-plan-picker {
+  position: relative;
+}
+
+.tp-plan-picker__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  min-width: 180px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.tp-plan-picker__option {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: var(--color-ink);
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.tp-plan-picker__option:hover {
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  color: var(--color-accent);
+}
+
+.tp-plan-picker__option.is-selected {
+  color: var(--color-accent);
+  font-weight: 600;
 }
 
 .tp-workout-row__delete {

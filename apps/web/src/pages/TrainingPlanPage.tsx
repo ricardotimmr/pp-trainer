@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import type {
@@ -513,6 +513,68 @@ function PlanListSection({ plans, onActivate, onDeactivate, onEdit, onDelete, ac
   );
 }
 
+/* ── Plan picker ─────────────────────────────────────────────────────────── */
+
+function PlanPicker({
+  workoutId,
+  trainingPlanId,
+  plans,
+  onAssign,
+  isAssigning,
+}: {
+  workoutId: string;
+  trainingPlanId?: string;
+  plans: TrainingPlanSummaryDto[];
+  onAssign: (workoutId: string, planId: string) => Promise<void>;
+  isAssigning: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const assignedPlan = trainingPlanId ? plans.find((p) => p.id === trainingPlanId) : null;
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="tp-plan-picker">
+      <button
+        type="button"
+        className={`tp-workout-row__plan-btn${assignedPlan ? ' is-assigned' : ''}`}
+        disabled={isAssigning}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((o) => !o)}
+      >
+        {isAssigning ? '…' : assignedPlan?.title ?? 'Unassigned'}
+      </button>
+      {open && plans.length > 0 && (
+        <div className="tp-plan-picker__menu" role="menu">
+          {plans.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              role="menuitem"
+              className={`tp-plan-picker__option${p.id === trainingPlanId ? ' is-selected' : ''}`}
+              onClick={async () => {
+                setOpen(false);
+                await onAssign(workoutId, p.id);
+              }}
+            >
+              {p.title}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── All Workouts section ────────────────────────────────────────────────── */
 
 type AllWorkoutsSectionProps = {
@@ -525,7 +587,6 @@ type AllWorkoutsSectionProps = {
 };
 
 function AllWorkoutsSection({ workouts, plans, onAssign, onDelete, assigning, navigate }: AllWorkoutsSectionProps) {
-  const [assigningFor, setAssigningFor] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -542,16 +603,12 @@ function AllWorkoutsSection({ workouts, plans, onAssign, onDelete, assigning, na
 
   if (workouts.length === 0) return null;
 
-  const planById = Object.fromEntries(plans.map((p) => [p.id, p]));
-
   return (
     <section className="tp-workouts">
       <h2 className="tp-plans__heading">All Workouts</h2>
       <ul className="tp-workouts__list">
         {workouts.map((w) => {
-          const assignedPlan = w.trainingPlanId ? planById[w.trainingPlanId] : null;
           const isAssigning = assigning === w.id;
-          const showPicker = assigningFor === w.id;
 
           const isDeleting = deletingId === w.id;
           const showConfirm = confirmDeleteId === w.id;
@@ -571,36 +628,13 @@ function AllWorkoutsSection({ workouts, plans, onAssign, onDelete, assigning, na
               </button>
               <WorkoutStatusBadge status={w.status as 'planned'} />
               <div className="tp-workout-row__plan">
-                {showPicker ? (
-                  <select
-                    className="cw-input cw-input--sm tp-workout-row__select"
-                    autoFocus
-                    defaultValue={w.trainingPlanId ?? ''}
-                    disabled={isAssigning}
-                    onBlur={() => setAssigningFor(null)}
-                    onChange={async (e) => {
-                      const planId = e.target.value;
-                      if (planId) {
-                        setAssigningFor(null);
-                        await onAssign(w.id, planId);
-                      }
-                    }}
-                  >
-                    <option value="" disabled>Select plan…</option>
-                    {plans.map((p) => (
-                      <option key={p.id} value={p.id}>{p.title}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <button
-                    type="button"
-                    className={`tp-workout-row__plan-btn${assignedPlan ? ' is-assigned' : ''}`}
-                    disabled={isAssigning}
-                    onClick={() => setAssigningFor(w.id)}
-                  >
-                    {isAssigning ? '…' : assignedPlan ? assignedPlan.title : 'Unassigned'}
-                  </button>
-                )}
+                <PlanPicker
+                  workoutId={w.id}
+                  trainingPlanId={w.trainingPlanId}
+                  plans={plans}
+                  onAssign={onAssign}
+                  isAssigning={isAssigning}
+                />
               </div>
               <div className="tp-workout-row__delete">
                 <button
