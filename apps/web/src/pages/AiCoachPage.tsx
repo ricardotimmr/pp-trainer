@@ -1,15 +1,47 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 
-import type { GenerateWeekPlanRequest, GenerateWorkoutRequest } from '@pp-trainer/shared';
+import type {
+  AiCoachOutputDto,
+  GenerateWeekPlanRequest,
+  GenerateWorkoutRequest,
+} from '@pp-trainer/shared';
 
 import { SelectMenu, SportBadge } from '../components';
 import type { SelectMenuOption } from '../components';
-import { generateWeekPlan, generateWorkout } from '../api/aiApi';
+import { fetchAiHistory, generateWeekPlan, generateWorkout } from '../api/aiApi';
 import { ApiClientError } from '../api/apiClient';
 import { useAiCoachSidebar } from '../hooks/useAiCoachSidebar';
 import { PageShell } from '../layout/PageShell';
-import { formatDuration } from '../components/prototypeFormatters';
+import { formatDate, formatDuration } from '../components/prototypeFormatters';
 import type { PageComponentProps } from '../routes/routeTypes';
+
+type HistoryState =
+  | { status: 'loading' }
+  | { status: 'ready'; proposals: AiCoachOutputDto[] }
+  | { status: 'error' };
+
+const OUTPUT_TYPE_LABELS: Record<AiCoachOutputDto['outputType'], string> = {
+  week_plan: 'Week Plan',
+  single_workout: 'Single Workout',
+};
+
+function proposalPreviewUrl(proposal: AiCoachOutputDto): string {
+  return proposal.outputType === 'week_plan'
+    ? `/ai-coach/preview/week-plan/${proposal.id}`
+    : `/ai-coach/preview/workout/${proposal.id}`;
+}
+
+function proposalTitle(proposal: AiCoachOutputDto): string {
+  if (proposal.structuredOutput != null) {
+    const out = proposal.structuredOutput as Record<string, unknown>;
+    if (proposal.outputType === 'week_plan' && typeof out.title === 'string') return out.title;
+    if (proposal.outputType === 'single_workout') {
+      const w = out.workout as Record<string, unknown> | undefined;
+      if (typeof w?.title === 'string') return w.title;
+    }
+  }
+  return OUTPUT_TYPE_LABELS[proposal.outputType];
+}
 
 const WEEKDAY_SHORT: Record<string, string> = {
   monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed',
@@ -73,6 +105,16 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
   const [workoutInstruction, setWorkoutInstruction] = useState('');
 
   const sidebarState = useAiCoachSidebar();
+
+  const [historyState, setHistoryState] = useState<HistoryState>({ status: 'loading' });
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAiHistory(5)
+      .then((proposals) => { if (!cancelled) setHistoryState({ status: 'ready', proposals }); })
+      .catch(() => { if (!cancelled) setHistoryState({ status: 'error' }); });
+    return () => { cancelled = true; };
+  }, []);
 
   function switchMode(next: 'week_plan' | 'single_workout') {
     setMode(next);
@@ -513,6 +555,57 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
 
         </div>{/* .ai-coach__generate */}
       </div>
+
+      {/* ── Recent proposals ─────────────────────────────────── */}
+      <section className="ai-proposals" aria-label="Recent proposals">
+        <header className="ai-proposals__header">
+          <p className="ai-proposals__eyebrow">History</p>
+          <h2 className="ai-proposals__title">Recent proposals</h2>
+        </header>
+
+        {historyState.status === 'loading' && (
+          <p className="ai-proposals__meta">Loading proposals…</p>
+        )}
+
+        {historyState.status === 'error' && (
+          <p className="ai-proposals__meta">Could not load proposals.</p>
+        )}
+
+        {historyState.status === 'ready' && historyState.proposals.length === 0 && (
+          <p className="ai-proposals__meta">No previous proposals yet.</p>
+        )}
+
+        {historyState.status === 'ready' && historyState.proposals.length > 0 && (
+          <ol className="ai-proposals__list">
+            {historyState.proposals.map((proposal) => (
+              <li
+                key={proposal.id}
+                className={`ai-proposals__item${proposal.status === 'rejected' ? ' is-rejected' : ''}`}
+              >
+                <button
+                  type="button"
+                  className="workout-card workout-card--button"
+                  onClick={() => navigate(proposalPreviewUrl(proposal))}
+                >
+                  <div className="workout-card__topline">
+                    <span className="badge badge--source">
+                      {OUTPUT_TYPE_LABELS[proposal.outputType]}
+                    </span>
+                    <span className={`badge badge--status badge--status-${proposal.status}`}>
+                      {proposal.status === 'accepted' ? 'Accepted' : proposal.status === 'rejected' ? 'Rejected' : 'Draft'}
+                    </span>
+                  </div>
+                  <h3>{proposalTitle(proposal)}</h3>
+                  {proposal.summary && (
+                    <p className="ai-proposals__rationale">{proposal.summary}</p>
+                  )}
+                  <p className="ai-proposals__date">{formatDate(proposal.createdAt.split('T')[0])}</p>
+                </button>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
     </PageShell>
   );
 }

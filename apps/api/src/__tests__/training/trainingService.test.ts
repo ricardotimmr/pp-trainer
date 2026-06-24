@@ -541,10 +541,11 @@ describe('updateWorkout() plan-date alignment', () => {
     await expect(updateWorkout('wo-1', { scheduledDate: '2024-07-01' })).resolves.not.toThrow();
   });
 
-  it('accepts unassigning from a plan (trainingPlanId: null) without date check', async () => {
-    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(workoutWithPlan);
+  it('accepts workout with no plan when date changes — no plan check needed', async () => {
+    const workoutNoPlan = Object.assign({}, mockWorkoutRow, { trainingPlanId: null, scheduledDate: new Date('2024-06-10') }) as never;
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(workoutNoPlan);
     vi.mocked(TrainingRepository.updatePlannedWorkout).mockResolvedValue(mockWorkoutRow);
-    await expect(updateWorkout('wo-1', { trainingPlanId: null })).resolves.not.toThrow();
+    await expect(updateWorkout('wo-1', { scheduledDate: '2024-07-01' })).resolves.not.toThrow();
     expect(TrainingRepository.findTrainingPlanById).not.toHaveBeenCalled();
   });
 

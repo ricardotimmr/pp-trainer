@@ -53,6 +53,17 @@ export async function findOutput(id: string): Promise<AiCoachOutput | null> {
   return prisma.aiCoachOutput.findUnique({ where: { id } });
 }
 
+export async function findRecentOutputs(
+  athleteProfileId: string,
+  limit: number,
+): Promise<AiCoachOutput[]> {
+  return prisma.aiCoachOutput.findMany({
+    where: { athleteProfileId },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  });
+}
+
 export async function updateOutput(
   id: string,
   data: UpdateAiCoachOutputData,

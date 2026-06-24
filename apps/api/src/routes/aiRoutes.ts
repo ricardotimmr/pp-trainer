@@ -17,7 +17,28 @@ function zodValidationError(err: ZodError): { error: { code: string; message: st
   };
 }
 
+const HISTORY_DEFAULT_LIMIT = 10;
+const HISTORY_MAX_LIMIT = 50;
+
 export async function aiRoutes(app: FastifyInstance): Promise<void> {
+  app.get('/api/ai/history', async (request, reply) => {
+    const { limit: limitRaw } = request.query as { limit?: string };
+    let limit = HISTORY_DEFAULT_LIMIT;
+    if (limitRaw !== undefined) {
+      const parsed = Number(limitRaw);
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > HISTORY_MAX_LIMIT) {
+        return reply.status(400).send({
+          error: {
+            code: 'BAD_REQUEST',
+            message: `limit must be an integer between 1 and ${HISTORY_MAX_LIMIT}`,
+          },
+        });
+      }
+      limit = parsed;
+    }
+    return AiService.getHistory(limit);
+  });
+
   app.post('/api/ai/generate-week-plan', async (request, reply) => {
     let body: unknown;
     try {
