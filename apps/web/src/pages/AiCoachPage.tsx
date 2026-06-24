@@ -23,6 +23,10 @@ type HistoryState =
 const OUTPUT_TYPE_LABELS: Record<AiCoachOutputDto['outputType'], string> = {
   week_plan: 'Week Plan',
   single_workout: 'Single Workout',
+  week_analysis: 'Week Analysis',
+  plan_adjustment: 'Plan Adjustment',
+  recommendation: 'Recommendation',
+  text_answer: 'Answer',
 };
 
 function proposalPreviewUrl(proposal: AiCoachOutputDto): string {
