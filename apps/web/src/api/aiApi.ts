@@ -2,6 +2,7 @@ import type {
   AiCoachOutputDto,
   GenerateWeekPlanRequest,
   GenerateWorkoutRequest,
+  PlannedWorkoutDto,
   TrainingPlanDto,
 } from '@pp-trainer/shared';
 
@@ -27,8 +28,8 @@ export async function getOutput(id: string): Promise<AiCoachOutputDto> {
   return apiFetch<AiCoachOutputDto>(`/api/ai/outputs/${encodeURIComponent(id)}`);
 }
 
-export async function acceptOutput(id: string): Promise<TrainingPlanDto> {
-  return apiFetch<TrainingPlanDto>(`/api/ai/outputs/${encodeURIComponent(id)}/accept`, {
+export async function acceptOutput(id: string): Promise<TrainingPlanDto | PlannedWorkoutDto> {
+  return apiFetch<TrainingPlanDto | PlannedWorkoutDto>(`/api/ai/outputs/${encodeURIComponent(id)}/accept`, {
     method: 'POST',
   });
 }

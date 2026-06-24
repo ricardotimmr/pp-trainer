@@ -15,7 +15,7 @@ export function useAiOutput(id: string): AiOutputState & { refresh: () => void }
 
   useEffect(() => {
     if (!id) {
-      setState({ status: 'error', message: 'Keine Output-ID angegeben.' });
+      setState({ status: 'error', message: 'No output ID provided.' });
       return;
     }
     let cancelled = false;
@@ -28,7 +28,7 @@ export function useAiOutput(id: string): AiOutputState & { refresh: () => void }
         if (!cancelled) {
           setState({
             status: 'error',
-            message: error instanceof Error ? error.message : 'Vorschlag konnte nicht geladen werden.',
+            message: error instanceof Error ? error.message : 'Could not load proposal.',
           });
         }
       });

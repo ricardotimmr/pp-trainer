@@ -110,7 +110,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
       }
       navigate(`/ai-coach/preview/week-plan/${output.id}`);
     } catch (err) {
-      const msg = err instanceof ApiClientError ? err.message : 'Netzwerkfehler. Bitte erneut versuchen.';
+      const msg = err instanceof ApiClientError ? err.message : 'Network error. Please try again.';
       setError(msg);
     } finally {
       setLoading(false);
@@ -139,7 +139,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
       }
       navigate(`/ai-coach/preview/workout/${output.id}`);
     } catch (err) {
-      const msg = err instanceof ApiClientError ? err.message : 'Netzwerkfehler. Bitte erneut versuchen.';
+      const msg = err instanceof ApiClientError ? err.message : 'Network error. Please try again.';
       setError(msg);
     } finally {
       setLoading(false);
@@ -150,7 +150,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
     <PageShell
       title="AI Coach"
       eyebrow="AI Coach"
-      description="Erstelle einen Trainingsplan oder ein Workout mit KI-Unterstützung"
+      description="Generate a training plan or workout with AI"
     >
       <div className="ai-coach-layout">
 
@@ -317,7 +317,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
               onClick={() => switchMode('week_plan')}
               disabled={loading}
             >
-              Wochenplan
+              Week plan
             </button>
             <button
               type="button"
@@ -327,7 +327,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
               onClick={() => switchMode('single_workout')}
               disabled={loading}
             >
-              Einzelnes Workout
+              Single workout
             </button>
           </div>
 
@@ -338,7 +338,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
               <button
                 type="button"
                 className="ai-error-banner__dismiss"
-                aria-label="Schließen"
+                aria-label="Dismiss"
                 onClick={() => setError(null)}
               >
                 ×
@@ -350,12 +350,12 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
           {invalidOutput && (
             <div className="ai-error-banner ai-error-banner--warn" role="alert">
               <span>
-                Der AI-Vorschlag konnte nicht validiert werden. Versuche eine präzisere Beschreibung.
+                The AI proposal could not be validated. Try a more specific description.
               </span>
               <button
                 type="button"
                 className="ai-error-banner__dismiss"
-                aria-label="Schließen"
+                aria-label="Dismiss"
                 onClick={() => setInvalidOutput(false)}
               >
                 ×
@@ -368,21 +368,21 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
               <div className="ai-loading__spinner" aria-hidden="true" />
               <p className="ai-loading__label">
                 {mode === 'week_plan'
-                  ? 'AI erstellt deinen Wochenplan…'
-                  : 'AI erstellt dein Workout…'}
+                  ? 'AI is generating your week plan…'
+                  : 'AI is generating your workout…'}
               </p>
-              <p className="ai-loading__hint">Das kann 5–15 Sekunden dauern</p>
+              <p className="ai-loading__hint">This may take 5–15 seconds</p>
             </div>
           ) : (
             <>
               {mode === 'week_plan' && (
                 <form className="ai-request-form" onSubmit={handleWeekPlanSubmit} noValidate>
-                  <p className="ai-output__label">Wochenplan generieren</p>
+                  <p className="ai-output__label">Generate week plan</p>
 
                   <div className="ai-request-form__fields">
                     <div className="cw-field">
                       <label className="cw-label cw-label--required" htmlFor="weekStartDate">
-                        Wochenstart (Montag)
+                        Week start (Monday)
                       </label>
                       <input
                         id="weekStartDate"
@@ -396,14 +396,14 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
 
                     <div className="cw-field">
                       <label className="cw-label" htmlFor="weekInstruction">
-                        Instruktion <span className="ai-form-optional">(optional)</span>
+                        Instructions <span className="ai-form-optional">(optional)</span>
                       </label>
                       <textarea
                         id="weekInstruction"
                         className="cw-textarea ai-request-form__textarea"
                         value={weekInstruction}
                         onChange={(e) => setWeekInstruction(e.target.value)}
-                        placeholder="z.B. Montag wenig Zeit. Fokus auf Radfahren diese Woche."
+                        placeholder="e.g. Short on time Monday. Focus on cycling this week."
                         rows={4}
                       />
                     </div>
@@ -415,7 +415,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
                       className="button button--primary"
                       disabled={!weekStartDate}
                     >
-                      Wochenplan generieren
+                      Generate week plan
                     </button>
                   </div>
                 </form>
@@ -423,13 +423,13 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
 
               {mode === 'single_workout' && (
                 <form className="ai-request-form" onSubmit={handleWorkoutSubmit} noValidate>
-                  <p className="ai-output__label">Einzelnes Workout generieren</p>
+                  <p className="ai-output__label">Generate single workout</p>
 
                   <div className="ai-request-form__fields">
                     <div className="cw-row">
                       <div className="cw-field">
                         <label className="cw-label cw-label--required" htmlFor="sport">
-                          Sportart
+                          Sport
                         </label>
                         <SelectMenu
                           id="sport"
@@ -442,7 +442,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
 
                       <div className="cw-field">
                         <label className="cw-label cw-label--required" htmlFor="intensity">
-                          Intensität
+                          Intensity
                         </label>
                         <SelectMenu
                           id="intensity"
@@ -455,7 +455,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
 
                       <div className="cw-field cw-field--metric">
                         <label className="cw-label" htmlFor="duration">
-                          Dauer <span className="ai-form-optional">(optional)</span>
+                          Duration <span className="ai-form-optional">(optional)</span>
                         </label>
                         <div className="cw-input-with-unit">
                           <input
@@ -475,14 +475,14 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
 
                     <div className="cw-field">
                       <label className="cw-label" htmlFor="workoutInstruction">
-                        Instruktion <span className="ai-form-optional">(optional)</span>
+                        Instructions <span className="ai-form-optional">(optional)</span>
                       </label>
                       <textarea
                         id="workoutInstruction"
                         className="cw-textarea ai-request-form__textarea"
                         value={workoutInstruction}
                         onChange={(e) => setWorkoutInstruction(e.target.value)}
-                        placeholder="z.B. Schwellenwert-Intervalle mit sauberem Warm-up. FTP liegt bei 285 W."
+                        placeholder="e.g. Threshold intervals with a clean warm-up. FTP is 285 W."
                         rows={4}
                       />
                     </div>
@@ -493,7 +493,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
                       type="submit"
                       className="button button--primary"
                     >
-                      Workout generieren
+                      Generate workout
                     </button>
                   </div>
                 </form>

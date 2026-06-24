@@ -1,8 +1,8 @@
 import { ActivitiesPage } from '../pages/ActivitiesPage';
 import { ActivityDetailPage } from '../pages/ActivityDetailPage';
 import { AiCoachPage } from '../pages/AiCoachPage';
-import { AiCoachPreviewPage } from '../pages/AiCoachPreviewPage';
 import { AiWeekPlanPreviewPage } from '../pages/AiWeekPlanPreviewPage';
+import { AiWorkoutPreviewPage } from '../pages/AiWorkoutPreviewPage';
 import { CreateWorkoutPage } from '../pages/CreateWorkoutPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { DevUiShowcasePage } from '../pages/DevUiShowcasePage';
@@ -87,11 +87,11 @@ export const routes: RouteConfig[] = [
     component: AiWeekPlanPreviewPage,
   },
   {
-    id: 'aiCoachPreview',
-    path: '/ai-coach/preview/:id',
-    label: 'AI Coach Preview',
+    id: 'aiWorkoutPreview',
+    path: '/ai-coach/preview/workout/:id',
+    label: 'AI Workout Preview',
     navVisible: false,
-    component: AiCoachPreviewPage,
+    component: AiWorkoutPreviewPage,
   },
   {
     id: 'settings',

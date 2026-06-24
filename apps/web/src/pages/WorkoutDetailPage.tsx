@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import type { PlannedWorkoutDto, UpdateWorkoutStatusRequest } from '@pp-trainer/shared';
+import type { PlannedWorkoutDto, UpdateWorkoutStatusRequest, WorkoutStepDto } from '@pp-trainer/shared';
 
 import {
   ErrorState,
@@ -26,6 +26,35 @@ import type {
 import type { PageComponentProps } from '../routes/routeTypes';
 
 type WorkoutStatus = PlannedWorkoutDto['status'];
+
+// Strips the old "[HR: Zone 2]" embedded format as a backwards-compat fallback.
+function extractZoneFromInstruction(instruction: string): { instruction: string; zoneName?: string } {
+  const match = instruction.match(/^(.*?)\s*\[([^\]]+)\]\s*$/s);
+  if (match) return { instruction: match[1].trimEnd(), zoneName: match[2] };
+  return { instruction };
+}
+
+function mapStepDto(step: WorkoutStepDto): WorkoutStepData {
+  const { instruction, zoneName: embedded } = extractZoneFromInstruction(step.instruction);
+  return {
+    id: step.id,
+    stepIndex: step.stepIndex,
+    stepType: step.stepType as WorkoutStepData['stepType'],
+    title: step.title,
+    instruction,
+    zoneName: step.notes ?? embedded,
+    durationSeconds: step.durationSeconds,
+    distanceMeters: step.distanceMeters,
+    repetitions: step.repetitions,
+    restSeconds: step.restSeconds,
+    targetPowerLowerWatts: step.targetPowerLowerWatts,
+    targetPowerUpperWatts: step.targetPowerUpperWatts,
+    targetPaceLowerSecPerKm: step.targetPaceLowerSecPerKm,
+    targetPaceUpperSecPerKm: step.targetPaceUpperSecPerKm,
+    targetSwimPaceLowerSecPer100m: step.targetSwimPaceLowerSecPer100m,
+    targetSwimPaceUpperSecPer100m: step.targetSwimPaceUpperSecPer100m,
+  };
+}
 
 type WorkoutDetailData = {
   id: string;
@@ -119,8 +148,10 @@ type WorkoutDetailContentProps = {
 function WorkoutDetailContent({ workout, steps, statusActions, deleteAction }: WorkoutDetailContentProps) {
   const formattedDate = formatDate(workout.scheduledStartTime ?? workout.scheduledDate);
 
-  const stepsWithDuration = steps.filter((s) => s.durationSeconds);
-  const totalStepSeconds = stepsWithDuration.reduce((sum, s) => sum + (s.durationSeconds ?? 0), 0);
+  const stepBarFlex = (s: WorkoutStepData) => s.durationSeconds ?? s.distanceMeters ?? 0;
+  const hasBarData = steps.some((s) => stepBarFlex(s) > 0);
+  const hasDistanceOnlyStep = steps.some((s) => !s.durationSeconds && (s.distanceMeters ?? 0) > 0);
+  const totalStepSeconds = steps.reduce((sum, s) => sum + (s.durationSeconds ?? 0), 0);
 
   return (
     <PageShell
@@ -174,24 +205,24 @@ function WorkoutDetailContent({ workout, steps, statusActions, deleteAction }: W
       <div className="workout-detail__steps">
         <p className="workout-detail__steps-label">Session structure</p>
 
-        {stepsWithDuration.length > 0 ? (
+        {hasBarData && (
           <div className="session-bar" aria-hidden="true" title="Session structure overview">
-            {stepsWithDuration.map((step) => (
+            {steps.map((step) => (
               <div
                 key={step.id}
                 className={`session-bar__segment session-bar__segment--${step.stepType}`}
-                style={{ flex: step.durationSeconds }}
+                style={{ flex: stepBarFlex(step) }}
                 title={`${stepTypeLabels[step.stepType]}: ${formatDuration(step.durationSeconds)}`}
               />
             ))}
-            {totalStepSeconds < (workout.plannedDurationSeconds ?? 0) && (
+            {!hasDistanceOnlyStep && totalStepSeconds < (workout.plannedDurationSeconds ?? 0) && (
               <div
                 className="session-bar__segment session-bar__segment--other"
                 style={{ flex: (workout.plannedDurationSeconds ?? 0) - totalStepSeconds }}
               />
             )}
           </div>
-        ) : null}
+        )}
 
         <WorkoutStepList steps={steps} />
       </div>
@@ -344,7 +375,7 @@ function WorkoutDetailApiMode({ params, navigate }: PageComponentProps) {
   return (
     <WorkoutDetailContent
       workout={workout as WorkoutDetailData}
-      steps={workout.steps as WorkoutStepData[]}
+      steps={workout.steps.map(mapStepDto)}
       statusActions={
         <WorkoutStatusActions
           workoutId={id}

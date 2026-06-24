@@ -328,14 +328,16 @@ function EditPlanModal({ plan, onClose, onSuccess }: EditPlanModalProps) {
 type PlanRowProps = {
   plan: TrainingPlanSummaryDto;
   onActivate: (id: string) => Promise<void>;
+  onDeactivate: (id: string) => Promise<void>;
   onEdit: (plan: TrainingPlanSummaryDto) => void;
   onDelete: (id: string) => Promise<void>;
   activating: string | null;
+  deactivating: string | null;
   deleting: string | null;
   navigate: PageComponentProps['navigate'];
 };
 
-function PlanRow({ plan, onActivate, onEdit, onDelete, activating, deleting, navigate }: PlanRowProps) {
+function PlanRow({ plan, onActivate, onDeactivate, onEdit, onDelete, activating, deactivating, deleting, navigate }: PlanRowProps) {
   const [expanded, setExpanded] = useState(false);
   const [planDetail, setPlanDetail] = useState<TrainingPlanDto | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -356,6 +358,7 @@ function PlanRow({ plan, onActivate, onEdit, onDelete, activating, deleting, nav
 
   const isDeleting = deleting === plan.id;
   const isActivating = activating === plan.id;
+  const isDeactivating = deactivating === plan.id;
 
   return (
     <li className={`tp-plan-row${expanded ? ' is-expanded' : ''}`}>
@@ -378,10 +381,20 @@ function PlanRow({ plan, onActivate, onEdit, onDelete, activating, deleting, nav
             <button
               type="button"
               className="btn btn--ghost btn--sm"
-              disabled={activating !== null || isDeleting}
+              disabled={activating !== null || deactivating !== null || isDeleting}
               onClick={() => onActivate(plan.id)}
             >
               {isActivating ? '…' : 'Activate'}
+            </button>
+          )}
+          {plan.status === 'active' && !confirmDelete && (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              disabled={deactivating !== null || isDeleting}
+              onClick={() => onDeactivate(plan.id)}
+            >
+              {isDeactivating ? '…' : 'Deactivate'}
             </button>
           )}
           {!confirmDelete && (
@@ -461,14 +474,16 @@ function PlanRow({ plan, onActivate, onEdit, onDelete, activating, deleting, nav
 type PlanListSectionProps = {
   plans: TrainingPlanSummaryDto[];
   onActivate: (id: string) => Promise<void>;
+  onDeactivate: (id: string) => Promise<void>;
   onEdit: (plan: TrainingPlanSummaryDto) => void;
   onDelete: (id: string) => Promise<void>;
   activating: string | null;
+  deactivating: string | null;
   deleting: string | null;
   navigate: PageComponentProps['navigate'];
 };
 
-function PlanListSection({ plans, onActivate, onEdit, onDelete, activating, deleting, navigate }: PlanListSectionProps) {
+function PlanListSection({ plans, onActivate, onDeactivate, onEdit, onDelete, activating, deactivating, deleting, navigate }: PlanListSectionProps) {
   if (plans.length === 0) return null;
 
   return (
@@ -480,9 +495,11 @@ function PlanListSection({ plans, onActivate, onEdit, onDelete, activating, dele
             key={plan.id}
             plan={plan}
             onActivate={onActivate}
+            onDeactivate={onDeactivate}
             onEdit={onEdit}
             onDelete={onDelete}
             activating={activating}
+            deactivating={deactivating}
             deleting={deleting}
             navigate={navigate}
           />
@@ -792,6 +809,7 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
   const [showCreatePlan, setShowCreatePlan] = useState(false);
   const [editingPlan, setEditingPlan] = useState<TrainingPlanSummaryDto | null>(null);
   const [activating, setActivating] = useState<string | null>(null);
+  const [deactivating, setDeactivating] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
   const [weekView, setWeekView] = useState<'all' | 'plan'>('plan');
@@ -813,6 +831,19 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
       setActionError(err instanceof Error ? err.message : 'Failed to activate plan.');
     } finally {
       setActivating(null);
+    }
+  }
+
+  async function handleDeactivate(id: string) {
+    setDeactivating(id);
+    setActionError(null);
+    try {
+      await updateTrainingPlan(id, { status: 'draft' });
+      refreshAll();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to deactivate plan.');
+    } finally {
+      setDeactivating(null);
     }
   }
 
@@ -890,9 +921,11 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
       <PlanListSection
         plans={plans}
         onActivate={handleActivate}
+        onDeactivate={handleDeactivate}
         onEdit={setEditingPlan}
         onDelete={handleDelete}
         activating={activating}
+        deactivating={deactivating}
         deleting={deleting}
         navigate={navigate}
       />

@@ -15,12 +15,12 @@ import type { PageComponentProps } from '../routes/routeTypes';
 
 function formatShortDate(dateStr: string): string {
   const d = new Date(`${dateStr}T12:00:00Z`);
-  return new Intl.DateTimeFormat('de', { month: 'short', day: 'numeric' }).format(d);
+  return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(d);
 }
 
 function formatWeekdayShort(dateStr: string): string {
   const d = new Date(`${dateStr}T12:00:00Z`);
-  return new Intl.DateTimeFormat('de', { weekday: 'short' }).format(d);
+  return new Intl.DateTimeFormat('en', { weekday: 'short' }).format(d);
 }
 
 function formatPaceRange(lower?: number, upper?: number): string | undefined {
@@ -48,10 +48,7 @@ const STEP_TYPE_LABELS: Record<string, string> = {
 
 function StatusBadge({ status }: { status: AiCoachOutputDto['status'] }) {
   const map: Record<string, string> = {
-    accepted: 'Übernommen',
-    rejected: 'Verworfen',
-    archived: 'Archiviert',
-    draft: 'Entwurf',
+    accepted: 'Accepted', rejected: 'Rejected', archived: 'Archived', draft: 'Draft',
   };
   return (
     <span className={`ai-preview-status ai-preview-status--${status}`}>
@@ -79,15 +76,9 @@ function StepRow({ step }: { step: AiGeneratedWorkoutStep }) {
       </span>
       <span className="ai-preview-step__instruction">{step.instruction}</span>
       <span className="ai-preview-step__meta">
-        {step.durationSeconds && (
-          <span>{formatDuration(step.durationSeconds)}</span>
-        )}
-        {step.distanceMeters && (
-          <span>{(step.distanceMeters / 1000).toFixed(1)} km</span>
-        )}
-        {step.repetitions && (
-          <span>{step.repetitions}×</span>
-        )}
+        {step.durationSeconds && <span>{formatDuration(step.durationSeconds)}</span>}
+        {step.distanceMeters && <span>{(step.distanceMeters / 1000).toFixed(1)} km</span>}
+        {step.repetitions && <span>{step.repetitions}×</span>}
         {targets.length > 0 && (
           <span className="ai-preview-step__targets">{targets.join(' · ')}</span>
         )}
@@ -167,14 +158,12 @@ function WorkoutCard({ workout }: { workout: AiGeneratedWorkout }) {
           aria-expanded={expanded}
           onClick={() => setExpanded((v) => !v)}
         >
-          {expanded ? 'Steps ausblenden' : `${workout.steps.length} Steps anzeigen`}
-          <span className="ai-preview-workout__toggle-icon" aria-hidden="true">
-            {expanded ? '▲' : '▼'}
-          </span>
+          <span className={`ai-preview-workout__toggle-icon${expanded ? ' is-open' : ''}`} aria-hidden="true" />
+          {expanded ? 'Hide steps' : `${workout.steps.length} step${workout.steps.length === 1 ? '' : 's'}`}
         </button>
       )}
 
-      {expanded && hasSteps && (
+      <div className={`ai-preview-step-wrap${expanded ? ' is-open' : ''}`}>
         <ul className="ai-preview-step-list">
           {[...workout.steps]
             .sort((a, b) => a.stepIndex - b.stepIndex)
@@ -182,7 +171,7 @@ function WorkoutCard({ workout }: { workout: AiGeneratedWorkout }) {
               <StepRow key={step.stepIndex} step={step} />
             ))}
         </ul>
-      )}
+      </div>
 
       {workout.coachNotes && (
         <p className="ai-preview-workout__coach-notes">{workout.coachNotes}</p>
@@ -208,7 +197,7 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
       await acceptOutput(outputId);
       navigate('/training-plan');
     } catch (err) {
-      const msg = err instanceof ApiClientError ? err.message : 'Plan konnte nicht gespeichert werden.';
+      const msg = err instanceof ApiClientError ? err.message : 'Could not save plan. Please try again.';
       setActionError(msg);
       setActionLoading(null);
     }
@@ -221,7 +210,7 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
       await rejectOutput(outputId);
       navigate('/ai-coach');
     } catch (err) {
-      const msg = err instanceof ApiClientError ? err.message : 'Vorschlag konnte nicht verworfen werden.';
+      const msg = err instanceof ApiClientError ? err.message : 'Could not discard proposal. Please try again.';
       setActionError(msg);
       setActionLoading(null);
       setConfirmReject(false);
@@ -230,16 +219,16 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
 
   if (outputState.status === 'loading') {
     return (
-      <PageShell title="AI Coach" eyebrow="AI Coach · Vorschau">
-        <LoadingState title="Lade Vorschlag" description="Vorschau wird vorbereitet…" />
+      <PageShell title="AI Coach" eyebrow="AI Coach · Preview">
+        <LoadingState title="Loading proposal" description="Preparing your week plan preview…" />
       </PageShell>
     );
   }
 
   if (outputState.status === 'error') {
     return (
-      <PageShell title="AI Coach" eyebrow="AI Coach · Vorschau">
-        <ErrorState title="Vorschlag nicht verfügbar" description={outputState.message} />
+      <PageShell title="AI Coach" eyebrow="AI Coach · Preview">
+        <ErrorState title="Proposal unavailable" description={outputState.message} />
       </PageShell>
     );
   }
@@ -248,11 +237,12 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
   const parsedPlan = AiGeneratedWeekPlanSchema.safeParse(output.structuredOutput);
   if (!parsedPlan.success) {
     return (
-      <PageShell title="AI Coach" eyebrow="AI Coach · Vorschau">
-        <ErrorState title="Ungültiges Format" description="Der Vorschlag hat ein unerwartetes Format." />
+      <PageShell title="AI Coach" eyebrow="AI Coach · Preview">
+        <ErrorState title="Invalid format" description="The proposal has an unexpected data format." />
       </PageShell>
     );
   }
+
   const plan: AiGeneratedWeekPlan = parsedPlan.data;
   const isInvalid = output.validationStatus === 'invalid';
   const isAlreadyActed = output.status === 'accepted' || output.status === 'rejected';
@@ -260,15 +250,13 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
 
   return (
     <PageShell
-      title="Wochenplan-Vorschlag"
-      eyebrow="AI Coach · Vorschau"
+      title="Week Plan Preview"
+      eyebrow="AI Coach · Preview"
       description={
         <span>
           {isAlreadyActed && <StatusBadge status={output.status} />}
           {isInvalid && (
-            <span className="ai-preview-status ai-preview-status--invalid">
-              Validierung fehlgeschlagen
-            </span>
+            <span className="ai-preview-status ai-preview-status--invalid">Validation failed</span>
           )}
         </span>
       }
@@ -289,7 +277,7 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
         {/* ── Summary ── */}
         {(output.summary ?? plan.summary) && (
           <div className="ai-preview-summary">
-            <p className="ai-preview-summary__label">Coach-Begründung</p>
+            <p className="ai-preview-summary__label">Coach rationale</p>
             <p className="ai-preview-summary__text">{output.summary ?? plan.summary}</p>
           </div>
         )}
@@ -298,14 +286,14 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
         {isInvalid && (
           <div className="ai-error-banner ai-error-banner--warn">
             <span>
-              Dieser Vorschlag konnte nicht vollständig validiert werden. Der Inhalt kann unvollständig sein.
+              This proposal could not be fully validated. The content may be incomplete.
             </span>
           </div>
         )}
 
         {/* ── Workout list ── */}
         <div className="ai-preview-workouts">
-          <p className="ai-output__label">{plan.workouts.length} Workouts diese Woche</p>
+          <p className="ai-output__label">{plan.workouts.length} workout{plan.workouts.length === 1 ? '' : 's'} this week</p>
           <div className="ai-preview-workout-list">
             {plan.workouts.map((workout, i) => (
               <WorkoutCard key={i} workout={workout} />
@@ -322,7 +310,7 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
                 type="button"
                 className="ai-error-banner__dismiss"
                 onClick={() => setActionError(null)}
-                aria-label="Schließen"
+                aria-label="Dismiss"
               >
                 ×
               </button>
@@ -338,7 +326,7 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
                   onClick={handleAccept}
                   disabled={!canAct || actionLoading !== null}
                 >
-                  {actionLoading === 'accept' ? 'Wird gespeichert…' : 'Übernehmen'}
+                  {actionLoading === 'accept' ? 'Saving…' : 'Accept plan'}
                 </button>
 
                 <button
@@ -347,28 +335,19 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
                   onClick={() => setConfirmReject(true)}
                   disabled={!canAct || actionLoading !== null}
                 >
-                  Verwerfen
-                </button>
-
-                <button
-                  type="button"
-                  className="button button--ghost"
-                  onClick={() => navigate('/ai-coach')}
-                  disabled={actionLoading !== null}
-                >
-                  Neu generieren
+                  Discard
                 </button>
               </>
             ) : (
               <div className="ai-preview-bar__confirm">
-                <span className="ai-preview-bar__confirm-label">Vorschlag verwerfen?</span>
+                <span className="ai-preview-bar__confirm-label">Discard this proposal?</span>
                 <button
                   type="button"
                   className="button button--danger"
                   onClick={handleReject}
                   disabled={actionLoading !== null}
                 >
-                  {actionLoading === 'reject' ? 'Wird verworfen…' : 'Ja, verwerfen'}
+                  {actionLoading === 'reject' ? 'Discarding…' : 'Yes, discard'}
                 </button>
                 <button
                   type="button"
@@ -376,7 +355,7 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
                   onClick={() => setConfirmReject(false)}
                   disabled={actionLoading !== null}
                 >
-                  Abbrechen
+                  Cancel
                 </button>
               </div>
             )}

@@ -3439,6 +3439,13 @@ button:focus-visible {
   text-align: right;
 }
 
+.workout-step__zone {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--color-accent);
+  margin-top: 2px;
+}
+
 .workout-step__instruction {
   grid-column: 3 / span 2;
   grid-row: 2;
@@ -4612,6 +4619,13 @@ button:focus-visible {
   padding-bottom: 100px; /* room for sticky bar */
 }
 
+/* In the AI workout preview the workout-step grid collapses its empty second
+   row — the 2-row definition exists for WorkoutDetailPage where steps have
+   both title and instruction, but AI steps only use one row. */
+.ai-workout-preview .workout-step {
+  grid-template-rows: auto;
+}
+
 /* ── Plan header ── */
 
 .ai-preview-header {
@@ -4776,7 +4790,18 @@ button:focus-visible {
 }
 
 .ai-preview-workout__toggle-icon {
-  font-size: 0.6rem;
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  transition: transform 0.2s ease;
+  transform: rotate(-90deg);
+}
+
+.ai-preview-workout__toggle-icon.is-open {
+  transform: rotate(0deg);
 }
 
 .ai-preview-workout__coach-notes {
@@ -4787,7 +4812,23 @@ button:focus-visible {
   line-height: 1.5;
 }
 
-/* ── Step list ── */
+/* ── Step list (with expand/collapse animation) ── */
+
+.ai-preview-step-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+  overflow: hidden;
+}
+
+.ai-preview-step-wrap.is-open {
+  grid-template-rows: 1fr;
+}
+
+.ai-preview-step-wrap > .ai-preview-step-list {
+  min-height: 0;
+  overflow: hidden;
+}
 
 .ai-preview-step-list {
   list-style: none;
@@ -4877,9 +4918,7 @@ button:focus-visible {
   left: 0;
   right: 0;
   z-index: 50;
-  background: var(--color-surface);
   border-top: 1.5px solid var(--color-line);
-  box-shadow: 0 -8px 24px rgba(16, 16, 20, 0.06);
 }
 
 .ai-preview-bar__error {

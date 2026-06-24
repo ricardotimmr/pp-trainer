@@ -26,7 +26,8 @@ export async function buildApp(config: ApiConfig = getApiConfig()) {
   setupErrorHandling(app);
 
   await app.register(cors, {
-    origin: config.webOrigin,
+    origin: [config.webOrigin, config.webOrigin.replace('127.0.0.1', 'localhost')],
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
   await app.register(multipart, {

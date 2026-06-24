@@ -17,32 +17,35 @@ import * as AthleteRepository from '../repositories/AthleteRepository.js';
 import * as MemoryEntryService from './MemoryEntryService.js';
 import * as TrainingService from './TrainingService.js';
 
-function zoneNotesSuffix(step: AiGeneratedWorkoutStep): string {
+function buildZoneNotes(step: AiGeneratedWorkoutStep): string | undefined {
   const parts: string[] = [];
-  if (step.targetHeartRateZoneName) parts.push(`HR: ${step.targetHeartRateZoneName}`);
-  if (step.targetPowerZoneName) parts.push(`Power: ${step.targetPowerZoneName}`);
-  if (step.targetPaceZoneName) parts.push(`Pace: ${step.targetPaceZoneName}`);
-  return parts.length > 0 ? ` [${parts.join(', ')}]` : '';
+  if (step.targetHeartRateZoneName) parts.push(step.targetHeartRateZoneName);
+  if (step.targetPowerZoneName) parts.push(step.targetPowerZoneName);
+  if (step.targetPaceZoneName) parts.push(step.targetPaceZoneName);
+  return parts.length > 0 ? parts.join(' · ') : undefined;
 }
 
 function mapAiStepsToCreateRequests(steps: AiGeneratedWorkoutStep[]) {
-  return steps.map((step) => ({
-    stepIndex: step.stepIndex,
-    stepType: step.stepType,
-    instruction: step.instruction + zoneNotesSuffix(step),
-    ...(step.title != null && { title: step.title }),
-    ...(step.durationSeconds != null && { durationSeconds: step.durationSeconds }),
-    ...(step.distanceMeters != null && { distanceMeters: step.distanceMeters }),
-    ...(step.repetitions != null && { repetitions: step.repetitions }),
-    ...(step.targetPowerLowerWatts != null && { targetPowerLowerWatts: step.targetPowerLowerWatts }),
-    ...(step.targetPowerUpperWatts != null && { targetPowerUpperWatts: step.targetPowerUpperWatts }),
-    ...(step.targetPaceLowerSecPerKm != null && { targetPaceLowerSecPerKm: step.targetPaceLowerSecPerKm }),
-    ...(step.targetPaceUpperSecPerKm != null && { targetPaceUpperSecPerKm: step.targetPaceUpperSecPerKm }),
-    ...(step.targetSwimPaceLowerSecPer100m != null && { targetSwimPaceLowerSecPer100m: step.targetSwimPaceLowerSecPer100m }),
-    ...(step.targetSwimPaceUpperSecPer100m != null && { targetSwimPaceUpperSecPer100m: step.targetSwimPaceUpperSecPer100m }),
-    ...(step.restSeconds != null && { restSeconds: step.restSeconds }),
-    ...(step.notes != null && { notes: step.notes }),
-  }));
+  return steps.map((step) => {
+    const notes = buildZoneNotes(step) ?? step.notes ?? undefined;
+    return {
+      stepIndex: step.stepIndex,
+      stepType: step.stepType,
+      instruction: step.instruction,
+      ...(step.title != null && { title: step.title }),
+      ...(step.durationSeconds != null && { durationSeconds: step.durationSeconds }),
+      ...(step.distanceMeters != null && { distanceMeters: step.distanceMeters }),
+      ...(step.repetitions != null && { repetitions: step.repetitions }),
+      ...(step.targetPowerLowerWatts != null && { targetPowerLowerWatts: step.targetPowerLowerWatts }),
+      ...(step.targetPowerUpperWatts != null && { targetPowerUpperWatts: step.targetPowerUpperWatts }),
+      ...(step.targetPaceLowerSecPerKm != null && { targetPaceLowerSecPerKm: step.targetPaceLowerSecPerKm }),
+      ...(step.targetPaceUpperSecPerKm != null && { targetPaceUpperSecPerKm: step.targetPaceUpperSecPerKm }),
+      ...(step.targetSwimPaceLowerSecPer100m != null && { targetSwimPaceLowerSecPer100m: step.targetSwimPaceLowerSecPer100m }),
+      ...(step.targetSwimPaceUpperSecPer100m != null && { targetSwimPaceUpperSecPer100m: step.targetSwimPaceUpperSecPer100m }),
+      ...(step.restSeconds != null && { restSeconds: step.restSeconds }),
+      ...(notes != null && { notes }),
+    };
+  });
 }
 
 function mapAiWorkoutToCreateRequest(
