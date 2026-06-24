@@ -310,8 +310,8 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
         <div className="ai-preview-workouts">
           <p className="ai-output__label">{plan.workouts.length} workout{plan.workouts.length === 1 ? '' : 's'} this week</p>
           <div className="ai-preview-workout-list">
-            {plan.workouts.map((workout) => (
-              <WorkoutCard key={`${workout.scheduledDate ?? ''}-${workout.title}`} workout={workout} />
+            {plan.workouts.map((workout, i) => (
+              <WorkoutCard key={i} workout={workout} />
             ))}
           </div>
         </div>

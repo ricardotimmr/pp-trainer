@@ -141,6 +141,8 @@ export async function updateTrainingPlan(
 
 type PrismaWorkoutStatus = 'Planned' | 'Completed' | 'Missed' | 'Moved' | 'Adjusted' | 'Cancelled';
 
+// Moved and Adjusted cannot transition directly to each other — must go through Planned first.
+// This is intentional: each reschedule or adjustment starts a fresh state from Planned.
 const VALID_STATUS_TRANSITIONS: Record<PrismaWorkoutStatus, PrismaWorkoutStatus[]> = {
   Planned:   ['Completed', 'Missed', 'Cancelled'],
   Completed: ['Planned'],
@@ -157,9 +159,14 @@ function fmtDate(d: Date): string {
 async function assertDateWithinPlanRange(scheduledDate: Date, planId: string): Promise<void> {
   const plan = await TrainingRepository.findTrainingPlanById(planId);
   if (!plan) throw ApiError.notFound('Training plan not found');
-  if (scheduledDate < plan.startDate || scheduledDate > plan.endDate) {
+  // Compare date strings (YYYY-MM-DD) to avoid time-component mismatch between
+  // Prisma Date objects and plain-date inputs in non-UTC server environments.
+  const dateStr = fmtDate(scheduledDate);
+  const startStr = fmtDate(plan.startDate);
+  const endStr = fmtDate(plan.endDate);
+  if (dateStr < startStr || dateStr > endStr) {
     throw ApiError.unprocessable(
-      `scheduledDate ${fmtDate(scheduledDate)} is outside the plan's date range (${fmtDate(plan.startDate)}–${fmtDate(plan.endDate)})`,
+      `scheduledDate ${dateStr} is outside the plan's date range (${startStr}–${endStr})`,
     );
   }
 }
@@ -218,6 +225,10 @@ export async function createWorkout(
   if (!profile) throw ApiError.notFound('No athlete profile found');
 
   if (data.steps.length > 0) assertUniqueStepIndexes(data.steps);
+
+  if (data.scheduledDate == null) {
+    throw ApiError.unprocessable('scheduledDate is required');
+  }
 
   if (data.trainingPlanId != null) {
     if (data.scheduledDate != null) {

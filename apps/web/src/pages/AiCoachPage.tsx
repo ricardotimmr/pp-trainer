@@ -112,6 +112,12 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
 
   const [historyState, setHistoryState] = useState<HistoryState>({ status: 'loading' });
 
+  function refreshHistory() {
+    fetchAiHistory(5)
+      .then((proposals) => setHistoryState({ status: 'ready', proposals }))
+      .catch(() => setHistoryState({ status: 'error' }));
+  }
+
   useEffect(() => {
     let cancelled = false;
     fetchAiHistory(5)
@@ -142,8 +148,10 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
 
       if (output.validationStatus === 'invalid') {
         setInvalidOutput(true);
+        refreshHistory();
         return;
       }
+      refreshHistory();
       navigate(`/ai-coach/preview/week-plan/${output.id}`);
     } catch (err) {
       const msg = err instanceof ApiClientError ? err.message : 'Network error. Please try again.';
@@ -160,7 +168,8 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
     setLoading(true);
 
     try {
-      const durationSec = durationMinutes ? parseInt(durationMinutes, 10) * 60 : undefined;
+      const parsedMin = parseInt(durationMinutes, 10);
+      const durationSec = durationMinutes !== '' && !isNaN(parsedMin) ? parsedMin * 60 : undefined;
       const request: GenerateWorkoutRequest = {
         sport: sport as GenerateWorkoutRequest['sport'],
         intensity: intensity as GenerateWorkoutRequest['intensity'],
@@ -171,8 +180,10 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
 
       if (output.validationStatus === 'invalid') {
         setInvalidOutput(true);
+        refreshHistory();
         return;
       }
+      refreshHistory();
       navigate(`/ai-coach/preview/workout/${output.id}`);
     } catch (err) {
       const msg = err instanceof ApiClientError ? err.message : 'Network error. Please try again.';
@@ -603,7 +614,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
                   {proposal.summary && (
                     <p className="ai-proposals__rationale">{proposal.summary}</p>
                   )}
-                  <p className="ai-proposals__date">{formatDate(proposal.createdAt.split('T')[0])}</p>
+                  <p className="ai-proposals__date">{formatDate(proposal.createdAt?.split('T')[0] ?? '')}</p>
                 </button>
               </li>
             ))}

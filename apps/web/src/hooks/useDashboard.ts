@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type {
   ActivitySummaryDto,
@@ -103,8 +103,14 @@ function computePlannedSummary(workouts: PlannedWorkoutDto[]): PlannedSummary {
   return { totalSeconds, totalDistanceMeters, bySport, easySeconds, moderateHardSeconds, completedSeconds, remainingSeconds };
 }
 
-export function useDashboard(): DashboardState {
+export function useDashboard(): DashboardState & { refresh: () => void } {
   const [state, setState] = useState<DashboardState>({ status: 'loading' });
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refresh = useCallback(() => {
+    setState({ status: 'loading' });
+    setRefreshKey((k) => k + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -157,7 +163,7 @@ export function useDashboard(): DashboardState {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshKey]);
 
-  return state;
+  return { ...state, refresh };
 }

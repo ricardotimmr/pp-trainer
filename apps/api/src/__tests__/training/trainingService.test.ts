@@ -492,14 +492,12 @@ describe('createWorkout() plan-date alignment', () => {
     ).resolves.not.toThrow();
   });
 
-  it('accepts workout with no scheduledDate assigned to a plan', async () => {
+  it('rejects workout with no scheduledDate with 422', async () => {
     vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(mockProfile);
-    vi.mocked(TrainingRepository.findTrainingPlanById).mockResolvedValue(mockPlanRow);
-    vi.mocked(TrainingRepository.createPlannedWorkout).mockResolvedValue(mockWorkoutRow);
     const { scheduledDate: _, ...inputWithoutDate } = minimalWorkoutInput;
     await expect(
       createWorkout({ ...inputWithoutDate, scheduledDate: undefined as never, trainingPlanId: 'plan-1' }),
-    ).resolves.not.toThrow();
+    ).rejects.toMatchObject({ code: 'UNPROCESSABLE' });
   });
 });
 

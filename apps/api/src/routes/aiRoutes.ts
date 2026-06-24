@@ -25,8 +25,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     const { limit: limitRaw } = request.query as { limit?: string };
     let limit = HISTORY_DEFAULT_LIMIT;
     if (limitRaw !== undefined) {
-      const parsed = Number(limitRaw);
-      if (!Number.isInteger(parsed) || parsed < 1 || parsed > HISTORY_MAX_LIMIT) {
+      const parsed = /^\d+$/.test(limitRaw) ? parseInt(limitRaw, 10) : NaN;
+      if (!Number.isFinite(parsed) || parsed < 1 || parsed > HISTORY_MAX_LIMIT) {
         return reply.status(400).send({
           error: {
             code: 'BAD_REQUEST',

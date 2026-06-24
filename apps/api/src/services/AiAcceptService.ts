@@ -42,11 +42,12 @@ export function buildZoneLookup(zones: ZoneWithType[]): ZoneLookup {
 
   for (const zone of zones) {
     const key = zone.name.toLowerCase().trim();
+    // First-wins: if two active zone sets share a name, keep the first match.
     switch (zone.zoneType) {
-      case 'HeartRate': hr.set(key, zone.id); break;
-      case 'CyclingPower': power.set(key, zone.id); break;
+      case 'HeartRate': if (!hr.has(key)) hr.set(key, zone.id); break;
+      case 'CyclingPower': if (!power.has(key)) power.set(key, zone.id); break;
       case 'RunningPace':
-      case 'SwimmingPace': pace.set(key, zone.id); break;
+      case 'SwimmingPace': if (!pace.has(key)) pace.set(key, zone.id); break;
     }
   }
 
@@ -256,7 +257,8 @@ export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | 
     throw ApiError.unprocessable('AI output structure is invalid', parsed.error.issues);
   }
   const aiWorkout = parsed.data.workout;
-  const today = new Date().toISOString().split('T')[0];
+  const _d = new Date();
+  const today = `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, '0')}-${String(_d.getDate()).padStart(2, '0')}`;
 
   // Pre-compute Prisma input outside the transaction
   const { steps, ...workoutData } = buildWorkoutPrismaInput(aiWorkout, profile.id, today, zoneLookup);
