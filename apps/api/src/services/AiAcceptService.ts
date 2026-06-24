@@ -25,6 +25,69 @@ import * as AiRepository from '../repositories/AiRepository.js';
 import * as AthleteRepository from '../repositories/AthleteRepository.js';
 import * as MemoryEntryService from './MemoryEntryService.js';
 
+// ── Zone FK resolution ───────────────────────────────────────────────────────
+
+type ZoneWithType = { id: string; name: string; zoneType: string };
+
+export type ZoneLookup = {
+  hr: Map<string, string>;
+  power: Map<string, string>;
+  pace: Map<string, string>;
+};
+
+export function buildZoneLookup(zones: ZoneWithType[]): ZoneLookup {
+  const hr = new Map<string, string>();
+  const power = new Map<string, string>();
+  const pace = new Map<string, string>();
+
+  for (const zone of zones) {
+    const key = zone.name.toLowerCase().trim();
+    switch (zone.zoneType) {
+      case 'HeartRate': hr.set(key, zone.id); break;
+      case 'CyclingPower': power.set(key, zone.id); break;
+      case 'RunningPace':
+      case 'SwimmingPace': pace.set(key, zone.id); break;
+    }
+  }
+
+  return { hr, power, pace };
+}
+
+export function resolveStepZoneFks(
+  step: Pick<AiGeneratedWorkoutStep, 'targetHeartRateZoneName' | 'targetPowerZoneName' | 'targetPaceZoneName'>,
+  lookup: ZoneLookup,
+): { targetHeartRateZoneId?: string; targetPowerZoneId?: string; targetPaceZoneId?: string } {
+  const result: { targetHeartRateZoneId?: string; targetPowerZoneId?: string; targetPaceZoneId?: string } = {};
+
+  if (step.targetHeartRateZoneName) {
+    const id = lookup.hr.get(step.targetHeartRateZoneName.toLowerCase().trim());
+    if (id != null) result.targetHeartRateZoneId = id;
+  }
+  if (step.targetPowerZoneName) {
+    const id = lookup.power.get(step.targetPowerZoneName.toLowerCase().trim());
+    if (id != null) result.targetPowerZoneId = id;
+  }
+  if (step.targetPaceZoneName) {
+    const id = lookup.pace.get(step.targetPaceZoneName.toLowerCase().trim());
+    if (id != null) result.targetPaceZoneId = id;
+  }
+
+  return result;
+}
+
+async function loadZones(athleteProfileId: string): Promise<ZoneWithType[]> {
+  const sets = await prisma.trainingZoneSet.findMany({
+    where: { athleteProfileId, isActive: true },
+    select: {
+      zoneType: true,
+      zones: { select: { id: true, name: true } },
+    },
+  });
+  return sets.flatMap((s) => s.zones.map((z) => ({ ...z, zoneType: s.zoneType as string })));
+}
+
+// ── Step mapping ─────────────────────────────────────────────────────────────
+
 function buildZoneNotes(step: AiGeneratedWorkoutStep): string | undefined {
   const parts: string[] = [];
   if (step.targetHeartRateZoneName) parts.push(step.targetHeartRateZoneName);
@@ -33,11 +96,12 @@ function buildZoneNotes(step: AiGeneratedWorkoutStep): string | undefined {
   return parts.length > 0 ? parts.join(' · ') : undefined;
 }
 
-function mapAiStepsToPrisma(steps: AiGeneratedWorkoutStep[]) {
+function mapAiStepsToPrisma(steps: AiGeneratedWorkoutStep[], zoneLookup: ZoneLookup) {
   return [...steps]
     .sort((a, b) => a.stepIndex - b.stepIndex)
     .map((step) => {
       const notes = buildZoneNotes(step) ?? step.notes ?? undefined;
+      const zoneFks = resolveStepZoneFks(step, zoneLookup);
       return {
         stepIndex: step.stepIndex,
         stepType: DTO_TO_PRISMA_WORKOUT_STEP_TYPE_MAP[step.stepType],
@@ -54,6 +118,7 @@ function mapAiStepsToPrisma(steps: AiGeneratedWorkoutStep[]) {
         ...(step.targetSwimPaceUpperSecPer100m != null && { targetSwimPaceUpperSecPer100m: step.targetSwimPaceUpperSecPer100m }),
         ...(step.restSeconds != null && { restSeconds: step.restSeconds }),
         ...(notes != null && { notes }),
+        ...zoneFks,
       };
     });
 }
@@ -62,6 +127,7 @@ function buildWorkoutPrismaInput(
   aiWorkout: AiGeneratedWorkout,
   athleteProfileId: string,
   fallbackDate: string,
+  zoneLookup: ZoneLookup,
 ) {
   return {
     athleteProfileId,
@@ -77,7 +143,7 @@ function buildWorkoutPrismaInput(
     ...(aiWorkout.description != null && { description: aiWorkout.description }),
     ...(aiWorkout.coachNotes != null && { coachNotes: aiWorkout.coachNotes }),
     source: DTO_TO_PRISMA_PLANNED_WORKOUT_SOURCE_MAP['ai_generated'],
-    steps: mapAiStepsToPrisma(aiWorkout.steps),
+    steps: mapAiStepsToPrisma(aiWorkout.steps, zoneLookup),
   };
 }
 
@@ -118,6 +184,8 @@ export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | 
     throw ApiError.unprocessable('AI output failed validation and cannot be accepted');
   }
 
+  const zoneLookup = buildZoneLookup(await loadZones(profile.id));
+
   if (output.outputType === 'WeekPlan') {
     const parsed = AiGeneratedWeekPlanSchema.safeParse(output.structuredOutput);
     if (!parsed.success) {
@@ -127,7 +195,7 @@ export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | 
 
     // Pre-compute all Prisma-mapped inputs outside the transaction (pure mapping, no DB calls)
     const workoutInputs = plan.workouts.map((w) =>
-      buildWorkoutPrismaInput(w, profile.id, plan.weekStartDate),
+      buildWorkoutPrismaInput(w, profile.id, plan.weekStartDate, zoneLookup),
     );
 
     const { txPlan, txWorkouts, txOutput } = await prisma.$transaction(async (tx) => {
@@ -186,7 +254,7 @@ export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | 
   const today = new Date().toISOString().split('T')[0];
 
   // Pre-compute Prisma input outside the transaction
-  const { steps, ...workoutData } = buildWorkoutPrismaInput(aiWorkout, profile.id, today);
+  const { steps, ...workoutData } = buildWorkoutPrismaInput(aiWorkout, profile.id, today, zoneLookup);
 
   const { txWorkout, txOutput } = await prisma.$transaction(async (tx) => {
     const txWorkout = await tx.plannedWorkout.create({
