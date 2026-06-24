@@ -1,6 +1,6 @@
 # AI Coach Concept
 
-Stand: 15.06.2026
+Stand: 24.06.2026 (Phase 6 abgeschlossen)
 
 ## 1. Ziel dieser Datei
 
@@ -1333,52 +1333,29 @@ WorkoutStep
 
 ---
 
-# 21. Open Decisions
+# 21. Decisions — Resolved in Phase 6
 
-Folgende Entscheidungen sind noch offen:
+Stand: 2026-06-24. Alle fünf offenen Entscheidungen wurden in Phase 6 getroffen.
 
 ## 21.1 AI Provider Integration
 
-Offen:
-
-* konkrete API-Struktur
-* Modellwahl
-* Umgang mit Responses
-* Kostenkontrolle
-* Rate Limits
+**Entschieden:** Anthropic Claude. Default-Modell: `claude-opus-4-8`, konfigurierbar via `AI_MODEL`. Mock-Modus via `AI_MOCK=true` (kein echter API-Aufruf, Fixture-Daten). API-Key (`ANTHROPIC_API_KEY`) nur im Backend. Kostenkontrolle und Rate-Limit-Handling sind aktuell nicht implementiert — Provider-Fehler → `503`.
 
 ## 21.2 Output Schema
 
-Offen:
-
-* endgültiges JSON-Schema
-* Validierung mit Zod oder anderer Library
-* Umgang mit teilweise validen Ausgaben
+**Entschieden:** Structured output via **tool use** (Anthropic SDK). Das Modell gibt das Schema-konforme JSON als Tool-Argument zurück, kein Freitext-Parsing. Validierung mit **Zod** (Schemas in `packages/shared`). Teilweise valide Ausgaben werden mit `validationStatus: 'invalid'` gespeichert, aber nicht als Training-Entities übernommen.
 
 ## 21.3 Prompt Versioning
 
-Offen:
-
-* Prompt-Versionen speichern
-* Prompt Templates im Code oder in Dateien
-* Versionierung pro Request
+**Entschieden:** Prompt-Templates leben im Code (`PromptBuilder.ts`), keine externe Datei, keine Versionsnummer pro Prompt. Der `AthleteContext` hat `contextVersion: 'v1'` — das ermöglicht Kontextformat-Änderungen ohne Breaking Changes. Vollständige Prompt-Versionierung ist für Phase 7+ deferred.
 
 ## 21.4 AI History
 
-Offen:
-
-* vollständige AI-Historie speichern
-* nur Outputs speichern
-* Requests und Context Snapshots speichern
-* alte Vorschläge archivieren
+**Entschieden:** Nur `AiCoachOutput`-Records werden gespeichert. Jeder Output ist mit einem `AthleteContextSnapshot` (FK) verknüpft. Eine vollständige AI-Historie-Ansicht (`GET /api/ai/history`) ist als Post-MVP-Endpoint deklariert und nicht Teil von Phase 6.
 
 ## 21.5 Editing Flow
 
-Offen:
-
-* AI-Vorschläge direkt editierbar machen
-* erst übernehmen, dann im Plan bearbeiten
-* einzelne Workouts aus Wochenplan selektiv übernehmen
+**Entschieden:** Erst übernehmen, dann im bestehenden Training-Plan-UI bearbeiten. Kein direktes In-Place-Editing des AI-Vorschlags vor der Übernahme. Einzelne Workouts aus einem Wochenplan sind nicht selektiv übernehmbar — der gesamte Wochenplan wird als `TrainingPlan` übernommen.
 
 ---
 

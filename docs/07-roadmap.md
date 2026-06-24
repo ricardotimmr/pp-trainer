@@ -1,6 +1,6 @@
 # Roadmap
 
-Stand: 15.06.2026
+Stand: 24.06.2026
 
 ## 1. Ziel dieser Datei
 
@@ -826,19 +826,27 @@ Nach Phase 6 kann der User erstmals AI-generierte Trainingspläne und Einheiten 
 
 ## 10.9 Definition of Done
 
-Phase 6 ist abgeschlossen, wenn:
+Phase 6 ist abgeschlossen. Status:
 
-* Athlete Context erzeugt wird
-* AI-Endpunkte funktionieren
-* AI-Ausgabe strukturiert zurückkommt
-* AI-Ausgabe validiert wird
-* AI-Ausgabe als Preview angezeigt wird
-* User kann Vorschlag übernehmen
-* User kann Vorschlag verwerfen
-* übernommener Wochenplan erzeugt TrainingPlan und PlannedWorkouts
-* übernommenes Einzelworkout erzeugt PlannedWorkout und WorkoutSteps
-* ungültige AI-Ausgaben werden nicht gespeichert
-* OpenAI API Key liegt nicht im Frontend
+* ✅ Athlete Context wird aus echten DB-Daten erzeugt
+* ✅ `POST /api/ai/generate-week-plan` gibt strukturierten, validierten AI-Output zurück
+* ✅ `POST /api/ai/generate-workout` gibt strukturierten, validierten AI-Output zurück
+* ✅ AI-Output wird als `AiCoachOutput` mit `status: 'Draft'` gespeichert
+* ✅ Frontend zeigt Preview des AI-generierten Wochenplans
+* ✅ Frontend zeigt Preview des AI-generierten Einzelworkouts
+* ✅ User kann Vorschlag übernehmen → erstellt `TrainingPlan` und/oder `PlannedWorkout` mit `source: 'AiGenerated'`
+* ✅ User kann Vorschlag verwerfen → `AiCoachOutput` wird auf `rejected` gesetzt
+* ✅ Ungültige AI-Ausgaben werden nicht als Training-Entities gespeichert (gespeichert als `validationStatus: 'invalid'`, accept → 422)
+* ✅ Anthropic API Key liegt nur im Backend (`ANTHROPIC_API_KEY`)
+* ✅ AI-generierte Pläne/Workouts sind mit `AiBadge` visuell markiert
+
+## 10.10 Scope-Änderungen gegenüber Plan
+
+* `AiAcceptService` trennt die Accept-Logik vom `AiService` (nicht im ursprünglichen Plan vorgesehen)
+* Zone-Namen werden im `notes`-Feld von `WorkoutStep` gespeichert (kein FK) — Zone-Picker-UI auf Phase 7 verschoben
+* `isInitial`-Ref-Pattern in allen drei Data-Hooks ergänzt, um Page-Reload auf Mutations zu verhindern
+* Nativer `<select>` für Plan-Zuweisung durch custom `PlanPicker`-Dropdown ersetzt
+* `AiCoachPreviewPage` (alter Phase-2-Prototyp) wurde gelöscht — keine Route zeigte noch darauf
 
 ## 10.10 Nächster Schritt nach Phase 6
 
