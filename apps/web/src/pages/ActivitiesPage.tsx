@@ -8,7 +8,7 @@ import {
 } from '../components';
 import { useActivitiesApi } from '../hooks/useActivitiesApi';
 import { PageShell } from '../layout/PageShell';
-import type { Activity } from '../mock/prototypeData.types';
+import type { Activity } from '../types/domain';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 const PAGE_SIZE = 10;

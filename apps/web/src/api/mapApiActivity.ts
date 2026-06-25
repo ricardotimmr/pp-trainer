@@ -1,5 +1,5 @@
 import type { ActivityDetailDto, ActivitySummaryDto } from '@pp-trainer/shared';
-import type { Activity } from '../mock/prototypeData.types';
+import type { Activity } from '../types/domain';
 
 export function mapApiActivity(dto: ActivitySummaryDto): Activity {
   return {

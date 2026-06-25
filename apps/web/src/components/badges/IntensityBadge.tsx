@@ -1,4 +1,4 @@
-import type { WorkoutIntensity } from '../../mock/prototypeData.types';
+import type { WorkoutIntensity } from '../../types/domain';
 import { intensityLabels } from '../prototypeFormatters';
 
 type IntensityBadgeProps = {

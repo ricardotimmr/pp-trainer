@@ -18,7 +18,7 @@ import { deleteWorkout, updateWorkoutStatus } from '../api/trainingApi';
 import { useCurrentWeekPlan } from '../hooks/useCurrentWeekPlan';
 import { useWorkout } from '../hooks/useWorkout';
 import { PageShell } from '../layout/PageShell';
-import type { SportType, WorkoutIntensity } from '../mock/prototypeData.types';
+import type { SportType, WorkoutIntensity } from '../types/domain';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 type WorkoutStatus = PlannedWorkoutDto['status'];

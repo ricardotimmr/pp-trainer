@@ -15,7 +15,7 @@ import type {
   SportType,
   TrainingZone,
   TrainingZoneSet,
-} from '../mock/prototypeData.types';
+} from '../types/domain';
 
 type PerformanceSport = 'running' | 'cycling' | 'swimming';
 

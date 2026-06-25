@@ -28,7 +28,7 @@ import type {
   ActivityTimeSeriesSample,
   TimeInZone,
   TrainingZone,
-} from '../mock/prototypeData.types';
+} from '../types/domain';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 type ChartMetric = {

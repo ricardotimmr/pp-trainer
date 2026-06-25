@@ -1,4 +1,4 @@
-import type { Activity } from '../../mock/prototypeData.types';
+import type { Activity } from '../../types/domain';
 import { SportBadge } from '../badges/SportBadge';
 import { SourceBadge } from '../badges/SourceBadge';
 import {

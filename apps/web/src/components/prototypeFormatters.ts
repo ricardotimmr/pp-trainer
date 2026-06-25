@@ -4,7 +4,7 @@ import type {
   GoalPriority,
   SportType,
   WorkoutIntensity,
-} from '../mock/prototypeData.types';
+} from '../types/domain';
 
 export const sportLabels: Record<SportType, string> = {
   cycling: 'Cycling',

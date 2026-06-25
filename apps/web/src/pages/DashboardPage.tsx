@@ -21,7 +21,7 @@ import {
 import { useDashboard } from '../hooks/useDashboard';
 import type { WeekVolume } from '../hooks/useDashboard';
 import { PageShell } from '../layout/PageShell';
-import type { SportType } from '../mock/prototypeData.types';
+import type { SportType } from '../types/domain';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 type SportSplitItem = { sport: SportType; durationSeconds: number };

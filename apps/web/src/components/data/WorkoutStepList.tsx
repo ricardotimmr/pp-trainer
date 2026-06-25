@@ -1,4 +1,4 @@
-import type { WorkoutStepType } from '../../mock/prototypeData.types';
+import type { WorkoutStepType } from '../../types/domain';
 import { stepTypeLabels } from './workoutStepLabels';
 import { EmptyState } from '../states/EmptyState';
 import {

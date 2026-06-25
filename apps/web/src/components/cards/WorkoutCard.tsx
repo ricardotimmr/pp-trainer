@@ -1,4 +1,4 @@
-import type { WorkoutIntensity, WorkoutStatus, SportType } from '../../mock/prototypeData.types';
+import type { WorkoutIntensity, WorkoutStatus, SportType } from '../../types/domain';
 import { IntensityBadge } from '../badges/IntensityBadge';
 import { SportBadge } from '../badges/SportBadge';
 import { WorkoutStatusBadge } from '../badges/WorkoutStatusBadge';

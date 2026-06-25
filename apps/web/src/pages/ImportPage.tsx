@@ -10,7 +10,7 @@ import type { FileResult } from '../hooks/useImport';
 import { useImportHistory } from '../hooks/useImportHistory';
 import { PageShell } from '../layout/PageShell';
 import type { PageComponentProps } from '../routes/routeTypes';
-import type { DataSourceType } from '../mock/prototypeData.types';
+import type { DataSourceType } from '../types/domain';
 
 type ImportSourceStatus = 'Prototype' | 'Planned' | 'Future' | 'Fallback';
 

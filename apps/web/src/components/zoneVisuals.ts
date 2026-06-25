@@ -1,7 +1,7 @@
 import type {
   TrainingZone,
   TrainingZoneUnit,
-} from '../mock/prototypeData.types';
+} from '../types/domain';
 
 export const ZONE_COLORS = [
   'var(--color-int-recovery)',
