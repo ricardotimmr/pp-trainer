@@ -18,6 +18,7 @@ import {
 
 export const AthleteThresholdsDtoSchema = z.object({
   currentFtpWatts: NonNegativeIntegerSchema.optional(),
+  cyclingThresholdHrBpm: NonNegativeIntegerSchema.optional(),
   maxHeartRateBpm: NonNegativeIntegerSchema.optional(),
   restingHeartRateBpm: NonNegativeIntegerSchema.optional(),
   runningThresholdHrBpm: NonNegativeIntegerSchema.optional(),

@@ -83,6 +83,13 @@ export async function patchAvailabilityDay(
   });
 }
 
+export async function recalculateZones(): Promise<void> {
+  return apiFetch<void>('/api/athlete/zones/recalculate', {
+    method: 'POST',
+    acceptedStatuses: [204],
+  });
+}
+
 // ── Zone set write ─────────────────────────────────────────────────────────────
 
 export async function createZoneSet(input: CreateZoneSetInput): Promise<TrainingZoneSetDto> {

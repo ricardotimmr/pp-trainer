@@ -157,6 +157,7 @@ export type AthleteProfile = {
   heightCm?: number;
   primarySports: SportType[];
   currentFtpWatts?: number;
+  cyclingThresholdHrBpm?: number;
   maxHeartRateBpm?: number;
   restingHeartRateBpm?: number;
   runningThresholdHrBpm?: number;

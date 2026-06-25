@@ -90,6 +90,13 @@ export async function athleteRoutes(app: FastifyInstance): Promise<void> {
     return reply.status(204).send();
   });
 
+  // ── Zone recalculation ─────────────────────────────────────────────────────
+
+  app.post('/api/athlete/zones/recalculate', async (_request, reply) => {
+    await AthleteService.recalculateZones();
+    return reply.status(204).send();
+  });
+
   // ── Availability write ──────────────────────────────────────────────────────
 
   app.patch('/api/athlete/availability/:weekday', async (request, reply) => {

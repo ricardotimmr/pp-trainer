@@ -198,6 +198,7 @@ export const prototypeAthleteProfile: AthleteProfile = {
   heightCm: 181,
   primarySports: ['cycling', 'running', 'swimming', 'strength'],
   currentFtpWatts: 285,
+  cyclingThresholdHrBpm: 170,
   maxHeartRateBpm: 194,
   restingHeartRateBpm: 47,
   runningThresholdHrBpm: 172,

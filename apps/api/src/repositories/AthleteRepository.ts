@@ -13,6 +13,7 @@ import type {
 } from '@prisma/client';
 
 import { prisma } from '../lib/prisma.js';
+import type { ZoneSetPayload } from '../services/ZoneCalculationService.js';
 
 export type ZoneSetWithZones = TrainingZoneSet & { zones: TrainingZone[] };
 
@@ -58,6 +59,7 @@ export async function updateAthleteProfile(
     heightCm?: number;
     primarySports?: SportType[];
     currentFtpWatts?: number;
+    cyclingThresholdHrBpm?: number;
     maxHeartRateBpm?: number;
     restingHeartRateBpm?: number;
     runningThresholdHrBpm?: number;
@@ -150,6 +152,38 @@ export async function upsertAvailabilityDay(
       preferredSports: data.preferredSports ?? [],
       notes: data.notes ?? null,
     },
+  });
+}
+
+// ── Zone set auto-calculation ────────────────────────────────────────────────
+
+export async function replaceZoneSets(
+  athleteProfileId: string,
+  payloads: ZoneSetPayload[],
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.trainingZoneSet.deleteMany({ where: { athleteProfileId } });
+    for (const p of payloads) {
+      await tx.trainingZoneSet.create({
+        data: {
+          athleteProfileId,
+          zoneType: p.zoneType,
+          ...(p.sport != null && { sport: p.sport }),
+          name: p.name,
+          basedOn: p.basedOn,
+          isActive: true,
+          zones: {
+            create: p.zones.map((z) => ({
+              zoneNumber: z.zoneNumber,
+              name: z.name,
+              lowerBound: z.lowerBound,
+              upperBound: z.upperBound,
+              unit: z.unit,
+            })),
+          },
+        },
+      });
+    }
   });
 }
 

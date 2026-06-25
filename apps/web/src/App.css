@@ -7580,6 +7580,21 @@ button:focus-visible {
   gap: 18px clamp(28px, 5vw, 56px);
 }
 
+.settings-zone-missing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 0;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+}
+
+.settings-zone-missing__icon {
+  flex-shrink: 0;
+  color: var(--color-line-strong);
+  font-size: 0.9rem;
+}
+
 .settings-zone-card {
   min-width: 0;
   border-top: 1.5px solid var(--color-ink);

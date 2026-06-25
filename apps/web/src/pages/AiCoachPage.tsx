@@ -211,8 +211,9 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
           const { athleteProfile } = settings;
           const { thresholds } = athleteProfile;
           const hasThresholds = Boolean(
-            thresholds.currentFtpWatts || thresholds.maxHeartRateBpm
-            || thresholds.restingHeartRateBpm || thresholds.runningThresholdHrBpm
+            thresholds.currentFtpWatts || thresholds.cyclingThresholdHrBpm
+            || thresholds.maxHeartRateBpm || thresholds.restingHeartRateBpm
+            || thresholds.runningThresholdHrBpm
             || thresholds.runningThresholdPaceSecPerKm || thresholds.swimmingThresholdPaceSecPer100m,
           );
 
@@ -242,6 +243,9 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
                   <dl className="ai-context-dl">
                     {thresholds.currentFtpWatts && (
                       <div><dt>Bike FTP</dt><dd>{thresholds.currentFtpWatts} W</dd></div>
+                    )}
+                    {thresholds.cyclingThresholdHrBpm && (
+                      <div><dt>Bike HR threshold</dt><dd>{thresholds.cyclingThresholdHrBpm} bpm</dd></div>
                     )}
                     {thresholds.maxHeartRateBpm && (
                       <div><dt>HR max</dt><dd>{thresholds.maxHeartRateBpm} bpm</dd></div>

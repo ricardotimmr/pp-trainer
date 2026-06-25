@@ -13,6 +13,7 @@ import type {
 import {
   patchAthleteProfile,
   patchAvailabilityDay,
+  recalculateZones,
   updateGoal,
 } from '../api/athleteApi';
 import { EmptyState, SportBadge, ZoneBand, ZoneList } from '../components';
@@ -159,7 +160,7 @@ function SettingsPageApiMode() {
       <div className="settings-page">
         <ProfileSection profile={data.athleteProfile} refresh={refresh} />
         <PlanningSection goals={data.goals} availability={data.availability} refresh={refresh} />
-        <ZonesSection zoneSets={data.trainingZoneSets} />
+        <ZonesSection zoneSets={data.trainingZoneSets} profile={data.athleteProfile} refresh={refresh} />
       </div>
     </PageShell>
   );
@@ -187,6 +188,7 @@ function ProfileSection({
       bodyWeightKg: p.bodyWeightKg ? String(p.bodyWeightKg) : '',
       heightCm: p.heightCm ? String(p.heightCm) : '',
       ftpWatts: p.thresholds.currentFtpWatts ? String(p.thresholds.currentFtpWatts) : '',
+      bikeThresholdHr: p.thresholds.cyclingThresholdHrBpm ? String(p.thresholds.cyclingThresholdHrBpm) : '',
       maxHr: p.thresholds.maxHeartRateBpm ? String(p.thresholds.maxHeartRateBpm) : '',
       restingHr: p.thresholds.restingHeartRateBpm ? String(p.thresholds.restingHeartRateBpm) : '',
       runThresholdHr: p.thresholds.runningThresholdHrBpm ? String(p.thresholds.runningThresholdHrBpm) : '',
@@ -236,6 +238,7 @@ function ProfileSection({
         heightCm: draft.heightCm ? parseInt(draft.heightCm, 10) : undefined,
         thresholds: {
           currentFtpWatts: draft.ftpWatts ? parseInt(draft.ftpWatts, 10) : undefined,
+          cyclingThresholdHrBpm: draft.bikeThresholdHr ? parseInt(draft.bikeThresholdHr, 10) : undefined,
           maxHeartRateBpm: draft.maxHr ? parseInt(draft.maxHr, 10) : undefined,
           restingHeartRateBpm: draft.restingHr ? parseInt(draft.restingHr, 10) : undefined,
           runningThresholdHrBpm: draft.runThresholdHr ? parseInt(draft.runThresholdHr, 10) : undefined,
@@ -314,7 +317,7 @@ function ProfileSection({
             </p>
           ) : (
             <>
-            <dl className={`settings-metric-strip${editMode ? ' is-editing' : ''}`}>
+            <dl className={`settings-metric-strip settings-metric-strip--5${editMode ? ' is-editing' : ''}`}>
               {/* Birth year → Age */}
               {(editMode || profile.birthYear !== undefined) && (
                 <div>
@@ -363,6 +366,16 @@ function ProfileSection({
                   </dd>
                 </div>
               )}
+              {/* Bike HR threshold — always shown */}
+              <div>
+                <dt>Bike HR threshold</dt>
+                <dd>
+                  {editMode
+                    ? <input className="settings-metric-input" type="number" placeholder="bpm" value={draft.bikeThresholdHr} onChange={setField('bikeThresholdHr')} />
+                    : t.cyclingThresholdHrBpm != null ? `${t.cyclingThresholdHrBpm} bpm` : '—'
+                  }
+                </dd>
+              </div>
             </dl>
             <dl className={`settings-metric-strip settings-metric-strip--5${editMode ? ' is-editing' : ''}`}>
               {/* Max HR */}
@@ -886,16 +899,74 @@ function PlanningSection({
   );
 }
 
-// ── Zones section (read-only — zones are calculated from profile thresholds) ───
+// ── Zones section (auto-calculated from profile thresholds, read-only) ──────
 
-function ZonesSection({ zoneSets }: { zoneSets: TrainingZoneSetDto[] }) {
+type ZonesMissingPromptProps = { text: string };
+function ZonesMissingPrompt({ text }: ZonesMissingPromptProps) {
+  return (
+    <p className="settings-zone-missing">
+      <span className="settings-zone-missing__icon">○</span>
+      {text}
+    </p>
+  );
+}
+
+type ZoneCardProps = { zoneSet: TrainingZoneSetDto };
+function ZoneCard({ zoneSet }: ZoneCardProps) {
+  return (
+    <>
+      {zoneSet.basedOn && <p className="settings-zone-basis">{zoneSet.basedOn}</p>}
+      <ZoneBand zones={zoneSet.zones as never} className="settings-zone-band" />
+      <ZoneList zones={zoneSet.zones as never} className="zone-table" rowClassName="zone-row" dotClassName="zone-row__dot" numberClassName="zone-row__num" nameClassName="zone-row__name" rangeClassName="zone-row__range" />
+    </>
+  );
+}
+
+function ZonesSection({
+  zoneSets,
+  profile,
+  refresh,
+}: {
+  zoneSets: TrainingZoneSetDto[];
+  profile: AthleteProfileDto;
+  refresh: () => void;
+}) {
   const [hrSport, setHrSport] = useState<'cycling' | 'running'>('cycling');
+  const [recalculating, setRecalculating] = useState(false);
 
-  const hrZoneSets = zoneSets.filter((zs) => zs.zoneType === 'heart_rate');
-  const otherZoneSets = zoneSets.filter((zs) => zs.zoneType !== 'heart_rate');
-  const activeHrZoneSet = hrZoneSets.find((zs) => zs.sport === hrSport) ?? hrZoneSets[0];
+  const t = profile.thresholds;
 
-  if (zoneSets.length === 0) return null;
+  const hasCyclingHrFields = t.cyclingThresholdHrBpm != null && t.maxHeartRateBpm != null;
+  const hasCyclingPowerFields = t.currentFtpWatts != null;
+  const hasRunningHrFields = t.runningThresholdHrBpm != null && t.maxHeartRateBpm != null;
+  const hasRunningPaceFields = t.runningThresholdPaceSecPerKm != null;
+  const hasSwimmingPaceFields = t.swimmingThresholdPaceSecPer100m != null;
+
+  const cyclingHrSet = zoneSets.find((zs) => zs.zoneType === 'heart_rate' && zs.sport === 'cycling');
+  const runningHrSet = zoneSets.find((zs) => zs.zoneType === 'heart_rate' && zs.sport === 'running');
+  const cyclingPowerSet = zoneSets.find((zs) => zs.zoneType === 'cycling_power');
+  const runningPaceSet = zoneSets.find((zs) => zs.zoneType === 'running_pace');
+  const swimmingPaceSet = zoneSets.find((zs) => zs.zoneType === 'swimming_pace');
+
+  const activeHrSet = hrSport === 'running' ? (runningHrSet ?? cyclingHrSet) : (cyclingHrSet ?? runningHrSet);
+  const hasAnyHrFields = hasCyclingHrFields || hasRunningHrFields;
+  const hasAnyHrZones = cyclingHrSet != null || runningHrSet != null;
+  const showHrToggle = cyclingHrSet != null && runningHrSet != null;
+
+  const hasAnything = hasAnyHrFields || hasCyclingPowerFields || hasRunningPaceFields || hasSwimmingPaceFields;
+  if (!hasAnything) return null;
+
+  async function handleRecalculate() {
+    setRecalculating(true);
+    try {
+      await recalculateZones();
+      refresh();
+    } finally {
+      setRecalculating(false);
+    }
+  }
+
+  const noZonesYet = zoneSets.length === 0;
 
   return (
     <section className="settings-section">
@@ -904,14 +975,25 @@ function ZonesSection({ zoneSets }: { zoneSets: TrainingZoneSetDto[] }) {
           <p>Training zones</p>
           <h2>Intensity model</h2>
         </div>
+        {noZonesYet && (
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => void handleRecalculate()}
+            disabled={recalculating}
+          >
+            {recalculating ? 'Calculating…' : 'Calculate zones'}
+          </button>
+        )}
       </header>
 
       <div className="settings-zones-grid">
-        {hrZoneSets.length > 0 && (
+        {/* ── Heart Rate (Cycling + Running grouped) ── */}
+        {hasAnyHrFields && (
           <section className="settings-zone-card">
             <div className="settings-zone-card__top">
               <p className="settings-section__label">Heart Rate Zones</p>
-              {hrZoneSets.length > 1 && (
+              {showHrToggle && (
                 <div className="segmented-control settings-zone-toggle" role="tablist" aria-label="HR zone sport">
                   <span className="segmented-control__indicator" aria-hidden="true" style={{ left: hrSport === 'cycling' ? '0%' : '50%', width: '50%' }} />
                   <button type="button" role="tab" aria-selected={hrSport === 'cycling'} className={`segmented-control__tab${hrSport === 'cycling' ? ' is-active' : ''}`} onClick={() => setHrSport('cycling')}>Cycling</button>
@@ -919,27 +1001,58 @@ function ZonesSection({ zoneSets }: { zoneSets: TrainingZoneSetDto[] }) {
                 </div>
               )}
             </div>
-            {activeHrZoneSet?.basedOn && <p className="settings-zone-basis">{activeHrZoneSet.basedOn}</p>}
-            {activeHrZoneSet && (
-              <>
-                <ZoneBand zones={activeHrZoneSet.zones as never} className="settings-zone-band" />
-                <ZoneList zones={activeHrZoneSet.zones as never} className="zone-table" rowClassName="zone-row" dotClassName="zone-row__dot" numberClassName="zone-row__num" nameClassName="zone-row__name" rangeClassName="zone-row__range" />
-              </>
-            )}
+            {hasAnyHrZones && activeHrSet
+              ? <ZoneCard zoneSet={activeHrSet} />
+              : <ZonesMissingPrompt text={
+                  !hasCyclingHrFields && !hasRunningHrFields
+                    ? 'Set Bike HR threshold + Max HR (cycling) or Run HR threshold + Max HR (running) in your profile'
+                    : 'Save your profile to generate HR zones'
+                } />
+            }
           </section>
         )}
 
-        {otherZoneSets.filter((zs) => zs.zones.length > 0).map((zoneSet) => (
-          <section key={zoneSet.id} className="settings-zone-card">
+        {/* ── Cycling Power ── */}
+        {hasCyclingPowerFields && (
+          <section className="settings-zone-card">
             <div className="settings-zone-card__top">
-              <p className="settings-section__label">{zoneSet.name}</p>
-              <span className="settings-zone-type-label">{ZONE_TYPE_LABELS[zoneSet.zoneType]}</span>
+              <p className="settings-section__label">Cycling Power</p>
+              <span className="settings-zone-type-label">{ZONE_TYPE_LABELS['cycling_power']}</span>
             </div>
-            {zoneSet.basedOn && <p className="settings-zone-basis">{zoneSet.basedOn}</p>}
-            <ZoneBand zones={zoneSet.zones as never} className="settings-zone-band" />
-            <ZoneList zones={zoneSet.zones as never} className="zone-table" rowClassName="zone-row" dotClassName="zone-row__dot" numberClassName="zone-row__num" nameClassName="zone-row__name" rangeClassName="zone-row__range" />
+            {cyclingPowerSet
+              ? <ZoneCard zoneSet={cyclingPowerSet} />
+              : <ZonesMissingPrompt text="Save your profile to generate power zones" />
+            }
           </section>
-        ))}
+        )}
+
+        {/* ── Running Pace ── */}
+        {hasRunningPaceFields && (
+          <section className="settings-zone-card">
+            <div className="settings-zone-card__top">
+              <p className="settings-section__label">Running Pace</p>
+              <span className="settings-zone-type-label">{ZONE_TYPE_LABELS['running_pace']}</span>
+            </div>
+            {runningPaceSet
+              ? <ZoneCard zoneSet={runningPaceSet} />
+              : <ZonesMissingPrompt text="Save your profile to generate running pace zones" />
+            }
+          </section>
+        )}
+
+        {/* ── Swimming Pace ── */}
+        {hasSwimmingPaceFields && (
+          <section className="settings-zone-card">
+            <div className="settings-zone-card__top">
+              <p className="settings-section__label">Swimming Pace</p>
+              <span className="settings-zone-type-label">{ZONE_TYPE_LABELS['swimming_pace']}</span>
+            </div>
+            {swimmingPaceSet
+              ? <ZoneCard zoneSet={swimmingPaceSet} />
+              : <ZonesMissingPrompt text="Save your profile to generate swimming pace zones" />
+            }
+          </section>
+        )}
       </div>
     </section>
   );

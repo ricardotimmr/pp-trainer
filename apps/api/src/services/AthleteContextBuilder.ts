@@ -184,6 +184,7 @@ export async function buildContext(athleteProfileId: string): Promise<AthleteCon
       heightCm: profile.heightCm ?? undefined,
       primarySports: profile.primarySports.map((s) => s.toLowerCase()),
       currentFtpWatts: profile.currentFtpWatts ?? undefined,
+      cyclingThresholdHrBpm: profile.cyclingThresholdHrBpm ?? undefined,
       maxHeartRateBpm: profile.maxHeartRateBpm ?? undefined,
       restingHeartRateBpm: profile.restingHeartRateBpm ?? undefined,
       runningThresholdHrBpm: profile.runningThresholdHrBpm ?? undefined,

@@ -30,6 +30,7 @@ const baseProfile: AthleteProfile = {
   heightCm: 178,
   primarySports: ['Running', 'Cycling'],
   currentFtpWatts: 280,
+  cyclingThresholdHrBpm: null,
   maxHeartRateBpm: 185,
   restingHeartRateBpm: 48,
   runningThresholdHrBpm: null,

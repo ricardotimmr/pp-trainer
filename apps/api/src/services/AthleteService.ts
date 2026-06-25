@@ -1,4 +1,5 @@
 import type { Weekday } from '@prisma/client';
+import { buildZonePayloads } from './ZoneCalculationService.js';
 import type {
   AthleteProfileDto,
   AthleteSettingsDto,
@@ -88,11 +89,16 @@ export async function patchAthleteProfile(input: PatchAthleteProfileInput): Prom
       restingHeartRateBpm: thresholds.restingHeartRateBpm,
       runningThresholdPaceSecPerKm: thresholds.runningThresholdPaceSecPerKm,
       swimmingThresholdPaceSecPer100m: thresholds.swimmingThresholdPaceSecPer100m,
+      ...(thresholds.cyclingThresholdHrBpm !== undefined && {
+        cyclingThresholdHrBpm: thresholds.cyclingThresholdHrBpm,
+      }),
       ...(thresholds.runningThresholdHrBpm !== undefined && {
         runningThresholdHrBpm: thresholds.runningThresholdHrBpm,
       }),
     }),
   });
+
+  await AthleteRepository.replaceZoneSets(profile.id, buildZonePayloads(updated));
 
   return mapAthleteProfile(updated);
 }
@@ -242,6 +248,14 @@ export async function updateZone(id: string, input: UpdateZoneInput): Promise<Tr
 export async function deleteZone(id: string): Promise<void> {
   await requireZone(id);
   await AthleteRepository.deleteZone(id);
+}
+
+// ── Zone recalculation ────────────────────────────────────────────────────────
+
+export async function recalculateZones(): Promise<void> {
+  const profile = await AthleteRepository.findFirstAthleteProfile();
+  if (!profile) throw ApiError.notFound('Athlete profile not found');
+  await AthleteRepository.replaceZoneSets(profile.id, buildZonePayloads(profile));
 }
 
 // ── Availability write ────────────────────────────────────────────────────────

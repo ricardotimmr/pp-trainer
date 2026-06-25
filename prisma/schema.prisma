@@ -253,6 +253,7 @@ model AthleteProfile {
   primarySports SportType[]
 
   currentFtpWatts                 Int?
+  cyclingThresholdHrBpm           Int?
   maxHeartRateBpm                 Int?
   restingHeartRateBpm             Int?
   runningThresholdHrBpm           Int?

@@ -98,6 +98,7 @@ const createAthleteWithoutThresholdsDataSet = (): PrototypeDataSet => {
   };
 
   delete athleteProfile.currentFtpWatts;
+  delete athleteProfile.cyclingThresholdHrBpm;
   delete athleteProfile.maxHeartRateBpm;
   delete athleteProfile.restingHeartRateBpm;
   delete athleteProfile.runningThresholdHrBpm;
