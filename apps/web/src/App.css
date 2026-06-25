@@ -6936,6 +6936,74 @@ button:focus-visible {
   font-weight: 800;
   line-height: 1.05;
   padding: 9px 10px;
+  transition: background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.settings-metric-strip.is-editing dd {
+  background: var(--color-surface);
+  border-color: var(--color-line-strong);
+  cursor: text;
+}
+
+.settings-metric-strip.is-editing dd:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.settings-metric-input {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  padding: 0;
+  outline: none;
+}
+
+.settings-metric-input::placeholder {
+  color: var(--color-muted);
+  font-weight: 700;
+  opacity: 0.6;
+}
+
+.settings-profile-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  justify-content: flex-start;
+  align-items: center;
+  min-height: 38px;
+}
+
+.settings-profile-controls > * {
+  animation: settings-ctrl-in 0.2s ease;
+}
+
+@keyframes settings-ctrl-in {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.settings-profile-empty {
+  margin: 0 0 8px;
+  color: var(--color-muted);
+  font-size: 0.88rem;
+}
+
+.settings-profile-empty__link {
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  cursor: pointer;
+  font-size: inherit;
+  font-weight: 700;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .settings-metric-strip .is-accent dd {

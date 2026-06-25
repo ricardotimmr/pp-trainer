@@ -184,7 +184,6 @@ function ProfileSection({
 
   function profileToDraft(p: AthleteProfileDto) {
     return {
-      displayName: p.displayName,
       birthYear: p.birthYear ? String(p.birthYear) : '',
       bodyWeightKg: p.bodyWeightKg ? String(p.bodyWeightKg) : '',
       heightCm: p.heightCm ? String(p.heightCm) : '',
@@ -206,9 +205,10 @@ function ProfileSection({
     return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
   }
 
-  function setField(key: keyof typeof draft) {
-    return (val: string) => {
-      setDraft((d) => ({ ...d, [key]: val }));
+  type DraftKey = keyof ReturnType<typeof profileToDraft>;
+  function setField(key: DraftKey) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      setDraft((d) => ({ ...d, [key]: e.target.value }));
       setDirty(true);
     };
   }
@@ -231,7 +231,6 @@ function ProfileSection({
     setSaveError(null);
     try {
       await patchAthleteProfile({
-        displayName: draft.displayName || undefined,
         birthYear: draft.birthYear ? parseInt(draft.birthYear, 10) : undefined,
         bodyWeightKg: draft.bodyWeightKg ? parseFloat(draft.bodyWeightKg) : undefined,
         heightCm: draft.heightCm ? parseInt(draft.heightCm, 10) : undefined,
@@ -262,15 +261,15 @@ function ProfileSection({
     try {
       await patchAthleteProfile({ primarySports: updated });
       refresh();
-    } catch {
-      // ignore
-    } finally {
-      setSportSaving(false);
-    }
+    } catch { /* ignore */ }
+    finally { setSportSaving(false); }
   }
 
   const age = profile.birthYear ? new Date().getFullYear() - profile.birthYear : undefined;
   const t = profile.thresholds;
+  const hasNoThresholds = !t.currentFtpWatts && !t.maxHeartRateBpm && !t.restingHeartRateBpm
+    && !t.runningThresholdPaceSecPerKm && !t.swimmingThresholdPaceSecPer100m && !profile.birthYear
+    && !profile.bodyWeightKg && !profile.heightCm;
 
   return (
     <section className="settings-section settings-section--context">
@@ -278,32 +277,6 @@ function ProfileSection({
         <div>
           <p>Athlete context</p>
           <h2>Profile and performance baselines</h2>
-        </div>
-        <div className="settings-profile-head-actions">
-          {editMode ? (
-            <>
-              <button
-                type="button"
-                className="button--secondary"
-                onClick={handleCancel}
-                disabled={saving}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="button--primary"
-                onClick={() => void handleSave()}
-                disabled={saving || !dirty}
-              >
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-            </>
-          ) : (
-            <button type="button" className="button--secondary" onClick={handleEditClick}>
-              Edit profile
-            </button>
-          )}
         </div>
       </header>
 
@@ -316,10 +289,7 @@ function ProfileSection({
               <button
                 key={sport}
                 type="button"
-                className={[
-                  'settings-sport-toggle',
-                  profile.primarySports.includes(sport) ? 'is-active' : '',
-                ].filter(Boolean).join(' ')}
+                className={['settings-sport-toggle', profile.primarySports.includes(sport) ? 'is-active' : ''].filter(Boolean).join(' ')}
                 aria-pressed={profile.primarySports.includes(sport)}
                 disabled={sportSaving}
                 onClick={() => void handleToggleSport(sport)}
@@ -332,79 +302,135 @@ function ProfileSection({
           {profile.notes && <p className="settings-notes">{profile.notes}</p>}
         </div>
 
-        {editMode ? (
-          <div className="settings-profile-edit">
-            {saveError && <p className="settings-profile-edit__error">{saveError}</p>}
-            <div className="settings-profile-edit__grid">
-              <label>
-                <span>Name</span>
-                <input className="cw-input" value={draft.displayName} onChange={(e) => setField('displayName')(e.target.value)} />
-              </label>
-              <label>
-                <span>Birth year</span>
-                <input className="cw-input" type="number" placeholder="e.g. 1998" value={draft.birthYear} onChange={(e) => setField('birthYear')(e.target.value)} />
-              </label>
-              <label>
-                <span>Weight (kg)</span>
-                <input className="cw-input" type="number" step="0.1" placeholder="e.g. 76" value={draft.bodyWeightKg} onChange={(e) => setField('bodyWeightKg')(e.target.value)} />
-              </label>
-              <label>
-                <span>Height (cm)</span>
-                <input className="cw-input" type="number" placeholder="e.g. 181" value={draft.heightCm} onChange={(e) => setField('heightCm')(e.target.value)} />
-              </label>
-              <label>
-                <span>Bike FTP (W)</span>
-                <input className="cw-input" type="number" placeholder="e.g. 285" value={draft.ftpWatts} onChange={(e) => setField('ftpWatts')(e.target.value)} />
-              </label>
-              <label>
-                <span>Max HR (bpm)</span>
-                <input className="cw-input" type="number" placeholder="e.g. 194" value={draft.maxHr} onChange={(e) => setField('maxHr')(e.target.value)} />
-              </label>
-              <label>
-                <span>Resting HR (bpm)</span>
-                <input className="cw-input" type="number" placeholder="e.g. 47" value={draft.restingHr} onChange={(e) => setField('restingHr')(e.target.value)} />
-              </label>
-              <label>
-                <span>Run threshold (mm:ss /km)</span>
-                <input className="cw-input" placeholder="e.g. 4:18" value={draft.runPace} onChange={(e) => setField('runPace')(e.target.value)} />
-              </label>
-              <label>
-                <span>Swim threshold (mm:ss /100m)</span>
-                <input className="cw-input" placeholder="e.g. 1:45" value={draft.swimPace} onChange={(e) => setField('swimPace')(e.target.value)} />
-              </label>
-            </div>
+        <div>
+          {hasNoThresholds && !editMode ? (
+            <p className="settings-profile-empty">
+              No baselines set yet.{' '}
+              <button type="button" className="settings-profile-empty__link" onClick={handleEditClick}>
+                Edit profile
+              </button>{' '}
+              to add thresholds.
+            </p>
+          ) : (
+            <dl className={`settings-metric-strip${editMode ? ' is-editing' : ''}`}>
+              {/* Birth year → Age */}
+              {(editMode || profile.birthYear !== undefined) && (
+                <div>
+                  <dt>{editMode ? 'Birth year' : 'Age'}</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" type="number" placeholder="e.g. 1998" value={draft.birthYear} onChange={setField('birthYear')} />
+                      : `${age} yrs`
+                    }
+                  </dd>
+                </div>
+              )}
+              {/* Weight */}
+              {(editMode || profile.bodyWeightKg !== undefined) && (
+                <div>
+                  <dt>Weight</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" type="number" step="0.1" placeholder="kg" value={draft.bodyWeightKg} onChange={setField('bodyWeightKg')} />
+                      : `${profile.bodyWeightKg} kg`
+                    }
+                  </dd>
+                </div>
+              )}
+              {/* Height */}
+              {(editMode || profile.heightCm !== undefined) && (
+                <div>
+                  <dt>Height</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" type="number" placeholder="cm" value={draft.heightCm} onChange={setField('heightCm')} />
+                      : `${profile.heightCm} cm`
+                    }
+                  </dd>
+                </div>
+              )}
+              {/* FTP */}
+              {(editMode || t.currentFtpWatts !== undefined) && (
+                <div className="is-accent">
+                  <dt>Bike FTP</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" type="number" placeholder="W" value={draft.ftpWatts} onChange={setField('ftpWatts')} />
+                      : `${t.currentFtpWatts} W`
+                    }
+                  </dd>
+                </div>
+              )}
+              {/* Max HR */}
+              {(editMode || t.maxHeartRateBpm !== undefined) && (
+                <div>
+                  <dt>Max HR</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" type="number" placeholder="bpm" value={draft.maxHr} onChange={setField('maxHr')} />
+                      : `${t.maxHeartRateBpm} bpm`
+                    }
+                  </dd>
+                </div>
+              )}
+              {/* Resting HR */}
+              {(editMode || t.restingHeartRateBpm !== undefined) && (
+                <div>
+                  <dt>Resting HR</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" type="number" placeholder="bpm" value={draft.restingHr} onChange={setField('restingHr')} />
+                      : `${t.restingHeartRateBpm} bpm`
+                    }
+                  </dd>
+                </div>
+              )}
+              {/* Run threshold */}
+              {(editMode || t.runningThresholdPaceSecPerKm !== undefined) && (
+                <div>
+                  <dt>Run threshold</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" placeholder="mm:ss" value={draft.runPace} onChange={setField('runPace')} />
+                      : `${formatPace(t.runningThresholdPaceSecPerKm!) ?? ''} /km`
+                    }
+                  </dd>
+                </div>
+              )}
+              {/* Swim threshold */}
+              {(editMode || t.swimmingThresholdPaceSecPer100m !== undefined) && (
+                <div>
+                  <dt>Swim threshold</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" placeholder="mm:ss" value={draft.swimPace} onChange={setField('swimPace')} />
+                      : `${formatZonePaceShort(t.swimmingThresholdPaceSecPer100m!)} /100m`
+                    }
+                  </dd>
+                </div>
+              )}
+            </dl>
+          )}
+
+          {saveError && <p className="settings-profile-edit__error">{saveError}</p>}
+
+          <div className="settings-profile-controls">
+            {editMode ? (
+              <>
+                <button type="button" className="button--secondary" onClick={handleCancel} disabled={saving}>
+                  Cancel
+                </button>
+                <button type="button" className="button--primary" onClick={() => void handleSave()} disabled={saving || !dirty}>
+                  {saving ? 'Saving…' : 'Save changes'}
+                </button>
+              </>
+            ) : (
+              <button type="button" className="button--secondary" onClick={handleEditClick}>
+                Edit profile
+              </button>
+            )}
           </div>
-        ) : (
-          <dl className="settings-metric-strip">
-            {age !== undefined && (
-              <div><dt>Age</dt><dd>{age} yrs</dd></div>
-            )}
-            {profile.bodyWeightKg !== undefined && (
-              <div><dt>Weight</dt><dd>{profile.bodyWeightKg} kg</dd></div>
-            )}
-            {profile.heightCm !== undefined && (
-              <div><dt>Height</dt><dd>{profile.heightCm} cm</dd></div>
-            )}
-            {t.currentFtpWatts !== undefined && (
-              <div className="is-accent"><dt>Bike FTP</dt><dd>{t.currentFtpWatts} W</dd></div>
-            )}
-            {t.maxHeartRateBpm !== undefined && (
-              <div><dt>Max HR</dt><dd>{t.maxHeartRateBpm} bpm</dd></div>
-            )}
-            {t.restingHeartRateBpm !== undefined && (
-              <div><dt>Resting HR</dt><dd>{t.restingHeartRateBpm} bpm</dd></div>
-            )}
-            {t.runningThresholdPaceSecPerKm !== undefined && (
-              <div><dt>Run threshold</dt><dd>{formatPace(t.runningThresholdPaceSecPerKm)}</dd></div>
-            )}
-            {t.swimmingThresholdPaceSecPer100m !== undefined && (
-              <div><dt>Swim threshold</dt><dd>{formatZonePaceShort(t.swimmingThresholdPaceSecPer100m)} /100m</dd></div>
-            )}
-            {!t.currentFtpWatts && !t.maxHeartRateBpm && !t.restingHeartRateBpm && !t.runningThresholdPaceSecPerKm && !t.swimmingThresholdPaceSecPer100m && (
-              <div><dt>Thresholds</dt><dd>No threshold baselines set — click "Edit profile" to add them.</dd></div>
-            )}
-          </dl>
-        )}
+        </div>
       </div>
     </section>
   );
