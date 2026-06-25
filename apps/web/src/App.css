@@ -2601,20 +2601,63 @@ button:focus-visible {
   letter-spacing: 0.1em;
 }
 
-/* Goal context: coaching priority, quieter than sport/intensity */
-.badge--goal {
+/* Goal priority badges */
+.badge--priority {
   background: none;
-  letter-spacing: 0.1em;
 }
 
-.badge--goal-secondary {
+.badge--priority-main {
+  background: var(--color-accent-soft);
+  border: 1.5px solid var(--color-accent);
+  color: var(--color-accent-dark);
+}
+
+.badge--priority-secondary {
   border: 1.5px solid var(--color-ink);
   color: var(--color-ink);
 }
 
-.badge--goal-watchlist {
+.badge--priority-watchlist {
   border: 1.5px dashed var(--color-line-strong);
   color: var(--color-muted);
+}
+
+/* Secondary / watchlist goal list below main goal */
+.dashboard-goal-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--color-line);
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dashboard-goal-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dashboard-goal-list__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dashboard-goal-list__title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-ink);
+}
+
+.dashboard-goal-list__date {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
 }
 
 /* Status: dot + tinted border */
@@ -4461,6 +4504,29 @@ button:focus-visible {
   font-size: 0.78rem;
   color: var(--color-muted);
 }
+
+.ai-context-availability__sports {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ai-context-sport-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 2px;
+  color: var(--color-ink);
+}
+
+.ai-context-sport-tag--cycling   { text-decoration-color: var(--color-sport-cycling); }
+.ai-context-sport-tag--running   { text-decoration-color: var(--color-sport-running); }
+.ai-context-sport-tag--swimming  { text-decoration-color: var(--color-sport-swimming); }
+.ai-context-sport-tag--strength  { text-decoration-color: var(--color-sport-strength); }
+.ai-context-sport-tag--mobility  { text-decoration-color: var(--color-sport-mobility); }
+.ai-context-sport-tag--other     { text-decoration-color: var(--color-sport-other); }
 
 /* ── Tips panel ── */
 
@@ -9119,3 +9185,4 @@ button:focus-visible {
     width: 100%;
   }
 }
+

@@ -134,7 +134,12 @@ export async function createGoal(input: CreateGoalInput): Promise<TrainingGoalDt
 }
 
 export async function updateGoal(id: string, input: UpdateGoalInput): Promise<TrainingGoalDto> {
-  await requireGoal(id);
+  const existing = await requireGoal(id);
+
+  if (input.priority === 'main_goal') {
+    const updated = await AthleteRepository.promoteGoalToMain(id, existing.athleteProfileId);
+    if (Object.keys(input).length === 1) return mapTrainingGoal(updated);
+  }
 
   const updated = await AthleteRepository.updateGoal(id, {
     ...(input.title !== undefined && { title: input.title }),

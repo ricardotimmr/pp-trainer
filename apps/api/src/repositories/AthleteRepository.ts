@@ -119,6 +119,17 @@ export async function updateGoal(
   return prisma.trainingGoal.update({ where: { id }, data });
 }
 
+export async function promoteGoalToMain(id: string, athleteProfileId: string): Promise<TrainingGoal> {
+  const [, updated] = await prisma.$transaction([
+    prisma.trainingGoal.updateMany({
+      where: { athleteProfileId, priority: 'MainGoal', id: { not: id } },
+      data: { priority: 'SecondaryGoal' },
+    }),
+    prisma.trainingGoal.update({ where: { id }, data: { priority: 'MainGoal' } }),
+  ]);
+  return updated;
+}
+
 export async function deleteGoal(id: string): Promise<void> {
   await prisma.trainingGoal.delete({ where: { id } });
 }

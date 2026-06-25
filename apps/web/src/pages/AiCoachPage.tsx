@@ -12,7 +12,7 @@ import { fetchAiHistory, generateWeekPlan, generateWorkout } from '../api/aiApi'
 import { ApiClientError } from '../api/apiClient';
 import { useAiCoachSidebar } from '../hooks/useAiCoachSidebar';
 import { PageShell } from '../layout/PageShell';
-import { formatDate, formatDuration } from '../components/prototypeFormatters';
+import { formatDate, formatDuration, sportLabels } from '../components/prototypeFormatters';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 type HistoryState =
@@ -317,6 +317,15 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
                       <li key={day.weekday} className="ai-context-availability__day">
                         <span className="ai-context-availability__weekday">{WEEKDAY_SHORT[day.weekday]}</span>
                         <span className="ai-context-availability__duration">{day.maxDurationMinutes} min</span>
+                        {day.preferredSports && day.preferredSports.length > 0 && (
+                          <span className="ai-context-availability__sports">
+                            {day.preferredSports.map((s) => (
+                              <span key={s} className={`ai-context-sport-tag ai-context-sport-tag--${s}`}>
+                                {sportLabels[s]}
+                              </span>
+                            ))}
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ul>

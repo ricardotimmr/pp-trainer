@@ -16,6 +16,7 @@ import {
   recalculateZones,
   updateGoal,
 } from '../api/athleteApi';
+import { toast } from 'sonner';
 import { EmptyState, SportBadge, ZoneBand, ZoneList } from '../components';
 import { GoalFormModal } from '../components/GoalFormModal';
 import { SelectMenu } from '../components/SelectMenu';
@@ -541,9 +542,12 @@ function PlanningSection({
   }
 
   async function handleChangePriority(goalId: string, priority: GoalPriorityDto) {
+    const hadOtherMain = priority === 'main_goal' &&
+      activeGoals.some((g) => g.priority === 'main_goal' && g.id !== goalId);
     try {
       await updateGoal(goalId, { priority });
       closeMenus(false);
+      if (hadOtherMain) toast('Previous main goal moved to secondary.');
       refresh();
     } catch { /* ignore */ }
   }
