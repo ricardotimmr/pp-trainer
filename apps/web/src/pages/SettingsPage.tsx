@@ -392,7 +392,7 @@ function ProfileSection({
                   <dd>
                     {editMode
                       ? <input className="settings-metric-input" placeholder="mm:ss" value={draft.runPace} onChange={setField('runPace')} />
-                      : `${formatPace(t.runningThresholdPaceSecPerKm!) ?? ''} /km`
+                      : (formatPace(t.runningThresholdPaceSecPerKm!) ?? '—')
                     }
                   </dd>
                 </div>
@@ -417,15 +417,15 @@ function ProfileSection({
           <div className="settings-profile-controls">
             {editMode ? (
               <>
-                <button type="button" className="button--secondary" onClick={handleCancel} disabled={saving}>
+                <button type="button" className="button button--secondary" onClick={handleCancel} disabled={saving}>
                   Cancel
                 </button>
-                <button type="button" className="button--primary" onClick={() => void handleSave()} disabled={saving || !dirty}>
+                <button type="button" className="button button--primary" onClick={() => void handleSave()} disabled={saving || !dirty}>
                   {saving ? 'Saving…' : 'Save changes'}
                 </button>
               </>
             ) : (
-              <button type="button" className="button--secondary" onClick={handleEditClick}>
+              <button type="button" className="button button--secondary" onClick={handleEditClick}>
                 Edit profile
               </button>
             )}

@@ -374,13 +374,13 @@ export function GoalFormModal(props: Props) {
           <div className="cw-modal__footer">
             <button
               type="button"
-              className="button--secondary"
+              className="button button--secondary"
               onClick={onClose}
               disabled={saving}
             >
               Cancel
             </button>
-            <button type="submit" className="button--primary" disabled={saving}>
+            <button type="submit" className="button button--primary" disabled={saving}>
               {saving ? 'Saving…' : mode === 'create' ? 'Add goal' : 'Save changes'}
             </button>
           </div>
