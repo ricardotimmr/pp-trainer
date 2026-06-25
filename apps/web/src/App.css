@@ -6916,6 +6916,14 @@ button:focus-visible {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.settings-metric-strip--5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.settings-metric-strip + .settings-metric-strip {
+  margin-top: 20px;
+}
+
 .settings-mini-metrics {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 18px;
@@ -7042,10 +7050,16 @@ button:focus-visible {
 .settings-goal__head {
   position: relative;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 14px;
   margin-bottom: 10px;
+}
+
+.settings-goal__label-group {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .settings-goal-actions {
@@ -7095,6 +7109,15 @@ button:focus-visible {
   cursor: not-allowed;
   opacity: 0.42;
   transform: none;
+}
+
+.settings-goal-active-count {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .settings-goal-menu,
@@ -7170,9 +7193,20 @@ button:focus-visible {
   padding: 8px;
 }
 
+.settings-goal-menu__divider {
+  border: 0;
+  border-top: 1px solid var(--color-line);
+  margin: 4px 0;
+}
+
 .settings-goal-list {
   display: grid;
   gap: 12px;
+}
+
+@keyframes goal-card-in {
+  from { opacity: 0.4; transform: translateX(-10px); }
+  to   { opacity: 1;   transform: translateX(0); }
 }
 
 .settings-goal-card {
@@ -7181,6 +7215,7 @@ button:focus-visible {
   gap: 18px;
   border-top: 1.5px solid var(--color-ink);
   padding-top: 14px;
+  animation: goal-card-in 0.28s ease;
 }
 
 .settings-goal-card:first-child {
@@ -7345,7 +7380,7 @@ button:focus-visible {
 
 .settings-availability-head {
   display: grid;
-  grid-template-columns: 140px minmax(0, 1fr);
+  grid-template-columns: 190px minmax(0, 1fr);
   gap: 12px;
   align-items: end;
 }
@@ -7371,7 +7406,7 @@ button:focus-visible {
 
 .settings-availability__day {
   display: grid;
-  grid-template-columns: 34px 42px 64px minmax(0, 1fr);
+  grid-template-columns: 34px 42px 90px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
   border-bottom: 1px solid var(--color-line);
@@ -7520,13 +7555,22 @@ button:focus-visible {
 .settings-availability__menu button {
   display: flex;
   justify-content: flex-start;
+  width: 100%;
   border: 0;
+  border-radius: var(--radius);
   background: transparent;
-  padding: 0;
-  opacity: 0.52;
+  padding: 4px 6px;
+  opacity: 0.9;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.settings-availability__menu button:hover:not(:disabled) {
+  opacity: 1;
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
 }
 
 .settings-availability__menu button:disabled {
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
@@ -7892,6 +7936,9 @@ button:focus-visible {
   min-width: 110px;
   left: 0;
   right: auto;
+  max-height: 174px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* ── Settings: availability sport remove badge ───────────────────────────────── */
@@ -8776,7 +8823,8 @@ button:focus-visible {
 .cw-modal__footer {
   display: flex;
   justify-content: flex-end;
-  padding: 12px 18px;
+  gap: 12px;
+  padding: 14px 18px;
   border-top: 1.5px solid var(--color-line);
   flex-shrink: 0;
 }

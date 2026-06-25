@@ -20,6 +20,7 @@ export const AthleteThresholdsDtoSchema = z.object({
   currentFtpWatts: NonNegativeIntegerSchema.optional(),
   maxHeartRateBpm: NonNegativeIntegerSchema.optional(),
   restingHeartRateBpm: NonNegativeIntegerSchema.optional(),
+  runningThresholdHrBpm: NonNegativeIntegerSchema.optional(),
   runningThresholdPaceSecPerKm: NonNegativeIntegerSchema.optional(),
   swimmingThresholdPaceSecPer100m: NonNegativeIntegerSchema.optional(),
 });
@@ -106,6 +107,7 @@ export const CreateGoalInputSchema = z.object({
   targetDate: IsoDateStringSchema.optional(),
   sport: SportTypeSchema.optional(),
   priority: GoalPrioritySchema,
+  isActive: z.boolean().optional(),
   targetDistanceMeters: NonNegativeIntegerSchema.optional(),
   targetDurationSeconds: NonNegativeIntegerSchema.optional(),
   targetPaceSecPerKm: NonNegativeIntegerSchema.optional(),

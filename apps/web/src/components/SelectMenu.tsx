@@ -24,6 +24,7 @@ export function SelectMenu({
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -49,6 +50,20 @@ export function SelectMenu({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const el = menuRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollHeight <= el.clientHeight) return;
+      e.stopPropagation();
+      e.preventDefault();
+      el.scrollTop += e.deltaY;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [open]);
+
   const selected = options.find((o) => o.value === value);
 
   return (
@@ -67,6 +82,7 @@ export function SelectMenu({
         {selected?.label ?? value}
       </button>
       <div
+        ref={menuRef}
         className={`cw-sm__menu${open ? ' is-open' : ''}`}
         role="menu"
         aria-hidden={!open}

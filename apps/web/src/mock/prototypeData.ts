@@ -200,6 +200,7 @@ export const prototypeAthleteProfile: AthleteProfile = {
   currentFtpWatts: 285,
   maxHeartRateBpm: 194,
   restingHeartRateBpm: 47,
+  runningThresholdHrBpm: 172,
   runningThresholdPaceSecPerKm: 258,
   swimmingThresholdPaceSecPer100m: 105,
   preferredTrainingDays: [

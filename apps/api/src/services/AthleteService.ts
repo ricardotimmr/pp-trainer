@@ -88,6 +88,9 @@ export async function patchAthleteProfile(input: PatchAthleteProfileInput): Prom
       restingHeartRateBpm: thresholds.restingHeartRateBpm,
       runningThresholdPaceSecPerKm: thresholds.runningThresholdPaceSecPerKm,
       swimmingThresholdPaceSecPer100m: thresholds.swimmingThresholdPaceSecPer100m,
+      ...(thresholds.runningThresholdHrBpm !== undefined && {
+        runningThresholdHrBpm: thresholds.runningThresholdHrBpm,
+      }),
     }),
   });
 
@@ -112,6 +115,7 @@ export async function createGoal(input: CreateGoalInput): Promise<TrainingGoalDt
     ...(input.targetDate !== undefined && { targetDate: new Date(input.targetDate) }),
     ...(input.sport !== undefined && { sport: DTO_TO_PRISMA_SPORT_MAP[input.sport] }),
     priority: DTO_TO_PRISMA_GOAL_PRIORITY_MAP[input.priority],
+    ...(input.isActive !== undefined && { isActive: input.isActive }),
     targetDistanceMeters: input.targetDistanceMeters,
     targetDurationSeconds: input.targetDurationSeconds,
     targetPaceSecPerKm: input.targetPaceSecPerKm,
@@ -132,6 +136,7 @@ export async function updateGoal(id: string, input: UpdateGoalInput): Promise<Tr
     ...(input.targetDate !== undefined && { targetDate: new Date(input.targetDate) }),
     ...(input.sport !== undefined && { sport: DTO_TO_PRISMA_SPORT_MAP[input.sport] }),
     ...(input.priority !== undefined && { priority: DTO_TO_PRISMA_GOAL_PRIORITY_MAP[input.priority] }),
+    ...(input.isActive !== undefined && { isActive: input.isActive }),
     targetDistanceMeters: input.targetDistanceMeters ?? null,
     targetDurationSeconds: input.targetDurationSeconds ?? null,
     targetPaceSecPerKm: input.targetPaceSecPerKm ?? null,

@@ -11,7 +11,6 @@ import type {
 } from '@pp-trainer/shared';
 
 import {
-  deleteGoal,
   patchAthleteProfile,
   patchAvailabilityDay,
   updateGoal,
@@ -190,6 +189,7 @@ function ProfileSection({
       ftpWatts: p.thresholds.currentFtpWatts ? String(p.thresholds.currentFtpWatts) : '',
       maxHr: p.thresholds.maxHeartRateBpm ? String(p.thresholds.maxHeartRateBpm) : '',
       restingHr: p.thresholds.restingHeartRateBpm ? String(p.thresholds.restingHeartRateBpm) : '',
+      runThresholdHr: p.thresholds.runningThresholdHrBpm ? String(p.thresholds.runningThresholdHrBpm) : '',
       runPace: p.thresholds.runningThresholdPaceSecPerKm
         ? formatZonePaceShort(p.thresholds.runningThresholdPaceSecPerKm)
         : '',
@@ -238,6 +238,7 @@ function ProfileSection({
           currentFtpWatts: draft.ftpWatts ? parseInt(draft.ftpWatts, 10) : undefined,
           maxHeartRateBpm: draft.maxHr ? parseInt(draft.maxHr, 10) : undefined,
           restingHeartRateBpm: draft.restingHr ? parseInt(draft.restingHr, 10) : undefined,
+          runningThresholdHrBpm: draft.runThresholdHr ? parseInt(draft.runThresholdHr, 10) : undefined,
           runningThresholdPaceSecPerKm: draft.runPace ? parsePaceSecs(draft.runPace) : undefined,
           swimmingThresholdPaceSecPer100m: draft.swimPace ? parsePaceSecs(draft.swimPace) : undefined,
         },
@@ -268,8 +269,8 @@ function ProfileSection({
   const age = profile.birthYear ? new Date().getFullYear() - profile.birthYear : undefined;
   const t = profile.thresholds;
   const hasNoThresholds = !t.currentFtpWatts && !t.maxHeartRateBpm && !t.restingHeartRateBpm
-    && !t.runningThresholdPaceSecPerKm && !t.swimmingThresholdPaceSecPer100m && !profile.birthYear
-    && !profile.bodyWeightKg && !profile.heightCm;
+    && !t.runningThresholdHrBpm && !t.runningThresholdPaceSecPerKm && !t.swimmingThresholdPaceSecPer100m
+    && !profile.birthYear && !profile.bodyWeightKg && !profile.heightCm;
 
   return (
     <section className="settings-section settings-section--context">
@@ -312,6 +313,7 @@ function ProfileSection({
               to add thresholds.
             </p>
           ) : (
+            <>
             <dl className={`settings-metric-strip${editMode ? ' is-editing' : ''}`}>
               {/* Birth year → Age */}
               {(editMode || profile.birthYear !== undefined) && (
@@ -361,6 +363,8 @@ function ProfileSection({
                   </dd>
                 </div>
               )}
+            </dl>
+            <dl className={`settings-metric-strip settings-metric-strip--5${editMode ? ' is-editing' : ''}`}>
               {/* Max HR */}
               {(editMode || t.maxHeartRateBpm !== undefined) && (
                 <div>
@@ -385,7 +389,17 @@ function ProfileSection({
                   </dd>
                 </div>
               )}
-              {/* Run threshold */}
+              {/* Run threshold HR — always shown, even when empty */}
+              <div>
+                <dt>Run HR threshold</dt>
+                <dd>
+                  {editMode
+                    ? <input className="settings-metric-input" type="number" placeholder="bpm" value={draft.runThresholdHr} onChange={setField('runThresholdHr')} />
+                    : t.runningThresholdHrBpm != null ? `${t.runningThresholdHrBpm} bpm` : '—'
+                  }
+                </dd>
+              </div>
+              {/* Run threshold pace */}
               {(editMode || t.runningThresholdPaceSecPerKm !== undefined) && (
                 <div>
                   <dt>Run threshold</dt>
@@ -410,6 +424,7 @@ function ProfileSection({
                 </div>
               )}
             </dl>
+            </>
           )}
 
           {saveError && <p className="settings-profile-edit__error">{saveError}</p>}
@@ -438,6 +453,8 @@ function ProfileSection({
 
 // ── Planning section (goals + availability) ───────────────────────────────────
 
+const PRIORITY_ORDER: Record<GoalPriorityDto, number> = { main_goal: 0, secondary_goal: 1, watchlist: 2 };
+
 function PlanningSection({
   goals,
   availability,
@@ -447,6 +464,11 @@ function PlanningSection({
   availability: TrainingAvailabilityDto[];
   refresh: () => void;
 }) {
+  const activeGoals = [...goals.filter((g) => g.isActive)].sort(
+    (a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority],
+  );
+  const inactiveGoals = goals.filter((g) => !g.isActive);
+
   const [openGoalMenu, setOpenGoalMenu] = useState(false);
   const [openPriorityMenu, setOpenPriorityMenu] = useState<string | null>(null);
   const [openSportsMenu, setOpenSportsMenu] = useState<string | null>(null);
@@ -460,7 +482,6 @@ function PlanningSection({
   const sportsTriggerRefs = useRef(new Map<string, HTMLButtonElement>());
   const lastMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
 
-  // Sync availability when data changes from refresh
   useEffect(() => {
     setAvailMap(buildAvailMap(availability));
   }, [availability]);
@@ -503,9 +524,18 @@ function PlanningSection({
     };
   }, [closeMenus, openGoalMenu, openPriorityMenu, openSportsMenu]);
 
-  async function handleDeleteGoal(id: string) {
+  async function handleDeactivateGoal(id: string) {
     try {
-      await deleteGoal(id);
+      await updateGoal(id, { isActive: false });
+      refresh();
+    } catch { /* ignore */ }
+  }
+
+  async function handleActivateGoal(id: string) {
+    try {
+      await updateGoal(id, { isActive: true });
+      closeMenus(false);
+      focusMenuTrigger(addGoalTriggerRef.current);
       refresh();
     } catch { /* ignore */ }
   }
@@ -514,12 +544,10 @@ function PlanningSection({
     try {
       await updateGoal(goalId, { priority });
       closeMenus(false);
-      focusMenuTrigger(priorityTriggerRefs.current.get(goalId));
       refresh();
     } catch { /* ignore */ }
   }
 
-  // Availability interactions — optimistic local state
   async function handleToggleDay(weekday: string) {
     const current = availMap[weekday];
     const newAvailable = !current.available;
@@ -569,6 +597,8 @@ function PlanningSection({
     }
   }
 
+  const canAddMore = activeGoals.length < 3;
+
   return (
     <section className="settings-section">
       <header className="settings-section-head">
@@ -582,16 +612,20 @@ function PlanningSection({
         {/* ── Active goals ── */}
         <div className="settings-goal">
           <div className="settings-goal__head">
-            <p className="settings-section__label">Active goals</p>
+            <div className="settings-goal__label-group">
+              <p className="settings-section__label">Active goals</p>
+              <span className="settings-goal-active-count">{activeGoals.length} / 3</span>
+            </div>
             <div className="settings-goal-actions" data-settings-menu-root>
-              <span>{goals.length} goal{goals.length !== 1 ? 's' : ''}</span>
+              <span>{goals.length}</span>
               <button
                 type="button"
                 ref={addGoalTriggerRef}
                 className={['settings-goal-add', openGoalMenu ? 'is-open' : ''].filter(Boolean).join(' ')}
-                aria-label="Add goal"
+                aria-label="Add active goal"
                 aria-expanded={openGoalMenu}
                 aria-haspopup="menu"
+                title={!canAddMore ? 'Max 3 active goals' : undefined}
                 onClick={(e) => {
                   lastMenuTriggerRef.current = e.currentTarget;
                   setOpenPriorityMenu(null);
@@ -606,6 +640,23 @@ function PlanningSection({
                 role="menu"
                 aria-hidden={!openGoalMenu}
               >
+                {inactiveGoals.length > 0 && (
+                  <>
+                    {inactiveGoals.map((goal) => (
+                      <button
+                        key={goal.id}
+                        type="button"
+                        role="menuitem"
+                        disabled={!canAddMore}
+                        onClick={() => void handleActivateGoal(goal.id)}
+                      >
+                        <span>{goal.title}</span>
+                        <small>{GOAL_PRIORITY_LABELS[goal.priority]}</small>
+                      </button>
+                    ))}
+                    <hr className="settings-goal-menu__divider" />
+                  </>
+                )}
                 <button
                   type="button"
                   role="menuitem"
@@ -621,100 +672,95 @@ function PlanningSection({
             </div>
           </div>
 
-          {goals.length > 0 ? (
+          {activeGoals.length > 0 ? (
             <div className="settings-goal-list">
-              {[...goals]
-                .sort((a, b) => {
-                  const order: Record<GoalPriorityDto, number> = { main_goal: 0, secondary_goal: 1, watchlist: 2 };
-                  return order[a.priority] - order[b.priority];
-                })
-                .map((goal) => {
-                  const goalMetric = getGoalMetric(goal);
-                  return (
-                    <article key={goal.id} className="settings-goal-card">
-                      <div className="settings-goal-card__main">
-                        <div className="settings-goal-card__meta">
-                          {goal.sport && <SportBadge sport={goal.sport} />}
-                          {goal.targetDate && <span>{formatGoalDate(goal.targetDate)}</span>}
-                          <button
-                            type="button"
-                            className="settings-goal-edit"
-                            aria-label={`Edit ${goal.title}`}
-                            onClick={() => setGoalModal({ mode: 'edit', goal })}
-                          >
-                            ✎
-                          </button>
-                          <button
-                            type="button"
-                            className="settings-goal-remove"
-                            aria-label={`Delete ${goal.title}`}
-                            onClick={() => void handleDeleteGoal(goal.id)}
-                          >
-                            −
-                          </button>
-                        </div>
-                        <h3>{goal.title}</h3>
-                        {goal.description && <p>{goal.description}</p>}
+              {activeGoals.map((goal) => {
+                const goalMetric = getGoalMetric(goal);
+                return (
+                  <article key={`${goal.id}-${goal.priority}`} className="settings-goal-card">
+                    <div className="settings-goal-card__main">
+                      <div className="settings-goal-card__meta">
+                        {goal.sport && <SportBadge sport={goal.sport} />}
+                        {goal.targetDate && <span>{formatGoalDate(goal.targetDate)}</span>}
+                        <button
+                          type="button"
+                          className="settings-goal-edit"
+                          aria-label={`Edit ${goal.title}`}
+                          onClick={() => setGoalModal({ mode: 'edit', goal })}
+                        >
+                          ✎
+                        </button>
+                        <button
+                          type="button"
+                          className="settings-goal-remove"
+                          aria-label={`Deactivate ${goal.title}`}
+                          onClick={() => void handleDeactivateGoal(goal.id)}
+                        >
+                          −
+                        </button>
                       </div>
-                      <div className="settings-goal-card__side">
-                        <div className="settings-goal-priority" data-settings-menu-root>
-                          <span>Priority</span>
-                          <button
-                            type="button"
-                            ref={(el) => {
-                              if (el) priorityTriggerRefs.current.set(goal.id, el);
-                              else priorityTriggerRefs.current.delete(goal.id);
-                            }}
-                            className={['settings-goal-priority__trigger', openPriorityMenu === goal.id ? 'is-open' : ''].filter(Boolean).join(' ')}
-                            aria-expanded={openPriorityMenu === goal.id}
-                            aria-haspopup="menu"
-                            onClick={(e) => {
-                              lastMenuTriggerRef.current = e.currentTarget;
-                              setOpenGoalMenu(false);
-                              setOpenSportsMenu(null);
-                              setOpenPriorityMenu((v) => v === goal.id ? null : goal.id);
-                            }}
-                          >
-                            {GOAL_PRIORITY_LABELS[goal.priority]}
-                          </button>
-                          <div
-                            className={['settings-goal-priority__menu', openPriorityMenu === goal.id ? 'is-open' : ''].filter(Boolean).join(' ')}
-                            role="menu"
-                            aria-hidden={openPriorityMenu !== goal.id}
-                          >
-                            {GOAL_PRIORITY_OPTIONS.map((option) => (
-                              <button
-                                key={option}
-                                type="button"
-                                role="menuitem"
-                                className={option === goal.priority ? 'is-selected' : ''}
-                                onClick={() => void handleChangePriority(goal.id, option)}
-                              >
-                                <span>{GOAL_PRIORITY_LABELS[option]}</span>
-                                <small>{GOAL_PRIORITY_DESCRIPTIONS[option]}</small>
-                              </button>
-                            ))}
+                      <h3>{goal.title}</h3>
+                      {goal.description && <p>{goal.description}</p>}
+                    </div>
+                    <div className="settings-goal-card__side">
+                      <div className="settings-goal-priority" data-settings-menu-root>
+                        <span>Priority</span>
+                        <button
+                          type="button"
+                          ref={(el) => {
+                            if (el) priorityTriggerRefs.current.set(goal.id, el);
+                            else priorityTriggerRefs.current.delete(goal.id);
+                          }}
+                          className={['settings-goal-priority__trigger', openPriorityMenu === goal.id ? 'is-open' : ''].filter(Boolean).join(' ')}
+                          aria-expanded={openPriorityMenu === goal.id}
+                          aria-haspopup="menu"
+                          onClick={(e) => {
+                            lastMenuTriggerRef.current = e.currentTarget;
+                            setOpenGoalMenu(false);
+                            setOpenSportsMenu(null);
+                            setOpenPriorityMenu((v) => v === goal.id ? null : goal.id);
+                          }}
+                        >
+                          {GOAL_PRIORITY_LABELS[goal.priority]}
+                        </button>
+                        <div
+                          className={['settings-goal-priority__menu', openPriorityMenu === goal.id ? 'is-open' : ''].filter(Boolean).join(' ')}
+                          role="menu"
+                          aria-hidden={openPriorityMenu !== goal.id}
+                        >
+                          {GOAL_PRIORITY_OPTIONS.map((option) => (
+                            <button
+                              key={option}
+                              type="button"
+                              role="menuitem"
+                              className={option === goal.priority ? 'is-selected' : ''}
+                              onClick={() => void handleChangePriority(goal.id, option)}
+                            >
+                              <span>{GOAL_PRIORITY_LABELS[option]}</span>
+                              <small>{GOAL_PRIORITY_DESCRIPTIONS[option]}</small>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <p>{GOAL_PRIORITY_DESCRIPTIONS[goal.priority]}</p>
+                      <dl>
+                        {goal.targetDistanceMeters !== undefined && (
+                          <div>
+                            <dt>Distance</dt>
+                            <dd>{(goal.targetDistanceMeters / 1000).toFixed(1)} km</dd>
                           </div>
-                        </div>
-                        <p>{GOAL_PRIORITY_DESCRIPTIONS[goal.priority]}</p>
-                        <dl>
-                          {goal.targetDistanceMeters !== undefined && (
-                            <div>
-                              <dt>Distance</dt>
-                              <dd>{(goal.targetDistanceMeters / 1000).toFixed(1)} km</dd>
-                            </div>
-                          )}
-                          {goalMetric && (
-                            <div><dt>Target</dt><dd>{goalMetric}</dd></div>
-                          )}
-                        </dl>
-                      </div>
-                    </article>
-                  );
-                })}
+                        )}
+                        {goalMetric && (
+                          <div><dt>Target</dt><dd>{goalMetric}</dd></div>
+                        )}
+                      </dl>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           ) : (
-            <EmptyState title="No goals yet — click + to add one" variant="inline" />
+            <EmptyState title="No active goals — click + to add one" variant="inline" />
           )}
         </div>
 

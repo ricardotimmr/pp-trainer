@@ -32,6 +32,7 @@ const baseProfile: AthleteProfile = {
   currentFtpWatts: 280,
   maxHeartRateBpm: 185,
   restingHeartRateBpm: 48,
+  runningThresholdHrBpm: null,
   runningThresholdPaceSecPerKm: 270,
   swimmingThresholdPaceSecPer100m: null,
   notes: null,

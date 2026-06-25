@@ -9,6 +9,7 @@ import type {
   TrainingZoneSet,
   TrainingZoneType,
   TrainingZoneUnit,
+  Weekday,
 } from '@prisma/client';
 
 import { prisma } from '../lib/prisma.js';
@@ -27,7 +28,7 @@ export async function findAthleteProfileById(id: string): Promise<AthleteProfile
 
 export async function findAthleteGoals(athleteProfileId: string): Promise<TrainingGoal[]> {
   return prisma.trainingGoal.findMany({
-    where: { athleteProfileId, isActive: true },
+    where: { athleteProfileId },
     orderBy: [{ priority: 'asc' }, { targetDate: 'asc' }],
   });
 }
@@ -59,6 +60,7 @@ export async function updateAthleteProfile(
     currentFtpWatts?: number;
     maxHeartRateBpm?: number;
     restingHeartRateBpm?: number;
+    runningThresholdHrBpm?: number;
     runningThresholdPaceSecPerKm?: number;
     swimmingThresholdPaceSecPer100m?: number;
     notes?: string;
@@ -81,6 +83,7 @@ export async function createGoal(
     targetDate?: Date;
     sport?: SportType;
     priority: GoalPriority;
+    isActive?: boolean;
     targetDistanceMeters?: number;
     targetDurationSeconds?: number;
     targetPaceSecPerKm?: number;
@@ -102,6 +105,7 @@ export async function updateGoal(
     targetDate?: Date | null;
     sport?: SportType | null;
     priority?: GoalPriority;
+    isActive?: boolean;
     targetDistanceMeters?: number | null;
     targetDurationSeconds?: number | null;
     targetPaceSecPerKm?: number | null;
@@ -134,12 +138,13 @@ export async function upsertAvailabilityDay(
   weekday: string,
   data: { available?: boolean; maxDurationMinutes?: number | null; preferredSports?: SportType[]; notes?: string },
 ): Promise<TrainingAvailability> {
+  const prismaWeekday = (weekday.charAt(0).toUpperCase() + weekday.slice(1)) as Weekday;
   return prisma.trainingAvailability.upsert({
-    where: { athleteProfileId_weekday: { athleteProfileId, weekday: weekday as never } },
+    where: { athleteProfileId_weekday: { athleteProfileId, weekday: prismaWeekday } },
     update: data,
     create: {
       athleteProfileId,
-      weekday: weekday as never,
+      weekday: prismaWeekday,
       available: data.available ?? false,
       maxDurationMinutes: data.maxDurationMinutes ?? null,
       preferredSports: data.preferredSports ?? [],

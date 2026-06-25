@@ -44,6 +44,7 @@ export type AiAthleteInfo = {
   currentFtpWatts?: number;
   maxHeartRateBpm?: number;
   restingHeartRateBpm?: number;
+  runningThresholdHrBpm?: number;
   runningThresholdPaceSecPerKm?: number;
   swimmingThresholdPaceSecPer100m?: number;
 };

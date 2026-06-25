@@ -29,6 +29,7 @@ export function mapAthleteProfile(profile: AthleteProfile): AthleteProfileDto {
       ...(profile.currentFtpWatts != null && { currentFtpWatts: profile.currentFtpWatts }),
       ...(profile.maxHeartRateBpm != null && { maxHeartRateBpm: profile.maxHeartRateBpm }),
       ...(profile.restingHeartRateBpm != null && { restingHeartRateBpm: profile.restingHeartRateBpm }),
+      ...(profile.runningThresholdHrBpm != null && { runningThresholdHrBpm: profile.runningThresholdHrBpm }),
       ...(profile.runningThresholdPaceSecPerKm != null && {
         runningThresholdPaceSecPerKm: profile.runningThresholdPaceSecPerKm,
       }),

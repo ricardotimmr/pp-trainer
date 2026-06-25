@@ -186,6 +186,7 @@ export async function buildContext(athleteProfileId: string): Promise<AthleteCon
       currentFtpWatts: profile.currentFtpWatts ?? undefined,
       maxHeartRateBpm: profile.maxHeartRateBpm ?? undefined,
       restingHeartRateBpm: profile.restingHeartRateBpm ?? undefined,
+      runningThresholdHrBpm: profile.runningThresholdHrBpm ?? undefined,
       runningThresholdPaceSecPerKm: profile.runningThresholdPaceSecPerKm ?? undefined,
       swimmingThresholdPaceSecPer100m: profile.swimmingThresholdPaceSecPer100m ?? undefined,
     },

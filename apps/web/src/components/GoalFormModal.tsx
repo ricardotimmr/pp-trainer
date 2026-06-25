@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import type {
   CreateGoalInput,
@@ -165,6 +166,10 @@ export function GoalFormModal(props: Props) {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
+  function handleOverlayPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.target === e.currentTarget) onClose();
+  }
+
   const set = (key: keyof GoalFormState) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
 
@@ -181,7 +186,7 @@ export function GoalFormModal(props: Props) {
       const saved =
         mode === 'edit'
           ? await updateGoal(props.goal.id, input as UpdateGoalInput)
-          : await createGoal(input);
+          : await createGoal({ ...input, isActive: false });
       onSave(saved);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save goal');
@@ -190,8 +195,14 @@ export function GoalFormModal(props: Props) {
     }
   }
 
-  return (
-    <div className="cw-modal-overlay" role="dialog" aria-modal="true" aria-label={mode === 'create' ? 'Add goal' : 'Edit goal'}>
+  return createPortal(
+    <div
+      className="cw-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label={mode === 'create' ? 'Add goal' : 'Edit goal'}
+      onPointerDown={handleOverlayPointerDown}
+    >
       <div className="cw-modal goal-modal">
         <div className="cw-modal__header">
           <h2 className="cw-modal__title">{mode === 'create' ? 'Add goal' : 'Edit goal'}</h2>
@@ -386,6 +397,7 @@ export function GoalFormModal(props: Props) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

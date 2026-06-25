@@ -255,6 +255,7 @@ model AthleteProfile {
   currentFtpWatts                 Int?
   maxHeartRateBpm                 Int?
   restingHeartRateBpm             Int?
+  runningThresholdHrBpm           Int?
   runningThresholdPaceSecPerKm    Int?
   swimmingThresholdPaceSecPer100m Int?
 
