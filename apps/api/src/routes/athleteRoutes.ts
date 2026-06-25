@@ -3,7 +3,12 @@ import {
   PatchAthleteProfileInputSchema,
   ReorderGoalsInputSchema,
   UpdateGoalInputSchema,
+  UpsertAvailabilityDayInputSchema,
 } from '@pp-trainer/shared';
+
+const VALID_WEEKDAYS = new Set([
+  'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+]);
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { ZodError } from 'zod';
 
@@ -83,5 +88,23 @@ export async function athleteRoutes(app: FastifyInstance): Promise<void> {
     const { id } = request.params as { id: string };
     await AthleteService.deleteGoal(id);
     return reply.status(204).send();
+  });
+
+  // ── Availability write ──────────────────────────────────────────────────────
+
+  app.patch('/api/athlete/availability/:weekday', async (request, reply) => {
+    const { weekday } = request.params as { weekday: string };
+    if (!VALID_WEEKDAYS.has(weekday)) {
+      return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: `Invalid weekday: ${weekday}` } });
+    }
+    let body: ReturnType<typeof UpsertAvailabilityDayInputSchema.parse>;
+    try {
+      body = UpsertAvailabilityDayInputSchema.parse(request.body);
+    } catch (err) {
+      if (err instanceof ZodError) return replyZodError(reply, err);
+      throw err;
+    }
+    const result = await AthleteService.updateAvailabilityDay(weekday, body);
+    return reply.status(200).send(result);
   });
 }

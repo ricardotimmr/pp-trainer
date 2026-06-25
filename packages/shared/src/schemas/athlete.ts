@@ -144,6 +144,13 @@ export const CreateZoneInputSchema = z.object({
 
 export const UpdateZoneInputSchema = CreateZoneInputSchema.partial();
 
+export const UpsertAvailabilityDayInputSchema = z.object({
+  available: z.boolean().optional(),
+  maxDurationMinutes: z.number().int().min(1).nullable().optional(),
+  preferredSports: z.array(SportTypeSchema).optional(),
+  notes: z.string().optional(),
+});
+
 export type AthleteThresholdsDto = z.infer<typeof AthleteThresholdsDtoSchema>;
 export type AthleteProfileDto = z.infer<typeof AthleteProfileDtoSchema>;
 export type TrainingGoalDto = z.infer<typeof TrainingGoalDtoSchema>;
@@ -162,3 +169,4 @@ export type CreateZoneSetInput = z.infer<typeof CreateZoneSetInputSchema>;
 export type UpdateZoneSetInput = z.infer<typeof UpdateZoneSetInputSchema>;
 export type CreateZoneInput = z.infer<typeof CreateZoneInputSchema>;
 export type UpdateZoneInput = z.infer<typeof UpdateZoneInputSchema>;
+export type UpsertAvailabilityDayInput = z.infer<typeof UpsertAvailabilityDayInputSchema>;

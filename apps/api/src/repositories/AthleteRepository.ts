@@ -127,6 +127,27 @@ export async function updateGoalPriorities(
   );
 }
 
+// ── Availability write ────────────────────────────────────────────────────────
+
+export async function upsertAvailabilityDay(
+  athleteProfileId: string,
+  weekday: string,
+  data: { available?: boolean; maxDurationMinutes?: number | null; preferredSports?: SportType[]; notes?: string },
+): Promise<TrainingAvailability> {
+  return prisma.trainingAvailability.upsert({
+    where: { athleteProfileId_weekday: { athleteProfileId, weekday: weekday as never } },
+    update: data,
+    create: {
+      athleteProfileId,
+      weekday: weekday as never,
+      available: data.available ?? false,
+      maxDurationMinutes: data.maxDurationMinutes ?? null,
+      preferredSports: data.preferredSports ?? [],
+      notes: data.notes ?? null,
+    },
+  });
+}
+
 // ── Zone set write ───────────────────────────────────────────────────────────
 
 export async function findZoneSetById(id: string): Promise<ZoneSetWithZones | null> {

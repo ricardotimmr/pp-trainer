@@ -7,12 +7,14 @@ import type {
   CreateZoneSetInput,
   PatchAthleteProfileInput,
   ReorderGoalsInput,
+  TrainingAvailabilityDto,
   TrainingGoalDto,
   TrainingZoneDto,
   TrainingZoneSetDto,
   UpdateGoalInput,
   UpdateZoneInput,
   UpdateZoneSetInput,
+  UpsertAvailabilityDayInput,
 } from '@pp-trainer/shared';
 
 import { ApiError } from '../errors/ApiError.js';
@@ -235,4 +237,25 @@ export async function updateZone(id: string, input: UpdateZoneInput): Promise<Tr
 export async function deleteZone(id: string): Promise<void> {
   await requireZone(id);
   await AthleteRepository.deleteZone(id);
+}
+
+// ── Availability write ────────────────────────────────────────────────────────
+
+export async function updateAvailabilityDay(
+  weekday: string,
+  input: UpsertAvailabilityDayInput,
+): Promise<TrainingAvailabilityDto> {
+  const profile = await AthleteRepository.findFirstAthleteProfile();
+  if (!profile) throw ApiError.notFound('Athlete profile not found');
+
+  const updated = await AthleteRepository.upsertAvailabilityDay(profile.id, weekday, {
+    ...(input.available !== undefined && { available: input.available }),
+    ...(input.maxDurationMinutes !== undefined && { maxDurationMinutes: input.maxDurationMinutes }),
+    ...(input.preferredSports !== undefined && {
+      preferredSports: input.preferredSports.map((s) => DTO_TO_PRISMA_SPORT_MAP[s]),
+    }),
+    ...(input.notes !== undefined && { notes: input.notes }),
+  });
+
+  return mapTrainingAvailability(updated);
 }
