@@ -1040,6 +1040,8 @@ Phase 8: First Stable Prototype
 
 # 12. Phase 8: First Stable Prototype
 
+**Status: in progress — started 2026-06-25**
+
 ## 12.1 Ziel
 
 Der erste stabile Prototyp baut auf dem MVP auf und macht die App deutlich runder.
@@ -1128,14 +1130,15 @@ Die App ist nicht mehr nur ein MVP, sondern eine erste stabile Version.
 
 Phase 8 ist abgeschlossen, wenn:
 
-* Dashboard aussagekräftiger ist
-* erste Charts funktionieren
-* Importhistorie sichtbar ist
-* Planerfüllung v1 funktioniert oder vorbereitet ist
-* AI kann Trainingswoche analysieren
-* Workouts können sinnvoll bearbeitet werden
-* UI ist konsistenter und robuster
-* App kann regelmäßig für eigene Trainingsplanung genutzt werden
+* [ ] Dashboard aussagekräftiger ist (Charts + erweiterte Kacheln)
+* [ ] erste Charts funktionieren (Wochenumfang, Sportartenverteilung)
+* [ ] Importhistorie sichtbar ist
+* [ ] Planerfüllung v1 funktioniert (Activity ↔ PlannedWorkout verknüpfbar)
+* [ ] AI kann Trainingswoche analysieren (generate-week-analysis + Preview)
+* [ ] Workouts können vor Übernahme inline bearbeitet werden
+* [ ] UI ist konsistenter und robuster (Toast-Feedback, Zone-Picker, Filter/Suche)
+* [ ] Jede Seite läuft auf echten API-Daten (SettingsPage migriert, DATA_MODE entfernt)
+* [ ] App kann regelmäßig für die eigene Trainingsplanung genutzt werden
 
 ## 12.7 Nächster Schritt nach Phase 8
 

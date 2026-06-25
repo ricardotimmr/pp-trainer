@@ -12,6 +12,7 @@ import { contextRoutes } from './routes/contextRoutes.js';
 import { importRoutes } from './routes/importRoutes.js';
 import { performanceRoutes } from './routes/performanceRoutes.js';
 import { trainingRoutes } from './routes/trainingRoutes.js';
+import { trainingZoneRoutes } from './routes/trainingZoneRoutes.js';
 
 export async function buildApp(config: ApiConfig = getApiConfig()) {
   const app = Fastify({
@@ -42,6 +43,7 @@ export async function buildApp(config: ApiConfig = getApiConfig()) {
   }));
 
   await app.register(athleteRoutes);
+  await app.register(trainingZoneRoutes);
   await app.register(activityRoutes);
   await app.register(trainingRoutes);
   await app.register(performanceRoutes);

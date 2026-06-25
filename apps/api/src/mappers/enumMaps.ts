@@ -335,3 +335,33 @@ export const DTO_TO_PRISMA_WORKOUT_STEP_TYPE_MAP: Record<WorkoutStepTypeDto, Wor
   rest: 'Rest',
   other: 'Other',
 };
+
+export const DTO_TO_PRISMA_GOAL_PRIORITY_MAP: Record<GoalPriorityDto, GoalPriority> = {
+  main_goal: 'MainGoal',
+  secondary_goal: 'SecondaryGoal',
+  watchlist: 'Watchlist',
+};
+
+export const DTO_TO_PRISMA_TRAINING_GOAL_TYPE_MAP: Record<TrainingGoalTypeDto, TrainingGoalType> = {
+  race: 'Race',
+  performance: 'Performance',
+  volume: 'Volume',
+  fitness: 'Fitness',
+  general: 'General',
+};
+
+export const DTO_TO_PRISMA_ZONE_TYPE_MAP: Record<TrainingZoneTypeDto, TrainingZoneType> = {
+  heart_rate: 'HeartRate',
+  cycling_power: 'CyclingPower',
+  running_pace: 'RunningPace',
+  swimming_pace: 'SwimmingPace',
+  perceived_effort: 'PerceivedEffort',
+};
+
+export const DTO_TO_PRISMA_ZONE_UNIT_MAP: Record<TrainingZoneUnitDto, TrainingZoneUnit> = {
+  bpm: 'Bpm',
+  watts: 'Watts',
+  sec_per_km: 'SecPerKm',
+  sec_per_100m: 'SecPer100m',
+  rpe: 'Rpe',
+};

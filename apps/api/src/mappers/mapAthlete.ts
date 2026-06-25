@@ -72,7 +72,7 @@ export function mapTrainingAvailability(avail: TrainingAvailability): TrainingAv
   };
 }
 
-function mapTrainingZone(zone: TrainingZone): TrainingZoneDto {
+export function mapTrainingZone(zone: TrainingZone): TrainingZoneDto {
   return {
     id: zone.id,
     zoneNumber: zone.zoneNumber,

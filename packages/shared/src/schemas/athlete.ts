@@ -88,6 +88,62 @@ export const AthleteSettingsDtoSchema = z.object({
   trainingZoneSets: z.array(TrainingZoneSetDtoSchema),
 });
 
+// ── Write input schemas ───────────────────────────────────────────────────────
+
+export const PatchAthleteProfileInputSchema = z.object({
+  displayName: z.string().min(1).optional(),
+  birthYear: z.number().int().min(1900).max(2100).optional(),
+  bodyWeightKg: NonNegativeNumberSchema.optional(),
+  heightCm: NonNegativeIntegerSchema.optional(),
+  primarySports: z.array(SportTypeSchema).optional(),
+  thresholds: AthleteThresholdsDtoSchema.optional(),
+  notes: z.string().optional(),
+});
+
+export const CreateGoalInputSchema = z.object({
+  title: z.string().min(1),
+  goalType: TrainingGoalTypeSchema,
+  targetDate: IsoDateStringSchema.optional(),
+  sport: SportTypeSchema.optional(),
+  priority: GoalPrioritySchema,
+  targetDistanceMeters: NonNegativeIntegerSchema.optional(),
+  targetDurationSeconds: NonNegativeIntegerSchema.optional(),
+  targetPaceSecPerKm: NonNegativeIntegerSchema.optional(),
+  targetPowerWatts: NonNegativeIntegerSchema.optional(),
+  targetSwimPaceSecPer100m: NonNegativeIntegerSchema.optional(),
+  description: z.string().optional(),
+});
+
+export const UpdateGoalInputSchema = CreateGoalInputSchema.partial();
+
+export const ReorderGoalsInputSchema = z.object({
+  items: z.array(z.object({ id: z.string().min(1), priority: GoalPrioritySchema })).min(1),
+});
+
+export const CreateZoneSetInputSchema = z.object({
+  sport: SportTypeSchema.optional(),
+  zoneType: TrainingZoneTypeSchema,
+  name: z.string().min(1),
+  basedOn: z.string().optional(),
+});
+
+export const UpdateZoneSetInputSchema = z.object({
+  name: z.string().min(1).optional(),
+  basedOn: z.string().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const CreateZoneInputSchema = z.object({
+  zoneNumber: NonNegativeIntegerSchema,
+  name: z.string().min(1),
+  lowerBound: z.number().optional(),
+  upperBound: z.number().optional(),
+  unit: TrainingZoneUnitSchema,
+  description: z.string().optional(),
+});
+
+export const UpdateZoneInputSchema = CreateZoneInputSchema.partial();
+
 export type AthleteThresholdsDto = z.infer<typeof AthleteThresholdsDtoSchema>;
 export type AthleteProfileDto = z.infer<typeof AthleteProfileDtoSchema>;
 export type TrainingGoalDto = z.infer<typeof TrainingGoalDtoSchema>;
@@ -97,3 +153,12 @@ export type TrainingAvailabilityDto = z.infer<
 export type TrainingZoneDto = z.infer<typeof TrainingZoneDtoSchema>;
 export type TrainingZoneSetDto = z.infer<typeof TrainingZoneSetDtoSchema>;
 export type AthleteSettingsDto = z.infer<typeof AthleteSettingsDtoSchema>;
+
+export type PatchAthleteProfileInput = z.infer<typeof PatchAthleteProfileInputSchema>;
+export type CreateGoalInput = z.infer<typeof CreateGoalInputSchema>;
+export type UpdateGoalInput = z.infer<typeof UpdateGoalInputSchema>;
+export type ReorderGoalsInput = z.infer<typeof ReorderGoalsInputSchema>;
+export type CreateZoneSetInput = z.infer<typeof CreateZoneSetInputSchema>;
+export type UpdateZoneSetInput = z.infer<typeof UpdateZoneSetInputSchema>;
+export type CreateZoneInput = z.infer<typeof CreateZoneInputSchema>;
+export type UpdateZoneInput = z.infer<typeof UpdateZoneInputSchema>;
