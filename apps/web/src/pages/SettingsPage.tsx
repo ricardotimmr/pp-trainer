@@ -2,22 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type {
   AthleteProfileDto,
-  CreateZoneInput,
-  CreateZoneSetInput,
   GoalPriorityDto,
   SportTypeDto,
   TrainingAvailabilityDto,
   TrainingGoalDto,
   TrainingZoneSetDto,
   TrainingZoneTypeDto,
-  TrainingZoneUnitDto,
 } from '@pp-trainer/shared';
 
 import {
   deleteGoal,
-  deleteZoneSet,
-  createZone,
-  createZoneSet,
   patchAthleteProfile,
   patchAvailabilityDay,
   updateGoal,
@@ -75,30 +69,6 @@ const ZONE_TYPE_LABELS: Record<TrainingZoneTypeDto, string> = {
   swimming_pace: 'Swimming Pace',
   perceived_effort: 'Perceived Effort',
 };
-const ZONE_TYPE_OPTIONS = [
-  { value: 'heart_rate', label: 'Heart Rate' },
-  { value: 'cycling_power', label: 'Cycling Power' },
-  { value: 'running_pace', label: 'Running Pace' },
-  { value: 'swimming_pace', label: 'Swimming Pace' },
-  { value: 'perceived_effort', label: 'Perceived Effort' },
-] as const;
-const ZONE_UNIT_OPTIONS = [
-  { value: 'bpm', label: 'BPM' },
-  { value: 'watts', label: 'Watts' },
-  { value: 'sec_per_km', label: 'Pace /km' },
-  { value: 'sec_per_100m', label: 'Pace /100m' },
-  { value: 'rpe', label: 'RPE' },
-] as const;
-const SPORT_SELECT_OPTIONS = [
-  { value: '', label: 'No specific sport' },
-  { value: 'cycling', label: 'Cycling' },
-  { value: 'running', label: 'Running' },
-  { value: 'swimming', label: 'Swimming' },
-  { value: 'strength', label: 'Strength' },
-  { value: 'mobility', label: 'Mobility' },
-  { value: 'other', label: 'Other' },
-] as const;
-
 const DURATION_OPTIONS = [
   { value: '', label: 'Off' },
   { value: '15', label: '15 min' },
@@ -190,7 +160,7 @@ function SettingsPageApiMode() {
       <div className="settings-page">
         <ProfileSection profile={data.athleteProfile} refresh={refresh} />
         <PlanningSection goals={data.goals} availability={data.availability} refresh={refresh} />
-        <ZonesSection zoneSets={data.trainingZoneSets} refresh={refresh} />
+        <ZonesSection zoneSets={data.trainingZoneSets} />
       </div>
     </PageShell>
   );
@@ -844,58 +814,16 @@ function PlanningSection({
   );
 }
 
-// ── Zones section ─────────────────────────────────────────────────────────────
+// ── Zones section (read-only — zones are calculated from profile thresholds) ───
 
-function ZonesSection({
-  zoneSets,
-  refresh,
-}: {
-  zoneSets: TrainingZoneSetDto[];
-  refresh: () => void;
-}) {
+function ZonesSection({ zoneSets }: { zoneSets: TrainingZoneSetDto[] }) {
   const [hrSport, setHrSport] = useState<'cycling' | 'running'>('cycling');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [addDraft, setAddDraft] = useState<Partial<CreateZoneSetInput>>({ zoneType: 'heart_rate', name: '' });
-  const [addSaving, setAddSaving] = useState(false);
-  const [addError, setAddError] = useState<string | null>(null);
 
   const hrZoneSets = zoneSets.filter((zs) => zs.zoneType === 'heart_rate');
   const otherZoneSets = zoneSets.filter((zs) => zs.zoneType !== 'heart_rate');
   const activeHrZoneSet = hrZoneSets.find((zs) => zs.sport === hrSport) ?? hrZoneSets[0];
 
-  async function handleDeleteZoneSet(id: string) {
-    try { await deleteZoneSet(id); refresh(); } catch { /* ignore */ }
-  }
-
-  async function handleAddZoneSet() {
-    if (!addDraft.name?.trim() || !addDraft.zoneType) {
-      setAddError('Name and zone type are required.');
-      return;
-    }
-    setAddSaving(true);
-    setAddError(null);
-    try {
-      await createZoneSet({
-        name: addDraft.name.trim(),
-        zoneType: addDraft.zoneType,
-        sport: addDraft.sport || undefined,
-        basedOn: addDraft.basedOn || undefined,
-      });
-      setShowAddForm(false);
-      setAddDraft({ zoneType: 'heart_rate', name: '' });
-      refresh();
-    } catch (err) {
-      setAddError(err instanceof Error ? err.message : 'Failed to create zone set');
-    } finally {
-      setAddSaving(false);
-    }
-  }
-
-  function renderZoneSet(zoneSet: TrainingZoneSetDto) {
-    return (
-      <ZoneSetCard key={zoneSet.id} zoneSet={zoneSet} refresh={refresh} onDelete={() => void handleDeleteZoneSet(zoneSet.id)} />
-    );
-  }
+  if (zoneSets.length === 0) return null;
 
   return (
     <section className="settings-section">
@@ -904,13 +832,6 @@ function ZonesSection({
           <p>Training zones</p>
           <h2>Intensity model</h2>
         </div>
-        <button
-          type="button"
-          className="button--secondary"
-          onClick={() => setShowAddForm((v) => !v)}
-        >
-          {showAddForm ? 'Cancel' : 'Add zone set'}
-        </button>
       </header>
 
       <div className="settings-zones-grid">
@@ -920,24 +841,10 @@ function ZonesSection({
               <p className="settings-section__label">Heart Rate Zones</p>
               {hrZoneSets.length > 1 && (
                 <div className="segmented-control settings-zone-toggle" role="tablist" aria-label="HR zone sport">
-                  <span
-                    className="segmented-control__indicator"
-                    aria-hidden="true"
-                    style={{ left: hrSport === 'cycling' ? '0%' : '50%', width: '50%' }}
-                  />
+                  <span className="segmented-control__indicator" aria-hidden="true" style={{ left: hrSport === 'cycling' ? '0%' : '50%', width: '50%' }} />
                   <button type="button" role="tab" aria-selected={hrSport === 'cycling'} className={`segmented-control__tab${hrSport === 'cycling' ? ' is-active' : ''}`} onClick={() => setHrSport('cycling')}>Cycling</button>
                   <button type="button" role="tab" aria-selected={hrSport === 'running'} className={`segmented-control__tab${hrSport === 'running' ? ' is-active' : ''}`} onClick={() => setHrSport('running')}>Running</button>
                 </div>
-              )}
-              {activeHrZoneSet && (
-                <button
-                  type="button"
-                  className="settings-zone-delete"
-                  aria-label={`Delete ${activeHrZoneSet.name}`}
-                  onClick={() => void handleDeleteZoneSet(activeHrZoneSet.id)}
-                >
-                  ×
-                </button>
               )}
             </div>
             {activeHrZoneSet?.basedOn && <p className="settings-zone-basis">{activeHrZoneSet.basedOn}</p>}
@@ -947,193 +854,22 @@ function ZonesSection({
                 <ZoneList zones={activeHrZoneSet.zones as never} className="zone-table" rowClassName="zone-row" dotClassName="zone-row__dot" numberClassName="zone-row__num" nameClassName="zone-row__name" rangeClassName="zone-row__range" />
               </>
             )}
-            {hrZoneSets.map((zs) => (
-              <ZoneAddRow key={zs.id} zoneSet={zs} refresh={refresh} />
-            ))}
           </section>
         )}
 
-        {otherZoneSets.map(renderZoneSet)}
+        {otherZoneSets.filter((zs) => zs.zones.length > 0).map((zoneSet) => (
+          <section key={zoneSet.id} className="settings-zone-card">
+            <div className="settings-zone-card__top">
+              <p className="settings-section__label">{zoneSet.name}</p>
+              <span className="settings-zone-type-label">{ZONE_TYPE_LABELS[zoneSet.zoneType]}</span>
+            </div>
+            {zoneSet.basedOn && <p className="settings-zone-basis">{zoneSet.basedOn}</p>}
+            <ZoneBand zones={zoneSet.zones as never} className="settings-zone-band" />
+            <ZoneList zones={zoneSet.zones as never} className="zone-table" rowClassName="zone-row" dotClassName="zone-row__dot" numberClassName="zone-row__num" nameClassName="zone-row__name" rangeClassName="zone-row__range" />
+          </section>
+        ))}
       </div>
-
-      {showAddForm && (
-        <div className="settings-zone-set-form">
-          <h3>New zone set</h3>
-          <div className="settings-zone-set-form__fields">
-            <label>
-              <span>Name *</span>
-              <input
-                className="cw-input"
-                placeholder="e.g. FTP Power Zones"
-                value={addDraft.name ?? ''}
-                onChange={(e) => setAddDraft((d) => ({ ...d, name: e.target.value }))}
-              />
-            </label>
-            <label>
-              <span>Zone type *</span>
-              <SelectMenu
-                value={addDraft.zoneType ?? 'heart_rate'}
-                options={ZONE_TYPE_OPTIONS}
-                onChange={(v) => setAddDraft((d) => ({ ...d, zoneType: v as TrainingZoneTypeDto }))}
-                aria-label="Zone type"
-              />
-            </label>
-            <label>
-              <span>Sport</span>
-              <SelectMenu
-                value={addDraft.sport ?? ''}
-                options={SPORT_SELECT_OPTIONS}
-                onChange={(v) => setAddDraft((d) => ({ ...d, sport: (v || undefined) as SportTypeDto | undefined }))}
-                aria-label="Sport"
-              />
-            </label>
-            <label>
-              <span>Based on</span>
-              <input
-                className="cw-input"
-                placeholder="e.g. Max heart rate 194 bpm"
-                value={addDraft.basedOn ?? ''}
-                onChange={(e) => setAddDraft((d) => ({ ...d, basedOn: e.target.value }))}
-              />
-            </label>
-          </div>
-          {addError && <p className="settings-zone-set-form__error">{addError}</p>}
-          <div className="settings-zone-set-form__actions">
-            <button type="button" className="button--secondary" onClick={() => setShowAddForm(false)}>Cancel</button>
-            <button type="button" className="button--primary" disabled={addSaving} onClick={() => void handleAddZoneSet()}>
-              {addSaving ? 'Creating…' : 'Create zone set'}
-            </button>
-          </div>
-        </div>
-      )}
     </section>
-  );
-}
-
-// ── ZoneSetCard (non-HR zone sets) ────────────────────────────────────────────
-
-function ZoneSetCard({
-  zoneSet,
-  refresh,
-  onDelete,
-}: {
-  zoneSet: TrainingZoneSetDto;
-  refresh: () => void;
-  onDelete: () => void;
-}) {
-  const { zones } = zoneSet;
-  if (zones.length === 0) return null;
-
-  return (
-    <section className="settings-zone-card">
-      <div className="settings-zone-card__top">
-        <p className="settings-section__label">{zoneSet.name}</p>
-        <span className="settings-zone-type-label">{ZONE_TYPE_LABELS[zoneSet.zoneType]}</span>
-        <button type="button" className="settings-zone-delete" aria-label={`Delete ${zoneSet.name}`} onClick={onDelete}>×</button>
-      </div>
-      {zoneSet.basedOn && <p className="settings-zone-basis">{zoneSet.basedOn}</p>}
-      <ZoneBand zones={zones as never} className="settings-zone-band" />
-      <ZoneList zones={zones as never} className="zone-table" rowClassName="zone-row" dotClassName="zone-row__dot" numberClassName="zone-row__num" nameClassName="zone-row__name" rangeClassName="zone-row__range" />
-      <ZoneAddRow zoneSet={zoneSet} refresh={refresh} />
-    </section>
-  );
-}
-
-// ── ZoneAddRow — inline zone creation ─────────────────────────────────────────
-
-function ZoneAddRow({ zoneSet, refresh }: { zoneSet: TrainingZoneSetDto; refresh: () => void }) {
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<Partial<CreateZoneInput>>({});
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const defaultUnit: TrainingZoneUnitDto =
-    zoneSet.zoneType === 'heart_rate' ? 'bpm'
-      : zoneSet.zoneType === 'cycling_power' ? 'watts'
-      : zoneSet.zoneType === 'running_pace' ? 'sec_per_km'
-      : zoneSet.zoneType === 'swimming_pace' ? 'sec_per_100m'
-      : 'rpe';
-
-  async function handleCreate() {
-    if (!draft.name?.trim() || !draft.zoneNumber) {
-      setError('Zone number and name are required.');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      await createZone(zoneSet.id, {
-        zoneNumber: draft.zoneNumber,
-        name: draft.name.trim(),
-        lowerBound: draft.lowerBound,
-        upperBound: draft.upperBound,
-        unit: draft.unit ?? defaultUnit,
-        description: draft.description || undefined,
-      });
-      setDraft({});
-      setOpen(false);
-      refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create zone');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  if (!open) {
-    return (
-      <button type="button" className="settings-zone-add-btn" onClick={() => setOpen(true)}>
-        + Add zone
-      </button>
-    );
-  }
-
-  return (
-    <div className="settings-zone-inline-form">
-      <div className="settings-zone-inline-form__fields">
-        <input
-          className="cw-input settings-zone-inline-form__num"
-          type="number"
-          placeholder="#"
-          min="1"
-          value={draft.zoneNumber ?? ''}
-          onChange={(e) => setDraft((d) => ({ ...d, zoneNumber: parseInt(e.target.value, 10) || undefined }))}
-        />
-        <input
-          className="cw-input"
-          placeholder="Zone name"
-          value={draft.name ?? ''}
-          onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-        />
-        <input
-          className="cw-input settings-zone-inline-form__bound"
-          type="number"
-          placeholder="From"
-          value={draft.lowerBound ?? ''}
-          onChange={(e) => setDraft((d) => ({ ...d, lowerBound: parseFloat(e.target.value) || undefined }))}
-        />
-        <input
-          className="cw-input settings-zone-inline-form__bound"
-          type="number"
-          placeholder="To"
-          value={draft.upperBound ?? ''}
-          onChange={(e) => setDraft((d) => ({ ...d, upperBound: parseFloat(e.target.value) || undefined }))}
-        />
-        <SelectMenu
-          value={draft.unit ?? defaultUnit}
-          options={ZONE_UNIT_OPTIONS}
-          onChange={(v) => setDraft((d) => ({ ...d, unit: v as TrainingZoneUnitDto }))}
-          aria-label="Unit"
-        />
-      </div>
-      {error && <p className="settings-zone-inline-form__error">{error}</p>}
-      <div className="settings-zone-inline-form__actions">
-        <button type="button" className="button--secondary" onClick={() => { setOpen(false); setDraft({}); }}>Cancel</button>
-        <button type="button" className="button--primary" disabled={saving} onClick={() => void handleCreate()}>
-          {saving ? 'Adding…' : 'Add zone'}
-        </button>
-      </div>
-    </div>
   );
 }
 
