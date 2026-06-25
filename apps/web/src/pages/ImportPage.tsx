@@ -3,14 +3,12 @@ import { useRef, useState } from 'react';
 import type { ImportDetailDto, ImportSummaryDto } from '@pp-trainer/shared';
 
 import { EmptyState, ErrorState, LoadingState, SourceBadge } from '../components';
-import { DATA_MODE } from '../config/dataMode';
 import { formatDate } from '../components/prototypeFormatters';
 import { getImportDetail } from '../api/importApi';
 import { useImport } from '../hooks/useImport';
 import type { FileResult } from '../hooks/useImport';
 import { useImportHistory } from '../hooks/useImportHistory';
 import { PageShell } from '../layout/PageShell';
-import { getImportHistoryRows } from '../mock/prototypeImportData';
 import type { PageComponentProps } from '../routes/routeTypes';
 import type { DataSourceType } from '../mock/prototypeData.types';
 
@@ -83,17 +81,6 @@ const pipelineSteps = [
     label: 'Use',
     title: 'Activity model',
     description: 'Dashboard, Activities, Detail pages and AI Coach read the same internal structure.',
-  },
-];
-
-const validationExamples = [
-  {
-    title: 'Unsupported file type',
-    detail: 'A .zip or image upload would be rejected before parsing starts.',
-  },
-  {
-    title: 'Missing required data',
-    detail: 'Activities without start time, sport type or duration cannot enter the internal model.',
   },
 ];
 
@@ -626,61 +613,7 @@ function ImportApiMode({ navigate }: PageComponentProps) {
   );
 }
 
-function ImportMockMode() {
-  const historyRows = getImportHistoryRows();
-
-  return (
-    <PageShell
-      title="Import"
-      eyebrow="Data sources · Phase 2"
-      description="Future entry point for activity imports and Garmin-related sync paths. Real upload, parsing and persistence are intentionally out of scope for this prototype."
-    >
-      <div className="import-page">
-        <section className="import-hero">
-          <div className="import-dropzone" aria-label="Non-functional upload placeholder">
-            <div className="import-dropzone__mark" aria-hidden="true">+</div>
-            <div>
-              <p className="import-section-label">Import entry</p>
-              <h2>Drop activity files here</h2>
-              <p>
-                Visual placeholder only. Phase 2 does not read files, parse
-                uploads or persist import results.
-              </p>
-            </div>
-            <button type="button" disabled>
-              Upload disabled
-            </button>
-          </div>
-
-          <aside className="import-format-panel">
-            <div>
-              <p className="import-section-label">Future file support</p>
-              <div className="import-format-list">
-                {futureFormats.map((format) => (
-                  <span key={format}>{format}</span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="import-section-label">Development inputs</p>
-              <div className="import-format-list import-format-list--muted">
-                {developmentFormats.map((format) => (
-                  <span key={format}>{format}</span>
-                ))}
-              </div>
-            </div>
-          </aside>
-        </section>
-
-        <InformationalSections historyRows={historyRows} />
-      </div>
-    </PageShell>
-  );
-}
-
-type HistoryRow = ReturnType<typeof getImportHistoryRows>[number];
-
-function InformationalSections({ historyRows }: { historyRows?: HistoryRow[] }) {
+function InformationalSections() {
   return (
     <>
       <section className="import-section">
@@ -728,85 +661,10 @@ function InformationalSections({ historyRows }: { historyRows?: HistoryRow[] }) 
         </div>
       </section>
 
-      {historyRows != null && (
-        <section className="import-lower-grid">
-          <div className="import-section import-section--compact">
-            <header className="import-section__head">
-              <div>
-                <p>Recent imports</p>
-                <h2>History placeholder</h2>
-              </div>
-            </header>
-            {historyRows.length > 0 ? (
-              <table className="import-history" aria-label="Static import history">
-                <thead>
-                  <tr>
-                    <th scope="col">Source</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Count</th>
-                    <th scope="col">When</th>
-                    <th scope="col">Note</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {historyRows.map((row) => (
-                    <tr key={`${row.source}-${row.status}`}>
-                      <td data-label="Source"><SourceBadge source={row.source} /></td>
-                      <td
-                        className={`import-status import-status--${row.status.toLowerCase()}`}
-                        data-label="Status"
-                      >
-                        {row.status}
-                      </td>
-                      <td data-label="Count">{row.activities}</td>
-                      <td data-label="When">{row.timestamp}</td>
-                      <td data-label="Note">{row.note}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <EmptyState
-                title="No recent imports"
-                description="Import history will appear here once activity data has been queued or validated."
-                variant="inline"
-              />
-            )}
-          </div>
-
-          <aside className="import-section import-section--compact">
-            <header className="import-section__head">
-              <div>
-                <p>Validation preview</p>
-                <h2>Error states</h2>
-              </div>
-              <span>Example only</span>
-            </header>
-            <div className="import-validation-list">
-              {validationExamples.map((example) => (
-                <div key={example.title}>
-                  <span aria-hidden="true">!</span>
-                  <div>
-                    <h3>{example.title}</h3>
-                    <p>{example.detail}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="import-caveat">
-              No real validation runs in Phase 2. These examples define the
-              expected product language for later import work.
-            </p>
-          </aside>
-        </section>
-      )}
     </>
   );
 }
 
 export function ImportPage({ navigate, params }: PageComponentProps) {
-  if (DATA_MODE === 'api') {
-    return <ImportApiMode navigate={navigate} params={params} />;
-  }
-  return <ImportMockMode />;
+  return <ImportApiMode navigate={navigate} params={params} />;
 }

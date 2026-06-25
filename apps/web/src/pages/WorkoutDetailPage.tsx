@@ -14,16 +14,11 @@ import type { WorkoutStepData } from '../components';
 import { WorkoutStatusBadge } from '../components/badges/WorkoutStatusBadge';
 import { stepTypeLabels } from '../components/data/workoutStepLabels';
 import { formatDate, formatDistance, formatDuration } from '../components/prototypeFormatters';
-import { DATA_MODE } from '../config/dataMode';
 import { deleteWorkout, updateWorkoutStatus } from '../api/trainingApi';
 import { useCurrentWeekPlan } from '../hooks/useCurrentWeekPlan';
 import { useWorkout } from '../hooks/useWorkout';
 import { PageShell } from '../layout/PageShell';
-import { getWorkoutById, getWorkoutSteps } from '../mock/prototypeData.helpers';
-import type {
-  SportType,
-  WorkoutIntensity,
-} from '../mock/prototypeData.types';
+import type { SportType, WorkoutIntensity } from '../mock/prototypeData.types';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 type WorkoutStatus = PlannedWorkoutDto['status'];
@@ -238,38 +233,6 @@ function WorkoutDetailContent({ workout, steps, statusActions, deleteAction }: W
   );
 }
 
-function WorkoutDetailMockMode({ params }: PageComponentProps) {
-  const workout = params.id ? getWorkoutById(params.id) : undefined;
-
-  if (!workout) {
-    return (
-      <PageShell
-        title="Workout not found"
-        eyebrow="Workout detail"
-        description="The requested workout does not exist in the current prototype data."
-      >
-        <ErrorState
-          title="Unknown workout"
-          description={
-            <>
-              No mock workout was found for ID <strong>{params.id}</strong>.
-            </>
-          }
-        />
-      </PageShell>
-    );
-  }
-
-  const steps = getWorkoutSteps(workout.id);
-
-  return (
-    <WorkoutDetailContent
-      workout={workout as WorkoutDetailData}
-      steps={steps as WorkoutStepData[]}
-    />
-  );
-}
-
 function WorkoutDeleteAction({
   workoutId,
   navigate,
@@ -403,8 +366,5 @@ function WorkoutDetailApiMode({ params, navigate }: PageComponentProps) {
 }
 
 export function WorkoutDetailPage({ navigate, params }: PageComponentProps) {
-  if (DATA_MODE === 'api') {
-    return <WorkoutDetailApiMode navigate={navigate} params={params} />;
-  }
-  return <WorkoutDetailMockMode navigate={navigate} params={params} />;
+  return <WorkoutDetailApiMode navigate={navigate} params={params} />;
 }

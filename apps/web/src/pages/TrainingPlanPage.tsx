@@ -22,17 +22,10 @@ import {
   updateTrainingPlan,
   updateWorkout,
 } from '../api/trainingApi';
-import { DATA_MODE } from '../config/dataMode';
 import { useCurrentWeekPlan } from '../hooks/useCurrentWeekPlan';
 import { useTrainingPlans } from '../hooks/useTrainingPlans';
 import { useWorkouts } from '../hooks/useWorkouts';
 import { PageShell } from '../layout/PageShell';
-import {
-  getCurrentTrainingPlan,
-  getPlannedWorkouts,
-  getWeeklySummary,
-} from '../mock/prototypeData.helpers';
-import type { PlannedWorkout } from '../mock/prototypeData.types';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 function toLocalDate(d: Date): string {
@@ -789,24 +782,6 @@ function WeekPlanContent({
   );
 }
 
-function buildMockSummaryItems(
-  weeklySummary: ReturnType<typeof getWeeklySummary>,
-): { label: string; value: string }[] {
-  const items: { label: string; value: string }[] = [
-    { label: 'Sessions', value: String(weeklySummary.activityCount) },
-    { label: 'Total time', value: formatDuration(weeklySummary.plannedDurationSeconds) },
-  ];
-  if (weeklySummary.cyclingDurationSeconds)
-    items.push({ label: 'Bike', value: formatDuration(weeklySummary.cyclingDurationSeconds) });
-  if (weeklySummary.runningDurationSeconds)
-    items.push({ label: 'Run', value: formatDuration(weeklySummary.runningDurationSeconds) });
-  if (weeklySummary.swimmingDurationSeconds)
-    items.push({ label: 'Swim', value: formatDuration(weeklySummary.swimmingDurationSeconds) });
-  if (weeklySummary.strengthDurationSeconds)
-    items.push({ label: 'Strength', value: formatDuration(weeklySummary.strengthDurationSeconds) });
-  return items;
-}
-
 function buildApiSummaryItems(workouts: PlannedWorkoutDto[]): { label: string; value: string }[] {
   let totalSeconds = 0;
   const bySport: Record<string, number> = {};
@@ -825,28 +800,6 @@ function buildApiSummaryItems(workouts: PlannedWorkoutDto[]): { label: string; v
   if (bySport['strength']) items.push({ label: 'Strength', value: formatDuration(bySport['strength']) });
   return items;
 }
-
-/* ── Mock mode ───────────────────────────────────────────────────────────── */
-
-function TrainingPlanMockMode({ navigate }: PageComponentProps) {
-  const trainingPlan = getCurrentTrainingPlan();
-  const weeklySummary = getWeeklySummary();
-  const allWorkouts = getPlannedWorkouts();
-
-  return (
-    <WeekPlanContent
-      title={trainingPlan.title}
-      description={trainingPlan.description}
-      weekStart={trainingPlan.startDate}
-      weekEnd={trainingPlan.endDate}
-      workouts={allWorkouts as PlannedWorkout[]}
-      summaryItems={buildMockSummaryItems(weeklySummary)}
-      navigate={navigate}
-    />
-  );
-}
-
-/* ── API mode ────────────────────────────────────────────────────────────── */
 
 function TrainingPlanApiMode({ navigate }: PageComponentProps) {
   const weekPlanState = useCurrentWeekPlan();
@@ -1088,8 +1041,5 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
 }
 
 export function TrainingPlanPage({ navigate, params }: PageComponentProps) {
-  if (DATA_MODE === 'api') {
-    return <TrainingPlanApiMode navigate={navigate} params={params} />;
-  }
-  return <TrainingPlanMockMode navigate={navigate} params={params} />;
+  return <TrainingPlanApiMode navigate={navigate} params={params} />;
 }
