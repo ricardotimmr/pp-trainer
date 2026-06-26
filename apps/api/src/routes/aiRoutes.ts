@@ -1,4 +1,5 @@
 import {
+  GenerateWeekAnalysisRequestSchema,
   GenerateWeekPlanRequestSchema,
   GenerateWorkoutRequestSchema,
 } from '@pp-trainer/shared';
@@ -65,6 +66,21 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
 
     const output = await AiService.generateWorkout(
       body as ReturnType<typeof GenerateWorkoutRequestSchema.parse>,
+    );
+    return reply.status(201).send(output);
+  });
+
+  app.post('/api/ai/generate-week-analysis', async (request, reply) => {
+    let body: unknown;
+    try {
+      body = GenerateWeekAnalysisRequestSchema.parse(request.body ?? {});
+    } catch (err) {
+      if (err instanceof ZodError) return reply.status(400).send(zodValidationError(err));
+      throw err;
+    }
+
+    const output = await AiService.generateWeekAnalysis(
+      body as ReturnType<typeof GenerateWeekAnalysisRequestSchema.parse>,
     );
     return reply.status(201).send(output);
   });

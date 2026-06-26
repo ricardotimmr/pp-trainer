@@ -6,6 +6,7 @@ import { getApiConfig, type ApiConfig } from './config/env.js';
 import { setupErrorHandling } from './errors/errorHandler.js';
 import { ensureStorageDir } from './lib/fileStorage.js';
 import { activityRoutes } from './routes/activityRoutes.js';
+import { analyticsRoutes } from './routes/analyticsRoutes.js';
 import { aiRoutes } from './routes/aiRoutes.js';
 import { athleteRoutes } from './routes/athleteRoutes.js';
 import { contextRoutes } from './routes/contextRoutes.js';
@@ -45,6 +46,7 @@ export async function buildApp(config: ApiConfig = getApiConfig()) {
   await app.register(athleteRoutes);
   await app.register(trainingZoneRoutes);
   await app.register(activityRoutes);
+  await app.register(analyticsRoutes);
   await app.register(trainingRoutes);
   await app.register(performanceRoutes);
   await app.register(importRoutes);

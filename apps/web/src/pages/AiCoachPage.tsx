@@ -2,13 +2,14 @@ import { type FormEvent, useEffect, useState } from 'react';
 
 import type {
   AiCoachOutputDto,
+  GenerateWeekAnalysisRequest,
   GenerateWeekPlanRequest,
   GenerateWorkoutRequest,
 } from '@pp-trainer/shared';
 
 import { SelectMenu, SportBadge } from '../components';
 import type { SelectMenuOption } from '../components';
-import { fetchAiHistory, generateWeekPlan, generateWorkout } from '../api/aiApi';
+import { fetchAiHistory, generateWeekAnalysis, generateWeekPlan, generateWorkout } from '../api/aiApi';
 import { ApiClientError } from '../api/apiClient';
 import { useAiCoachSidebar } from '../hooks/useAiCoachSidebar';
 import { PageShell } from '../layout/PageShell';
@@ -20,6 +21,8 @@ type HistoryState =
   | { status: 'ready'; proposals: AiCoachOutputDto[] }
   | { status: 'error' };
 
+type GenerationMode = 'week_plan' | 'single_workout' | 'week_analysis';
+
 const OUTPUT_TYPE_LABELS: Record<AiCoachOutputDto['outputType'], string> = {
   week_plan: 'Week Plan',
   single_workout: 'Single Workout',
@@ -30,9 +33,9 @@ const OUTPUT_TYPE_LABELS: Record<AiCoachOutputDto['outputType'], string> = {
 };
 
 function proposalPreviewUrl(proposal: AiCoachOutputDto): string {
-  return proposal.outputType === 'week_plan'
-    ? `/ai-coach/preview/week-plan/${proposal.id}`
-    : `/ai-coach/preview/workout/${proposal.id}`;
+  if (proposal.outputType === 'week_plan') return `/ai-coach/preview/week-plan/${proposal.id}`;
+  if (proposal.outputType === 'week_analysis') return `/ai-coach/preview/week-analysis/${proposal.id}`;
+  return `/ai-coach/preview/workout/${proposal.id}`;
 }
 
 function proposalTitle(proposal: AiCoachOutputDto): string {
@@ -96,8 +99,22 @@ function nextMondayIso(): string {
   return toLocalDate(d);
 }
 
+function currentMondayIso(): string {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return toLocalDate(d);
+}
+
+const GENERATION_MODE_INDEX: Record<GenerationMode, number> = {
+  week_plan: 0,
+  single_workout: 1,
+  week_analysis: 2,
+};
+
 export function AiCoachPage({ navigate }: PageComponentProps) {
-  const [mode, setMode] = useState<'week_plan' | 'single_workout'>('week_plan');
+  const [mode, setMode] = useState<GenerationMode>('week_plan');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [invalidOutput, setInvalidOutput] = useState(false);
@@ -130,7 +147,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
     return () => { cancelled = true; };
   }, []);
 
-  function switchMode(next: 'week_plan' | 'single_workout') {
+  function switchMode(next: GenerationMode) {
     setMode(next);
     setError(null);
     setInvalidOutput(false);
@@ -189,6 +206,31 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
       }
       refreshHistory();
       navigate(`/ai-coach/preview/workout/${output.id}`);
+    } catch (err) {
+      const msg = err instanceof ApiClientError ? err.message : 'Network error. Please try again.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleWeekAnalysisSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setInvalidOutput(false);
+    setLoading(true);
+
+    try {
+      const request: GenerateWeekAnalysisRequest = { weekStartDate: currentMondayIso() };
+      const output = await generateWeekAnalysis(request);
+
+      if (output.validationStatus === 'invalid') {
+        setInvalidOutput(true);
+        refreshHistory();
+        return;
+      }
+      refreshHistory();
+      navigate(`/ai-coach/preview/week-analysis/${output.id}`);
     } catch (err) {
       const msg = err instanceof ApiClientError ? err.message : 'Network error. Please try again.';
       setError(msg);
@@ -363,9 +405,9 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
           <div className="ai-coach-tips__group">
             <p className="ai-coach-tips__heading">Precision over brevity</p>
             <ul className="ai-coach-tips__list">
-              <li>Name specific targets: "threshold at 285 W" beats "hard effort"</li>
-              <li>Mention upcoming races or blocks: "taper week before 70.3"</li>
-              <li>Call out constraints: "only 45 min available Tuesday"</li>
+              <li>Name specific targets: threshold at 285 W beats hard effort.</li>
+              <li>Mention upcoming races or blocks: taper week before 70.3.</li>
+              <li>Call out constraints: only 45 min available Tuesday.</li>
             </ul>
           </div>
           <div className="ai-coach-tips__group">
@@ -382,6 +424,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
             <ul className="ai-coach-tips__list">
               <li>Use week plan at the start of a new training week</li>
               <li>Use single workout to fill a gap or replace a session</li>
+              <li>Use week analysis to review what actually happened this week</li>
             </ul>
           </div>
         </div>
@@ -389,11 +432,11 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
         {/* Form */}
         <div className="ai-coach__output">
 
-          <div className="segmented-control" role="tablist" aria-label="Generation mode">
+          <div className="segmented-control segmented-control--three" role="tablist" aria-label="Generation mode">
             <span
               className="segmented-control__indicator"
               aria-hidden="true"
-              style={{ left: mode === 'week_plan' ? '0%' : '50%', width: '50%' }}
+              style={{ left: `${GENERATION_MODE_INDEX[mode] * (100 / 3)}%`, width: `${100 / 3}%` }}
             />
             <button
               type="button"
@@ -414,6 +457,16 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
               disabled={loading}
             >
               Single workout
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'week_analysis'}
+              className={`segmented-control__tab${mode === 'week_analysis' ? ' is-active' : ''}`}
+              onClick={() => switchMode('week_analysis')}
+              disabled={loading}
+            >
+              Week analysis
             </button>
           </div>
 
@@ -455,7 +508,9 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
               <p className="ai-loading__label">
                 {mode === 'week_plan'
                   ? 'AI is generating your week plan…'
-                  : 'AI is generating your workout…'}
+                  : mode === 'single_workout'
+                    ? 'AI is generating your workout…'
+                    : 'AI is analyzing your week…'}
               </p>
               <p className="ai-loading__hint">This may take 5–15 seconds</p>
             </div>
@@ -580,6 +635,30 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
                       className="button button--primary"
                     >
                       Generate workout
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {mode === 'week_analysis' && (
+                <form className="ai-request-form" onSubmit={handleWeekAnalysisSubmit} noValidate>
+                  <p className="ai-output__label">Analyze current week</p>
+
+                  <div className="ai-request-form__fields">
+                    <div className="ai-analysis-trigger">
+                      <p className="ai-analysis-trigger__title">Review this week with current activity data.</p>
+                      <p className="ai-analysis-trigger__copy">
+                        The coach will summarize total volume, sport distribution, key observations and a focus for the next training decision.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="ai-request-form__actions">
+                    <button
+                      type="submit"
+                      className="button button--primary"
+                    >
+                      Analyze this week
                     </button>
                   </div>
                 </form>

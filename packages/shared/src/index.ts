@@ -1,5 +1,6 @@
 export * from './schemas/activity.js';
 export * from './schemas/ai.js';
+export * from './schemas/analytics.js';
 export * from './schemas/athlete.js';
 export * from './schemas/common.js';
 export * from './schemas/enums.js';

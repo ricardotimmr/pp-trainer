@@ -130,9 +130,8 @@ export function useDashboard(): DashboardState & { refresh: () => void } {
         const secondaryGoals = activeGoals.filter((g) => g.priority === 'secondary_goal');
         const watchlistGoals = activeGoals.filter((g) => g.priority === 'watchlist');
 
-        const today = toLocalDate(new Date());
         const upcomingWorkouts = plannedWorkouts
-          .filter((w) => w.status === 'planned' && w.scheduledDate >= today)
+          .filter((w) => w.status === 'planned')
           .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
 
         setState({

@@ -68,8 +68,8 @@ export class ApiError extends Error {
     return new ApiError('RATE_LIMITED', message);
   }
 
-  static conflict(message: string): ApiError {
-    return new ApiError('CONFLICT', message);
+  static conflict(message: string, details?: unknown): ApiError {
+    return new ApiError('CONFLICT', message, details);
   }
 
   static unprocessable(message: string, details?: unknown): ApiError {

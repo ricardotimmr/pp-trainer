@@ -54,6 +54,7 @@ export function mapPlannedWorkout(workout: WorkoutWithSteps): PlannedWorkoutDto 
   return {
     id: workout.id,
     ...(workout.trainingPlanId != null && { trainingPlanId: workout.trainingPlanId }),
+    activityId: workout.completedWorkoutLink?.activityId ?? null,
     title: workout.title,
     sport: SPORT_TYPE_MAP[workout.sport],
     workoutType: WORKOUT_TYPE_MAP[workout.workoutType],

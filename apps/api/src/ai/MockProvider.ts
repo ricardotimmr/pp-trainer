@@ -1,4 +1,4 @@
-import type { AiGeneratedSingleWorkout, AiGeneratedWeekPlan } from '@pp-trainer/shared';
+import type { AiGeneratedSingleWorkout, AiGeneratedWeekAnalysis, AiGeneratedWeekPlan } from '@pp-trainer/shared';
 
 import type { AiProvider, AiProviderResult } from './AiProvider.js';
 import type { BuiltPrompt } from './PromptBuilder.js';
@@ -15,6 +15,85 @@ function addDays(base: string, days: number): string {
   const d = new Date(base);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().split('T')[0];
+}
+
+type WeekAnalysisPromptActivity = {
+  sport?: unknown;
+  durationSeconds?: unknown;
+  distanceMeters?: unknown;
+};
+
+function parseWeekAnalysisActivities(prompt: BuiltPrompt): WeekAnalysisPromptActivity[] {
+  const match = prompt.userContent.match(/## Completed Activities\s+```json\s+([\s\S]*?)\s+```/);
+  if (!match?.[1]) return [];
+
+  try {
+    const parsed = JSON.parse(match[1]) as unknown;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function buildWeekAnalysisData(
+  weekStartDate: string,
+  weekEndDate: string,
+  activities: WeekAnalysisPromptActivity[],
+): AiGeneratedWeekAnalysis {
+  const breakdown = new Map<string, { sport: string; durationSeconds: number; distanceMeters?: number; activityCount: number }>();
+
+  for (const activity of activities) {
+    const sport = typeof activity.sport === 'string' ? activity.sport : 'other';
+    const durationSeconds = typeof activity.durationSeconds === 'number' ? activity.durationSeconds : 0;
+    const distanceMeters = typeof activity.distanceMeters === 'number' ? activity.distanceMeters : undefined;
+    const current = breakdown.get(sport) ?? { sport, durationSeconds: 0, activityCount: 0 };
+
+    current.durationSeconds += durationSeconds;
+    current.activityCount += 1;
+    if (distanceMeters != null) {
+      current.distanceMeters = (current.distanceMeters ?? 0) + distanceMeters;
+    }
+
+    breakdown.set(sport, current);
+  }
+
+  const sportBreakdown = [...breakdown.values()].sort((a, b) => b.durationSeconds - a.durationSeconds);
+  const totalDurationSeconds = sportBreakdown.reduce((sum, sport) => sum + sport.durationSeconds, 0);
+  const totalDistanceMeters = sportBreakdown.reduce((sum, sport) => sum + (sport.distanceMeters ?? 0), 0);
+  const activityCount = sportBreakdown.reduce((sum, sport) => sum + sport.activityCount, 0);
+  const leadingSport = sportBreakdown[0]?.sport;
+
+  if (activityCount === 0) {
+    return {
+      weekStartDate,
+      weekEndDate,
+      totalDurationSeconds: 0,
+      sportBreakdown: [],
+      keyObservations: [
+        'No completed activities were found for this week.',
+        'The week analysis is ready once imported activities are available.',
+      ],
+      suggestedFocus: 'Import or link completed activities before using this analysis for training decisions.',
+      coachComment: 'There is not enough completed training data for a meaningful week review yet.',
+    };
+  }
+
+  return {
+    weekStartDate,
+    weekEndDate,
+    totalDurationSeconds,
+    ...(totalDistanceMeters > 0 && { totalDistanceMeters }),
+    sportBreakdown,
+    keyObservations: [
+      `${activityCount} completed activit${activityCount === 1 ? 'y' : 'ies'} were found for this week.`,
+      leadingSport
+        ? `${leadingSport} contributed the largest share of training time.`
+        : 'Training time was spread across multiple sports.',
+      'This mock analysis uses real stored activity records; only the coaching prose is simulated.',
+    ],
+    suggestedFocus: 'Use the completed workload as the baseline before accepting or adjusting next week’s plan.',
+    coachComment: 'The activity data is available for review. A real AI provider can add deeper interpretation once connected.',
+  };
 }
 
 export class MockProvider implements AiProvider {
@@ -74,6 +153,16 @@ export class MockProvider implements AiProvider {
         },
       ],
     };
+
+    return { data, rawOutput: data };
+  }
+
+  async generateWeekAnalysis(prompt: BuiltPrompt): Promise<AiProviderResult<AiGeneratedWeekAnalysis>> {
+    const match = prompt.userContent.match(/week from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})/);
+    const weekStartDate = match?.[1] ?? new Date().toISOString().split('T')[0];
+    const weekEndDate = match?.[2] ?? addDays(weekStartDate, 6);
+    const activities = parseWeekAnalysisActivities(prompt);
+    const data = buildWeekAnalysisData(weekStartDate, weekEndDate, activities);
 
     return { data, rawOutput: data };
   }

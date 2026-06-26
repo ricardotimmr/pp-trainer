@@ -1,6 +1,7 @@
 import {
   CreatePlannedWorkoutRequestSchema,
   CreateTrainingPlanRequestSchema,
+  LinkActivityInputSchema,
   UpdatePlannedWorkoutRequestSchema,
   UpdateTrainingPlanRequestSchema,
 } from '@pp-trainer/shared';
@@ -132,7 +133,37 @@ export async function trainingRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete('/api/workouts/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    await TrainingService.deleteWorkout(id);
+    const { force } = request.query as { force?: string };
+    await TrainingService.deleteWorkout(id, force === 'true');
     return reply.status(204).send();
+  });
+
+  app.post('/api/workouts/:id/link-activity', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    let body: unknown;
+    try {
+      body = LinkActivityInputSchema.parse(request.body);
+    } catch (err) {
+      if (err instanceof ZodError) {
+        return reply.status(400).send({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: err.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join('; '),
+          },
+        });
+      }
+      throw err;
+    }
+    const workout = await TrainingService.linkActivity(
+      id,
+      body as ReturnType<typeof LinkActivityInputSchema.parse>,
+    );
+    return reply.status(200).send(workout);
+  });
+
+  app.delete('/api/workouts/:id/link-activity', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const workout = await TrainingService.unlinkActivity(id);
+    return reply.status(200).send(workout);
   });
 }

@@ -9,6 +9,7 @@ export type { WorkoutCardData } from './cards/WorkoutCard';
 export { ActivitySummaryStats } from './data/ActivitySummaryStats';
 export { WorkoutStepList } from './data/WorkoutStepList';
 export type { WorkoutStepData } from './data/WorkoutStepList';
+export { DashboardChartsSection } from './dashboard/DashboardChartsSection';
 export { DashboardWidget } from './layout/DashboardWidget';
 export { SelectMenu } from './SelectMenu';
 export type { SelectMenuOption } from './SelectMenu';

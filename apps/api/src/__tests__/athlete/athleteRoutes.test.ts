@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '../../errors/ApiError.js';
 import { setupErrorHandling } from '../../errors/errorHandler.js';

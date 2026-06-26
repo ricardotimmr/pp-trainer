@@ -3,6 +3,7 @@ import type { PlannedWorkoutDto } from '@pp-trainer/shared';
 import {
   ActivityCard,
   ActivitySummaryStats,
+  DashboardChartsSection,
   DashboardWidget,
   EmptyState,
   ErrorState,
@@ -19,6 +20,7 @@ import {
 } from '../components/prototypeFormatters';
 import { useDashboard } from '../hooks/useDashboard';
 import type { WeekVolume } from '../hooks/useDashboard';
+import { useDashboardAnalytics } from '../hooks/useDashboardAnalytics';
 import { PageShell } from '../layout/PageShell';
 import type { SportType } from '../types/domain';
 import type { PageComponentProps } from '../routes/routeTypes';
@@ -60,7 +62,7 @@ function WeekBalancePanel({
         </div>
         <div>
           <dt>Remaining</dt>
-          <dd>{formatDuration(remainingSeconds)}</dd>
+          <dd>{remainingSeconds === 0 ? <span style={{ color: 'var(--color-accent)', fontWeight: 700 }}>Completed</span> : formatDuration(remainingSeconds)}</dd>
         </div>
       </dl>
       {sportSplit.length > 0 && (
@@ -174,6 +176,7 @@ function toWorkoutCardData(w: PlannedWorkoutDto): WorkoutCardData {
 
 export function DashboardPage({ navigate }: PageComponentProps) {
   const state = useDashboard();
+  const analyticsState = useDashboardAnalytics();
 
   if (state.status === 'loading') {
     return (
@@ -303,8 +306,8 @@ export function DashboardPage({ navigate }: PageComponentProps) {
             )}
 
             <DashboardWidget
-              title="Upcoming workouts"
-              eyebrow="Next sessions"
+              title="This week's workouts"
+              eyebrow="Planned sessions"
               action={
                 <button
                   type="button"
@@ -458,6 +461,7 @@ export function DashboardPage({ navigate }: PageComponentProps) {
             </div>
           </div>
         </div>
+        <DashboardChartsSection state={analyticsState} />
       </div>
     </PageShell>
   );

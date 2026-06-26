@@ -1,5 +1,6 @@
 import {
   AiGeneratedSingleWorkoutSchema,
+  AiGeneratedWeekAnalysisSchema,
   AiGeneratedWeekPlanSchema,
   type AiGeneratedWorkout,
   type AiGeneratedWorkoutStep,
@@ -148,7 +149,7 @@ function buildWorkoutPrismaInput(
   };
 }
 
-const WORKOUT_STEPS_INCLUDE = { steps: { orderBy: { stepIndex: 'asc' } } } as const;
+const WORKOUT_STEPS_INCLUDE = { steps: { orderBy: { stepIndex: 'asc' } }, completedWorkoutLink: true } as const;
 const PLAN_WORKOUTS_INCLUDE = {
   plannedWorkouts: {
     include: WORKOUT_STEPS_INCLUDE,
@@ -175,7 +176,7 @@ export async function getOutput(outputId: string): Promise<AiCoachOutputDto> {
   return mapAiCoachOutput(output);
 }
 
-export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | PlannedWorkoutDto> {
+export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | PlannedWorkoutDto | AiCoachOutputDto> {
   const profile = await AthleteRepository.findFirstAthleteProfile();
   if (profile == null) throw ApiError.notFound('Athlete profile not found');
 
@@ -185,9 +186,18 @@ export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | 
     throw ApiError.unprocessable('AI output failed validation and cannot be accepted');
   }
 
-  const zoneLookup = buildZoneLookup(await loadZones(profile.id));
+  if (output.outputType === 'WeekAnalysis') {
+    const parsed = AiGeneratedWeekAnalysisSchema.safeParse(output.structuredOutput);
+    if (!parsed.success) {
+      throw ApiError.unprocessable('AI output structure is invalid', parsed.error.issues);
+    }
+
+    const updatedOutput = await AiRepository.updateOutput(outputId, { status: 'Accepted' });
+    return mapAiCoachOutput(updatedOutput);
+  }
 
   if (output.outputType === 'WeekPlan') {
+    const zoneLookup = buildZoneLookup(await loadZones(profile.id));
     const parsed = AiGeneratedWeekPlanSchema.safeParse(output.structuredOutput);
     if (!parsed.success) {
       throw ApiError.unprocessable('AI output structure is invalid', parsed.error.issues);
@@ -252,6 +262,7 @@ export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | 
   }
 
   // single_workout
+  const zoneLookup = buildZoneLookup(await loadZones(profile.id));
   const parsed = AiGeneratedSingleWorkoutSchema.safeParse(output.structuredOutput);
   if (!parsed.success) {
     throw ApiError.unprocessable('AI output structure is invalid', parsed.error.issues);

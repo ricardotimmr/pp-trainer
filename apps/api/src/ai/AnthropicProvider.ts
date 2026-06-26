@@ -1,8 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import {
   AiGeneratedSingleWorkoutSchema,
+  AiGeneratedWeekAnalysisSchema,
   AiGeneratedWeekPlanSchema,
   type AiGeneratedSingleWorkout,
+  type AiGeneratedWeekAnalysis,
   type AiGeneratedWeekPlan,
 } from '@pp-trainer/shared';
 
@@ -12,6 +14,7 @@ import type { BuiltPrompt } from './PromptBuilder.js';
 
 const TOOL_NAME_WEEK_PLAN = 'output_week_plan';
 const TOOL_NAME_SINGLE_WORKOUT = 'output_single_workout';
+const TOOL_NAME_WEEK_ANALYSIS = 'output_week_analysis';
 const DEFAULT_MODEL = 'claude-opus-4-8';
 const MAX_TOKENS = 8192;
 
@@ -54,6 +57,24 @@ export class AnthropicProvider implements AiProvider {
     });
 
     const parsed = AiGeneratedSingleWorkoutSchema.safeParse(raw);
+    if (!parsed.success) {
+      return { data: null, rawOutput: raw, validationErrors: parsed.error.issues };
+    }
+    return { data: parsed.data, rawOutput: raw };
+  }
+
+  async generateWeekAnalysis(prompt: BuiltPrompt): Promise<AiProviderResult<AiGeneratedWeekAnalysis>> {
+    const raw = await this.callWithTool(prompt, TOOL_NAME_WEEK_ANALYSIS, {
+      name: TOOL_NAME_WEEK_ANALYSIS,
+      description: 'Output the week training analysis as structured JSON',
+      input_schema: {
+        type: 'object' as const,
+        properties: { result: { type: 'object' } },
+        required: ['result'],
+      },
+    });
+
+    const parsed = AiGeneratedWeekAnalysisSchema.safeParse(raw);
     if (!parsed.success) {
       return { data: null, rawOutput: raw, validationErrors: parsed.error.issues };
     }

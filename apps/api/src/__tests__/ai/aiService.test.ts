@@ -2,13 +2,15 @@ import type { AiCoachOutput } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as AiProviderClient from '../../ai/AiProviderClient.js';
+import * as ActivityRepository from '../../repositories/ActivityRepository.js';
 import * as AiRepository from '../../repositories/AiRepository.js';
 import * as AthleteRepository from '../../repositories/AthleteRepository.js';
 import * as AthleteContextBuilder from '../../services/AthleteContextBuilder.js';
-import { generateWeekPlan, generateWorkout } from '../../services/AiService.js';
+import { generateWeekAnalysis, generateWeekPlan, generateWorkout } from '../../services/AiService.js';
 
 vi.mock('../../lib/prisma.js', () => ({ prisma: {}, disconnectPrisma: vi.fn() }));
 vi.mock('../../repositories/AthleteRepository.js');
+vi.mock('../../repositories/ActivityRepository.js');
 vi.mock('../../services/AthleteContextBuilder.js');
 vi.mock('../../ai/AiProviderClient.js');
 vi.mock('../../repositories/AiRepository.js');
@@ -272,5 +274,113 @@ describe('generateWorkout', () => {
       3600,
       'Three threshold blocks',
     );
+  });
+});
+
+// ── generateWeekAnalysis ──────────────────────────────────────────────────────
+
+const validWeekAnalysisData = {
+  weekStartDate: '2026-06-15',
+  weekEndDate: '2026-06-21',
+  totalDurationSeconds: 10800,
+  sportBreakdown: [{ sport: 'running', durationSeconds: 10800, activityCount: 2 }],
+  keyObservations: ['Good aerobic volume this week.', 'Consistent effort across sessions.'],
+  suggestedFocus: 'Add one quality interval session next week.',
+  coachComment: 'Solid week overall.',
+};
+
+const mockActivityRow = {
+  id: 'act-1',
+  sport: 'Running',
+  startTime: new Date('2026-06-16T08:00:00Z'),
+  durationSeconds: 3600,
+  distanceMeters: 10000,
+  averageHeartRateBpm: 145,
+  averagePowerWatts: null,
+  averagePaceSecPerKm: 360,
+};
+
+describe('generateWeekAnalysis', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(mockProfile as never);
+    vi.mocked(ActivityRepository.findActivities).mockResolvedValue([mockActivityRow] as never);
+    vi.mocked(AthleteContextBuilder.buildContext).mockResolvedValue(mockContext as never);
+    vi.mocked(AthleteContextBuilder.persistSnapshot).mockResolvedValue(mockSnapshot as never);
+    vi.mocked(AiProviderClient.generateWeekAnalysis).mockResolvedValue({
+      data: validWeekAnalysisData,
+      rawOutput: validWeekAnalysisData,
+    } as never);
+    vi.mocked(AiRepository.createOutput).mockResolvedValue(
+      makeDbOutput({ outputType: 'WeekAnalysis', summary: 'Good aerobic volume this week.' }),
+    );
+  });
+
+  it('returns AiCoachOutputDto with outputType week_analysis', async () => {
+    const result = await generateWeekAnalysis({ weekStartDate: '2026-06-15' });
+    expect(result.outputType).toBe('week_analysis');
+    expect(result.status).toBe('draft');
+    expect(result.validationStatus).toBe('valid');
+  });
+
+  it('creates output with outputType WeekAnalysis and status Draft', async () => {
+    await generateWeekAnalysis({ weekStartDate: '2026-06-15' });
+    expect(vi.mocked(AiRepository.createOutput)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputType: 'WeekAnalysis',
+        status: 'Draft',
+        validationStatus: 'Valid',
+      }),
+    );
+  });
+
+  it('uses first keyObservation as summary', async () => {
+    await generateWeekAnalysis({ weekStartDate: '2026-06-15' });
+    expect(vi.mocked(AiRepository.createOutput)).toHaveBeenCalledWith(
+      expect.objectContaining({ summary: 'Good aerobic volume this week.' }),
+    );
+  });
+
+  it('creates output with validationStatus Invalid when AI returns null data', async () => {
+    vi.mocked(AiProviderClient.generateWeekAnalysis).mockResolvedValue({
+      data: null,
+      rawOutput: { raw: 'unparseable' },
+    } as never);
+    vi.mocked(AiRepository.createOutput).mockResolvedValue(
+      makeDbOutput({ outputType: 'WeekAnalysis', validationStatus: 'Invalid' }),
+    );
+
+    await generateWeekAnalysis({ weekStartDate: '2026-06-15' });
+
+    expect(vi.mocked(AiRepository.createOutput)).toHaveBeenCalledWith(
+      expect.objectContaining({ validationStatus: 'Invalid' }),
+    );
+  });
+
+  it('fetches activities for the given week', async () => {
+    await generateWeekAnalysis({ weekStartDate: '2026-06-15' });
+    expect(vi.mocked(ActivityRepository.findActivities)).toHaveBeenCalledWith(
+      'profile-1',
+      expect.objectContaining({
+        startTimeFrom: new Date('2026-06-15T00:00:00Z'),
+      }),
+    );
+  });
+
+  it('defaults to last completed week when weekStartDate is omitted', async () => {
+    await generateWeekAnalysis({});
+    expect(vi.mocked(ActivityRepository.findActivities)).toHaveBeenCalled();
+    expect(vi.mocked(AiProviderClient.generateWeekAnalysis)).toHaveBeenCalled();
+  });
+
+  it('throws 404 when no athlete profile exists', async () => {
+    vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(null);
+    await expect(generateWeekAnalysis({})).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('propagates provider errors without creating an output record', async () => {
+    vi.mocked(AiProviderClient.generateWeekAnalysis).mockRejectedValue(new Error('provider down'));
+    await expect(generateWeekAnalysis({ weekStartDate: '2026-06-15' })).rejects.toThrow('provider down');
+    expect(vi.mocked(AiRepository.createOutput)).not.toHaveBeenCalled();
   });
 });

@@ -42,6 +42,7 @@ export const WorkoutStepDtoSchema = z.object({
 export const PlannedWorkoutDtoSchema = z.object({
   id: IdSchema,
   trainingPlanId: IdSchema.optional(),
+  activityId: IdSchema.nullable().optional(),
   title: z.string().min(1),
   sport: SportTypeSchema,
   workoutType: WorkoutTypeSchema,
@@ -167,6 +168,15 @@ export const UpdateWorkoutStatusRequestSchema = z.object({
   status: WorkoutStatusSchema,
 });
 
+export const LinkActivityInputSchema = z.object({
+  activityId: IdSchema,
+});
+
+export const WorkoutLinkedActivityConflictDtoSchema = z.object({
+  linkedActivityId: IdSchema,
+  message: z.string(),
+});
+
 export type CreateTrainingPlanRequest = z.infer<
   typeof CreateTrainingPlanRequestSchema
 >;
@@ -185,4 +195,8 @@ export type UpdatePlannedWorkoutRequest = z.infer<
 >;
 export type UpdateWorkoutStatusRequest = z.infer<
   typeof UpdateWorkoutStatusRequestSchema
+>;
+export type LinkActivityInput = z.infer<typeof LinkActivityInputSchema>;
+export type WorkoutLinkedActivityConflictDto = z.infer<
+  typeof WorkoutLinkedActivityConflictDtoSchema
 >;

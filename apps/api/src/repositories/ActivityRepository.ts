@@ -54,8 +54,35 @@ export type SimilarActivityParams = {
   durationSeconds: number;
 };
 
+export type ActivityForAnalytics = Pick<
+  Activity,
+  'sport' | 'startTime' | 'durationSeconds'
+>;
+
 export async function countActivitiesAllTime(athleteProfileId: string): Promise<number> {
   return prisma.activity.count({ where: { athleteProfileId } });
+}
+
+export async function findActivitiesForAnalytics(
+  athleteProfileId: string,
+  fromDate: Date,
+  toDate: Date,
+): Promise<ActivityForAnalytics[]> {
+  return prisma.activity.findMany({
+    where: {
+      athleteProfileId,
+      startTime: {
+        gte: fromDate,
+        lte: toDate,
+      },
+    },
+    select: {
+      sport: true,
+      startTime: true,
+      durationSeconds: true,
+    },
+    orderBy: { startTime: 'asc' },
+  });
 }
 
 export async function findActivitiesForHistory(

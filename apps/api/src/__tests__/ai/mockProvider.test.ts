@@ -1,8 +1,12 @@
-import { AiGeneratedSingleWorkoutSchema, AiGeneratedWeekPlanSchema } from '@pp-trainer/shared';
+import {
+  AiGeneratedSingleWorkoutSchema,
+  AiGeneratedWeekAnalysisSchema,
+  AiGeneratedWeekPlanSchema,
+} from '@pp-trainer/shared';
 import { describe, expect, it } from 'vitest';
 
 import { MockProvider } from '../../ai/MockProvider.js';
-import { buildSingleWorkoutPrompt, buildWeekPlanPrompt } from '../../ai/PromptBuilder.js';
+import { buildSingleWorkoutPrompt, buildWeekAnalysisPrompt, buildWeekPlanPrompt } from '../../ai/PromptBuilder.js';
 import type { AthleteContextForAi } from '../../types/athleteContext.js';
 
 const minimalContext: AthleteContextForAi = {
@@ -102,5 +106,64 @@ describe('MockProvider.generateSingleWorkout', () => {
     const prompt = buildSingleWorkoutPrompt(minimalContext, 'Running', 'Easy jog');
     const result = await provider.generateSingleWorkout(prompt);
     expect(result.validationErrors).toBeUndefined();
+  });
+});
+
+describe('MockProvider.generateWeekAnalysis', () => {
+  it('aggregates real activity data from the prompt', async () => {
+    const prompt = buildWeekAnalysisPrompt(minimalContext, {
+      weekStartDate: '2026-06-22',
+      weekEndDate: '2026-06-28',
+      activities: [
+        {
+          sport: 'cycling',
+          startTime: '2026-06-22T07:00:00.000Z',
+          durationSeconds: 3600,
+          distanceMeters: 30000,
+        },
+        {
+          sport: 'running',
+          startTime: '2026-06-23T07:00:00.000Z',
+          durationSeconds: 2700,
+          distanceMeters: 8000,
+        },
+        {
+          sport: 'swimming',
+          startTime: '2026-06-24T07:00:00.000Z',
+          durationSeconds: 1800,
+          distanceMeters: 1500,
+        },
+        {
+          sport: 'strength',
+          startTime: '2026-06-25T07:00:00.000Z',
+          durationSeconds: 2400,
+        },
+      ],
+    });
+
+    const result = await provider.generateWeekAnalysis(prompt);
+
+    expect(result.data?.totalDurationSeconds).toBe(10500);
+    expect(result.data?.totalDistanceMeters).toBe(39500);
+    expect(result.data?.sportBreakdown).toEqual([
+      { sport: 'cycling', durationSeconds: 3600, distanceMeters: 30000, activityCount: 1 },
+      { sport: 'running', durationSeconds: 2700, distanceMeters: 8000, activityCount: 1 },
+      { sport: 'strength', durationSeconds: 2400, activityCount: 1 },
+      { sport: 'swimming', durationSeconds: 1800, distanceMeters: 1500, activityCount: 1 },
+    ]);
+  });
+
+  it('returns a valid empty analysis when the prompt has no activities', async () => {
+    const prompt = buildWeekAnalysisPrompt(minimalContext, {
+      weekStartDate: '2026-06-22',
+      weekEndDate: '2026-06-28',
+      activities: [],
+    });
+
+    const result = await provider.generateWeekAnalysis(prompt);
+
+    expect(result.data?.totalDurationSeconds).toBe(0);
+    expect(result.data?.sportBreakdown).toEqual([]);
+    expect(AiGeneratedWeekAnalysisSchema.safeParse(result.data).success).toBe(true);
   });
 });
