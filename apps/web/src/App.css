@@ -4541,6 +4541,20 @@ button:focus-visible {
     grid-row: 4;
   }
 
+  .ai-step-editor__title-row,
+  .ai-step-editor__form {
+    grid-column: 2;
+  }
+
+  .ai-step-editor__title-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ai-step-editor__fields {
+    grid-template-columns: 1fr;
+  }
+
   .workout-step__num {
     grid-column: 1;
     grid-row: 1 / span 4;
@@ -5024,6 +5038,10 @@ button:focus-visible {
 }
 
 .ai-proposals__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
   margin-bottom: 20px;
 }
 
@@ -5042,23 +5060,137 @@ button:focus-visible {
   font-weight: 700;
 }
 
+.ai-proposals__toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.ai-proposals__filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ai-proposals__filter {
+  border: 1.5px solid var(--color-line);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.ai-proposals__filter {
+  padding: 6px 9px;
+  border-radius: 6px;
+}
+
+.ai-proposals__gallery {
+  position: relative;
+}
+
+.ai-proposals__scroll {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: color 0.15s ease;
+}
+
+.ai-proposals__scroll--left {
+  left: -14px;
+}
+
+.ai-proposals__scroll--right {
+  right: -14px;
+}
+
+.ai-proposals__scroll-icon {
+  width: 20px;
+  height: 20px;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transition: transform 0.18s ease;
+}
+
+.ai-proposals__scroll--left .ai-proposals__scroll-icon {
+  transform: rotate(135deg);
+}
+
+.ai-proposals__scroll--right .ai-proposals__scroll-icon {
+  transform: rotate(-45deg);
+}
+
+.ai-proposals__filter:hover,
+.ai-proposals__filter.is-active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.ai-proposals__scroll:hover {
+  color: var(--color-accent);
+}
+
+.ai-proposals__scroll--left:hover .ai-proposals__scroll-icon {
+  transform: rotate(135deg) scale(1.18);
+}
+
+.ai-proposals__scroll--right:hover .ai-proposals__scroll-icon {
+  transform: rotate(-45deg) scale(1.18);
+}
+
+.ai-proposals__scroll:focus-visible {
+  outline: none;
+  color: var(--color-accent);
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+}
+
+.ai-proposals__filter.is-active {
+  background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+}
+
 .ai-proposals__meta {
   font-size: 0.88rem;
   color: var(--color-muted);
 }
 
 .ai-proposals__list {
-  display: flex;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 48px) / 5);
   gap: 12px;
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 0 4px;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.ai-proposals__list::-webkit-scrollbar {
+  display: none;
 }
 
 .ai-proposals__item {
-  flex: 1 1 0;
   min-width: 0;
   display: flex;
+  scroll-snap-align: start;
 }
 
 .ai-proposals__item .workout-card {
@@ -5088,6 +5220,35 @@ button:focus-visible {
 .ai-proposals__item .workout-card p.ai-proposals__date {
   font-size: 0.78rem;
   margin-top: 4px;
+}
+
+@media (max-width: 900px) {
+  .ai-proposals__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ai-proposals__toolbar {
+    justify-content: flex-start;
+  }
+
+  .ai-proposals__list {
+    grid-auto-columns: calc((100% - 24px) / 3);
+  }
+}
+
+@media (max-width: 560px) {
+  .ai-proposals__toolbar {
+    width: 100%;
+  }
+
+  .ai-proposals__filters {
+    flex-wrap: wrap;
+  }
+
+  .ai-proposals__list {
+    grid-auto-columns: minmax(250px, 86%);
+  }
 }
 
 /* Output panel */
@@ -5390,6 +5551,99 @@ button:focus-visible {
    both title and instruction, but AI steps only use one row. */
 .ai-workout-preview .workout-step {
   grid-template-rows: auto;
+}
+
+.ai-step-editor-list {
+  gap: 0;
+}
+
+.ai-step-editor {
+  align-items: start;
+}
+
+.ai-step-editor.is-editing {
+  background: color-mix(in srgb, var(--color-accent) 3%, transparent);
+}
+
+.ai-step-editor__title-row {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ai-step-editor__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.ai-step-editor__chip {
+  padding: 3px 7px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 55%, var(--color-line));
+  border-radius: 4px;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.ai-step-editor__edit {
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  transition: color 0.15s ease;
+}
+
+.ai-step-editor__edit:hover:not(:disabled) {
+  color: var(--color-accent);
+}
+
+.ai-step-editor__edit:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ai-step-editor__edit:focus-visible {
+  outline: none;
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+  color: var(--color-accent);
+}
+
+.ai-step-editor__form {
+  grid-column: 3 / -1;
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 14px 0 4px;
+  border-top: 1px solid var(--color-line);
+}
+
+.ai-step-editor__fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ai-step-editor__form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 /* ── Plan header ── */
@@ -7226,7 +7480,7 @@ button:focus-visible {
 
 .import-history-filter {
   padding: 5px 14px;
-  border-radius: 99px;
+  border-radius: 4px;
   border: 1px solid var(--color-border);
   background: transparent;
   color: var(--color-muted);
@@ -7237,14 +7491,14 @@ button:focus-visible {
 }
 
 .import-history-filter:hover {
-  border-color: var(--color-text);
-  color: var(--color-text);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .import-history-filter.is-active {
-  border-color: var(--color-text);
-  background: var(--color-text);
-  color: var(--color-bg);
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: #ffffff;
 }
 
 .import-history-list {
@@ -9692,6 +9946,28 @@ button:focus-visible {
   padding: 4px 8px;
   font-size: 0.75rem;
   border-radius: 5px;
+}
+
+/* ── Zone picker empty state ─────────────────────────────────────────────── */
+
+.cw-zone-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.cw-zone-empty__link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--color-accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.cw-zone-empty__link:hover {
+  opacity: 0.8;
 }
 
 /* ── Error ───────────────────────────────────────────────────────────────── */

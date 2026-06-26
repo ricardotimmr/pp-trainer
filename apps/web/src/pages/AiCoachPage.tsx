@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 
 import type {
   AiCoachOutputDto,
@@ -22,6 +22,18 @@ type HistoryState =
   | { status: 'error' };
 
 type GenerationMode = 'week_plan' | 'single_workout' | 'week_analysis';
+type ProposalOutputType = Extract<AiCoachOutputDto['outputType'], GenerationMode>;
+type ProposalFilter = 'all' | ProposalOutputType;
+
+const HISTORY_LIMIT = 10;
+const PROPOSAL_OUTPUT_TYPES: ProposalOutputType[] = ['week_plan', 'single_workout', 'week_analysis'];
+
+const PROPOSAL_FILTER_LABELS: Record<ProposalFilter, string> = {
+  all: 'All',
+  week_plan: 'Week plans',
+  single_workout: 'Workouts',
+  week_analysis: 'Analyses',
+};
 
 const OUTPUT_TYPE_LABELS: Record<AiCoachOutputDto['outputType'], string> = {
   week_plan: 'Week Plan',
@@ -31,6 +43,10 @@ const OUTPUT_TYPE_LABELS: Record<AiCoachOutputDto['outputType'], string> = {
   recommendation: 'Recommendation',
   text_answer: 'Answer',
 };
+
+function isProposalOutputType(outputType: AiCoachOutputDto['outputType']): outputType is ProposalOutputType {
+  return PROPOSAL_OUTPUT_TYPES.includes(outputType as ProposalOutputType);
+}
 
 function proposalPreviewUrl(proposal: AiCoachOutputDto): string {
   if (proposal.outputType === 'week_plan') return `/ai-coach/preview/week-plan/${proposal.id}`;
@@ -132,20 +148,36 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
   const sidebarState = useAiCoachSidebar();
 
   const [historyState, setHistoryState] = useState<HistoryState>({ status: 'loading' });
+  const [proposalFilter, setProposalFilter] = useState<ProposalFilter>('all');
+  const proposalListRef = useRef<HTMLOListElement | null>(null);
 
   function refreshHistory() {
-    fetchAiHistory(5)
+    fetchAiHistory(HISTORY_LIMIT)
       .then((proposals) => setHistoryState({ status: 'ready', proposals }))
       .catch(() => setHistoryState({ status: 'error' }));
   }
 
   useEffect(() => {
     let cancelled = false;
-    fetchAiHistory(5)
+    fetchAiHistory(HISTORY_LIMIT)
       .then((proposals) => { if (!cancelled) setHistoryState({ status: 'ready', proposals }); })
       .catch(() => { if (!cancelled) setHistoryState({ status: 'error' }); });
     return () => { cancelled = true; };
   }, []);
+
+  const proposals = historyState.status === 'ready'
+    ? historyState.proposals.filter((proposal) => isProposalOutputType(proposal.outputType))
+    : [];
+  const filteredProposals = proposalFilter === 'all'
+    ? proposals
+    : proposals.filter((proposal) => proposal.outputType === proposalFilter);
+
+  function scrollProposalGallery(direction: 'left' | 'right') {
+    const list = proposalListRef.current;
+    if (!list) return;
+    const distance = list.clientWidth;
+    list.scrollBy({ left: direction === 'left' ? -distance : distance, behavior: 'smooth' });
+  }
 
   function switchMode(next: GenerationMode) {
     setMode(next);
@@ -673,8 +705,28 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
       {/* ── Recent proposals ─────────────────────────────────── */}
       <section className="ai-proposals" aria-label="Recent proposals">
         <header className="ai-proposals__header">
-          <p className="ai-proposals__eyebrow">History</p>
-          <h2 className="ai-proposals__title">Recent proposals</h2>
+          <div>
+            <p className="ai-proposals__eyebrow">History</p>
+            <h2 className="ai-proposals__title">Recent proposals</h2>
+          </div>
+          {historyState.status === 'ready' && proposals.length > 0 && (
+            <div className="ai-proposals__toolbar" aria-label="Proposal controls">
+              <div className="ai-proposals__filters" role="tablist" aria-label="Proposal type">
+                {(['all', ...PROPOSAL_OUTPUT_TYPES] as ProposalFilter[]).map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    role="tab"
+                    aria-selected={proposalFilter === filter}
+                    className={`ai-proposals__filter${proposalFilter === filter ? ' is-active' : ''}`}
+                    onClick={() => setProposalFilter(filter)}
+                  >
+                    {PROPOSAL_FILTER_LABELS[filter]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </header>
 
         {historyState.status === 'loading' && (
@@ -685,39 +737,63 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
           <p className="ai-proposals__meta">Could not load proposals.</p>
         )}
 
-        {historyState.status === 'ready' && historyState.proposals.length === 0 && (
+        {historyState.status === 'ready' && proposals.length === 0 && (
           <p className="ai-proposals__meta">No previous proposals yet.</p>
         )}
 
-        {historyState.status === 'ready' && historyState.proposals.length > 0 && (
-          <ol className="ai-proposals__list">
-            {historyState.proposals.map((proposal) => (
-              <li
-                key={proposal.id}
-                className={`ai-proposals__item${proposal.status === 'rejected' ? ' is-rejected' : ''}`}
-              >
-                <button
-                  type="button"
-                  className="workout-card workout-card--button"
-                  onClick={() => navigate(proposalPreviewUrl(proposal))}
+        {historyState.status === 'ready' && proposals.length > 0 && filteredProposals.length === 0 && (
+          <p className="ai-proposals__meta">
+            No {PROPOSAL_FILTER_LABELS[proposalFilter].toLowerCase()} yet.
+          </p>
+        )}
+
+        {historyState.status === 'ready' && filteredProposals.length > 0 && (
+          <div className="ai-proposals__gallery">
+            <button
+              type="button"
+              className="ai-proposals__scroll ai-proposals__scroll--left"
+              aria-label="Scroll proposals left"
+              onClick={() => scrollProposalGallery('left')}
+            >
+              <span className="ai-proposals__scroll-icon" aria-hidden="true" />
+            </button>
+            <ol className="ai-proposals__list" ref={proposalListRef}>
+              {filteredProposals.map((proposal) => (
+                <li
+                  key={proposal.id}
+                  className={`ai-proposals__item${proposal.status === 'rejected' ? ' is-rejected' : ''}`}
                 >
-                  <div className="workout-card__topline">
-                    <span className="badge badge--source">
-                      {OUTPUT_TYPE_LABELS[proposal.outputType]}
-                    </span>
-                    <span className={`badge badge--status badge--status-${proposal.status}`}>
-                      {proposal.status === 'accepted' ? 'Accepted' : proposal.status === 'rejected' ? 'Rejected' : 'Draft'}
-                    </span>
-                  </div>
-                  <h3>{proposalTitle(proposal)}</h3>
-                  {proposal.summary && (
-                    <p className="ai-proposals__rationale">{proposal.summary}</p>
-                  )}
-                  <p className="ai-proposals__date">{formatDate(proposal.createdAt?.split('T')[0] ?? '')}</p>
-                </button>
-              </li>
-            ))}
-          </ol>
+                  <button
+                    type="button"
+                    className="workout-card workout-card--button"
+                    onClick={() => navigate(proposalPreviewUrl(proposal))}
+                  >
+                    <div className="workout-card__topline">
+                      <span className="badge badge--source">
+                        {OUTPUT_TYPE_LABELS[proposal.outputType]}
+                      </span>
+                      <span className={`badge badge--status badge--status-${proposal.status}`}>
+                        {proposal.status === 'accepted' ? 'Accepted' : proposal.status === 'rejected' ? 'Rejected' : 'Draft'}
+                      </span>
+                    </div>
+                    <h3>{proposalTitle(proposal)}</h3>
+                    {proposal.summary && (
+                      <p className="ai-proposals__rationale">{proposal.summary}</p>
+                    )}
+                    <p className="ai-proposals__date">{formatDate(proposal.createdAt?.split('T')[0] ?? '')}</p>
+                  </button>
+                </li>
+              ))}
+            </ol>
+            <button
+              type="button"
+              className="ai-proposals__scroll ai-proposals__scroll--right"
+              aria-label="Scroll proposals right"
+              onClick={() => scrollProposalGallery('right')}
+            >
+              <span className="ai-proposals__scroll-icon" aria-hidden="true" />
+            </button>
+          </div>
         )}
       </section>
     </PageShell>

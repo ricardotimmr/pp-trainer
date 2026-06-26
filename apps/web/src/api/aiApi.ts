@@ -1,5 +1,6 @@
 import type {
   AiCoachOutputDto,
+  AcceptAiOutputRequest,
   GenerateWeekAnalysisRequest,
   GenerateWeekPlanRequest,
   GenerateWorkoutRequest,
@@ -37,9 +38,14 @@ export async function getOutput(id: string): Promise<AiCoachOutputDto> {
   return apiFetch<AiCoachOutputDto>(`/api/ai/outputs/${encodeURIComponent(id)}`);
 }
 
-export async function acceptOutput(id: string): Promise<TrainingPlanDto | PlannedWorkoutDto | AiCoachOutputDto> {
+export async function acceptOutput(
+  id: string,
+  data: AcceptAiOutputRequest = {},
+): Promise<TrainingPlanDto | PlannedWorkoutDto | AiCoachOutputDto> {
   return apiFetch<TrainingPlanDto | PlannedWorkoutDto | AiCoachOutputDto>(`/api/ai/outputs/${encodeURIComponent(id)}/accept`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
   });
 }
 

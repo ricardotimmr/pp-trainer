@@ -4,6 +4,8 @@ import type { AiCoachOutputDto, SportTypeDto } from '@pp-trainer/shared';
 import { AiGeneratedWeekAnalysisSchema, SportTypeSchema } from '@pp-trainer/shared';
 
 import { ErrorState, LoadingState, SportBadge } from '../components';
+import { toast } from 'sonner';
+
 import { acceptOutput, rejectOutput } from '../api/aiApi';
 import { ApiClientError } from '../api/apiClient';
 import { formatDistance, sportLabels } from '../components/prototypeFormatters';
@@ -57,6 +59,7 @@ export function AiWeekAnalysisPage({ params, navigate }: PageComponentProps) {
     setActionLoading('accept');
     try {
       await acceptOutput(outputId);
+      toast.success('Analysis saved');
       outputState.refresh();
       setActionLoading(null);
     } catch (err) {
@@ -71,6 +74,7 @@ export function AiWeekAnalysisPage({ params, navigate }: PageComponentProps) {
     setActionLoading('reject');
     try {
       await rejectOutput(outputId);
+      toast('Proposal discarded');
       navigate('/ai-coach');
     } catch (err) {
       const msg = err instanceof ApiClientError ? err.message : 'Could not discard analysis. Please try again.';

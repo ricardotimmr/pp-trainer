@@ -1,4 +1,5 @@
 import type { AiCoachOutput } from '@prisma/client';
+import type { AiGeneratedSingleWorkout, AiGeneratedWeekPlan } from '@pp-trainer/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as AiProviderClient from '../../ai/AiProviderClient.js';
@@ -20,6 +21,39 @@ vi.mock('../../repositories/AiRepository.js');
 const mockProfile = { id: 'profile-1', displayName: 'Test Athlete' };
 const mockContext = { version: 'v1', generatedAt: '2026-06-23T10:00:00Z', athlete: { displayName: 'Test' } };
 const mockSnapshot = { id: 'snap-1' };
+const mockRunningPaceZoneSet = {
+  id: 'running-pace-set',
+  athleteProfileId: 'profile-1',
+  sport: 'Running',
+  zoneType: 'RunningPace',
+  name: 'Running Pace',
+  basedOn: 'Threshold pace',
+  isActive: true,
+  createdAt: new Date('2026-06-01T08:00:00.000Z'),
+  updatedAt: new Date('2026-06-01T08:00:00.000Z'),
+  zones: [
+    {
+      id: 'running-pace-z1',
+      trainingZoneSetId: 'running-pace-set',
+      zoneNumber: 1,
+      name: 'Easy',
+      lowerBound: 330,
+      upperBound: 360,
+      unit: 'SecPerKm',
+      description: null,
+    },
+    {
+      id: 'running-pace-z2',
+      trainingZoneSetId: 'running-pace-set',
+      zoneNumber: 2,
+      name: 'Steady',
+      lowerBound: 300,
+      upperBound: 330,
+      unit: 'SecPerKm',
+      description: null,
+    },
+  ],
+};
 
 const validWeekPlanData = {
   title: 'Base Week',
@@ -76,6 +110,7 @@ describe('generateWeekPlan', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(mockProfile as never);
+    vi.mocked(AthleteRepository.findAthleteZoneSets).mockResolvedValue([mockRunningPaceZoneSet] as never);
     vi.mocked(AthleteContextBuilder.buildContext).mockResolvedValue(mockContext as never);
     vi.mocked(AthleteContextBuilder.persistSnapshot).mockResolvedValue(mockSnapshot as never);
     vi.mocked(AiProviderClient.generateWeekPlan).mockResolvedValue({
@@ -123,6 +158,41 @@ describe('generateWeekPlan', () => {
     expect(vi.mocked(AiRepository.createOutput)).toHaveBeenCalledWith(
       expect.objectContaining({ summary: 'A balanced aerobic week.' }),
     );
+  });
+
+  it('enriches week plan running steps with estimated distance from pace zones', async () => {
+    vi.mocked(AiProviderClient.generateWeekPlan).mockResolvedValue({
+      data: {
+        ...validWeekPlanData,
+        workouts: [
+          {
+            ...validWeekPlanData.workouts[0]!,
+            plannedDurationSeconds: 300,
+            steps: [
+              {
+                stepIndex: 0,
+                stepType: 'warmup',
+                instruction: '5 minutes easy jog',
+                durationSeconds: 300,
+              },
+            ],
+          },
+        ],
+      },
+      rawOutput: validWeekPlanData,
+    } as never);
+
+    await generateWeekPlan({ weekStartDate: '2026-06-23' });
+
+    const callArg = vi.mocked(AiRepository.createOutput).mock.calls[0]?.[0];
+    const structuredOutput = callArg?.structuredOutput as AiGeneratedWeekPlan;
+    expect(structuredOutput.workouts[0]?.steps[0]).toMatchObject({
+      distanceMeters: 870,
+      targetPaceLowerSecPerKm: 330,
+      targetPaceUpperSecPerKm: 360,
+      targetPaceZoneName: 'Easy',
+    });
+    expect(structuredOutput.workouts[0]?.plannedDistanceMeters).toBe(870);
   });
 
   it('does not store summary when AI output has none', async () => {
@@ -174,6 +244,7 @@ describe('generateWorkout', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(mockProfile as never);
+    vi.mocked(AthleteRepository.findAthleteZoneSets).mockResolvedValue([mockRunningPaceZoneSet] as never);
     vi.mocked(AthleteContextBuilder.buildContext).mockResolvedValue(mockContext as never);
     vi.mocked(AthleteContextBuilder.persistSnapshot).mockResolvedValue(mockSnapshot as never);
     vi.mocked(AiProviderClient.generateSingleWorkout).mockResolvedValue({
@@ -274,6 +345,39 @@ describe('generateWorkout', () => {
       3600,
       'Three threshold blocks',
     );
+  });
+
+  it('enriches generated running workout steps with estimated distance from athlete pace zones', async () => {
+    vi.mocked(AiProviderClient.generateSingleWorkout).mockResolvedValue({
+      data: {
+        workout: {
+          ...validSingleWorkoutData.workout,
+          plannedDurationSeconds: 1200,
+          steps: [
+            {
+              stepIndex: 0,
+              stepType: 'warmup',
+              instruction: '20 minutes easy jog',
+              durationSeconds: 1200,
+              targetHeartRateZoneName: 'Zone 2',
+            },
+          ],
+        },
+      },
+      rawOutput: validSingleWorkoutData,
+    } as never);
+
+    await generateWorkout({ sport: 'running', intensity: 'easy' });
+
+    const callArg = vi.mocked(AiRepository.createOutput).mock.calls[0]?.[0];
+    const structuredOutput = callArg?.structuredOutput as AiGeneratedSingleWorkout;
+    expect(structuredOutput.workout.steps[0]).toMatchObject({
+      distanceMeters: 3810,
+      targetPaceLowerSecPerKm: 300,
+      targetPaceUpperSecPerKm: 330,
+      targetPaceZoneName: 'Steady',
+    });
+    expect(structuredOutput.workout.plannedDistanceMeters).toBe(3810);
   });
 });
 

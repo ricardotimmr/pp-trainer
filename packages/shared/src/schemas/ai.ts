@@ -186,6 +186,12 @@ export const GenerateWeekAnalysisRequestSchema = z.object({
   weekStartDate: IsoDateStringSchema.optional(),
 });
 
+export const AcceptAiOutputRequestSchema = z
+  .object({
+    singleWorkoutOverride: AiGeneratedSingleWorkoutSchema.optional(),
+  })
+  .strict();
+
 // ── Coaching Memory (Layer 2 long-term memory) ───────────────────────────────
 
 export const AiCoachingMemorySchema = z.object({
@@ -209,3 +215,4 @@ export type AiTrainingHistory = z.infer<typeof AiTrainingHistorySchema>;
 export type AiCoachingMemory = z.infer<typeof AiCoachingMemorySchema>;
 export type AiGeneratedWeekAnalysis = z.infer<typeof AiGeneratedWeekAnalysisSchema>;
 export type GenerateWeekAnalysisRequest = z.infer<typeof GenerateWeekAnalysisRequestSchema>;
+export type AcceptAiOutputRequest = z.infer<typeof AcceptAiOutputRequestSchema>;

@@ -81,11 +81,12 @@ function App() {
       </AppShell>
       <Toaster
         position="bottom-right"
+        closeButton
         toastOptions={{
           style: {
             background: '#eb0f7a',
             color: '#fff',
-            border: 'none',
+            border: '1.5px solid rgba(255, 255, 255, 0.22)',
             borderRadius: '2px',
             fontSize: '0.82rem',
             fontWeight: '600',

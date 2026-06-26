@@ -1,4 +1,9 @@
-import type { AiCoachOutputDto, GenerateWeekAnalysisRequest, GenerateWeekPlanRequest, GenerateWorkoutRequest } from '@pp-trainer/shared';
+import type {
+  AiCoachOutputDto,
+  GenerateWeekAnalysisRequest,
+  GenerateWeekPlanRequest,
+  GenerateWorkoutRequest,
+} from '@pp-trainer/shared';
 
 import * as AiProviderClient from '../ai/AiProviderClient.js';
 import { ApiError } from '../errors/ApiError.js';
@@ -8,6 +13,7 @@ import * as AiRepository from '../repositories/AiRepository.js';
 import * as AthleteRepository from '../repositories/AthleteRepository.js';
 import { getLastCompletedWeekRange, getWeekRangeFromStart } from '../utils/dateUtils.js';
 import * as AthleteContextBuilder from './AthleteContextBuilder.js';
+import { enrichSingleWorkoutDistances, enrichWeekPlanDistances } from './AiWorkoutDistanceEstimator.js';
 
 export async function getHistory(limit: number): Promise<AiCoachOutputDto[]> {
   const profile = await AthleteRepository.findFirstAthleteProfile();
@@ -29,9 +35,11 @@ export async function generateWeekPlan(request: GenerateWeekPlanRequest): Promis
     request.userInstruction,
   );
 
-  const validationStatus = result.data != null ? 'Valid' : 'Invalid';
-  const structuredOutput = result.data ?? result.rawOutput;
-  const summary = result.data != null ? result.data.summary : undefined;
+  const zoneSets = (await AthleteRepository.findAthleteZoneSets(profile.id)) ?? [];
+  const enrichedData = result.data != null ? enrichWeekPlanDistances(result.data, zoneSets) : null;
+  const validationStatus = enrichedData != null ? 'Valid' : 'Invalid';
+  const structuredOutput = enrichedData ?? result.rawOutput;
+  const summary = enrichedData != null ? enrichedData.summary : undefined;
 
   const output = await AiRepository.createOutput({
     athleteProfileId: profile.id,
@@ -64,9 +72,11 @@ export async function generateWorkout(request: GenerateWorkoutRequest): Promise<
     request.userInstruction,
   );
 
-  const validationStatus = result.data != null ? 'Valid' : 'Invalid';
-  const structuredOutput = result.data ?? result.rawOutput;
-  const summary = result.data != null ? (result.data.workout.objective ?? result.data.workout.description) : undefined;
+  const zoneSets = (await AthleteRepository.findAthleteZoneSets(profile.id)) ?? [];
+  const enrichedData = result.data != null ? enrichSingleWorkoutDistances(result.data, zoneSets) : null;
+  const validationStatus = enrichedData != null ? 'Valid' : 'Invalid';
+  const structuredOutput = enrichedData ?? result.rawOutput;
+  const summary = enrichedData != null ? (enrichedData.workout.objective ?? enrichedData.workout.description) : undefined;
 
   const output = await AiRepository.createOutput({
     athleteProfileId: profile.id,

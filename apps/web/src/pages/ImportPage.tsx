@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+import { toast } from 'sonner';
 
 import type { ImportDetailDto, ImportSummaryDto } from '@pp-trainer/shared';
 
@@ -355,6 +357,24 @@ function ImportApiMode({ navigate }: PageComponentProps) {
   const [jsonText, setJsonText] = useState('');
   const [jsonParseError, setJsonParseError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (state.status === 'json-success') {
+      toast.success('Activity imported successfully');
+    } else if (state.status === 'files-done') {
+      const done = state.results.filter((r) => r.status === 'success').length;
+      const dups = state.results.filter((r) => r.status === 'duplicate').length;
+      const errs = state.results.filter((r) => r.status === 'error').length;
+      if (done > 0) {
+        toast.success(done === 1 ? 'Activity imported' : `${done} activities imported`);
+      } else if (dups > 0 && errs === 0) {
+        toast(`${dups} duplicate${dups > 1 ? 's' : ''} — already imported`);
+      } else if (errs > 0 && done === 0) {
+        toast.error(`Import failed for ${errs} file${errs > 1 ? 's' : ''}`);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status]);
 
   const isBatchUploading = state.status === 'files-uploading';
   const isJsonUploading = state.status === 'json-uploading';

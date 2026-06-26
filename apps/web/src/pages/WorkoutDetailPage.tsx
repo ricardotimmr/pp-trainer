@@ -18,6 +18,8 @@ import { stepTypeLabels } from '../components/data/workoutStepLabels';
 import { formatDate, formatDistance, formatDuration } from '../components/prototypeFormatters';
 import { fetchActivitiesForWeek } from '../api/activitiesApi';
 import { ApiClientError } from '../api/apiClient';
+import { toast } from 'sonner';
+
 import { deleteWorkout, linkWorkoutActivity, unlinkWorkoutActivity, updateWorkoutStatus } from '../api/trainingApi';
 import { useCurrentWeekPlan } from '../hooks/useCurrentWeekPlan';
 import { useWorkout } from '../hooks/useWorkout';
@@ -113,6 +115,7 @@ function WorkoutStatusActions({ workoutId, status, onSuccess }: WorkoutStatusAct
     try {
       const payload: UpdateWorkoutStatusRequest = { status: next };
       const updated = await updateWorkoutStatus(workoutId, payload);
+      toast.success(`Workout marked as ${next}`);
       onSuccess(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update status.');
@@ -508,6 +511,7 @@ function WorkoutDeleteAction({
     try {
       await deleteWorkout(workoutId);
       onDeleted();
+      toast.success('Workout deleted');
       navigate('/training-plan');
     } catch (err) {
       const conflictId = getLinkedActivityConflictId(err);
@@ -527,6 +531,7 @@ function WorkoutDeleteAction({
     try {
       await deleteWorkout(workoutId, { force: true });
       onDeleted();
+      toast.success('Workout deleted');
       navigate('/training-plan');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete workout.');
