@@ -1,4 +1,4 @@
-import type { WorkoutStepType } from '../../mock/prototypeData.types';
+import type { WorkoutStepType } from '../../types/domain';
 
 export const stepTypeLabels: Record<WorkoutStepType, string> = {
   warmup: 'Warm-up',

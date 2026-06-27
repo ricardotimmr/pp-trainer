@@ -32,6 +32,10 @@ export default [
       // Vite + React 17+ JSX transform
       'react/react-in-jsx-scope': 'off',
 
+      // eslint-plugin-react-hooks v5 added this rule, but synchronous setState in effects
+      // is the standard data-fetching pattern here (loading reset, early-return guards).
+      'react-hooks/set-state-in-effect': 'off',
+
       // nice Vite default
       'react-refresh/only-export-components': [
         'warn',

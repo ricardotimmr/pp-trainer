@@ -1,672 +1,1051 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { EmptyState, SportBadge, ZoneBand, ZoneList } from '../components';
-import { usePrototypeAthleteContext } from '../context/prototypeAthleteContextValue';
-import { PageShell } from '../layout/PageShell';
-import {
-  getActiveTrainingZoneSets,
-  getActiveTrainingZoneSetsByType,
-  getTrainingZonesBySetId,
-} from '../mock/prototypeData.helpers';
-import {
-  formatDuration,
-  formatPace,
-  goalPriorityLabels,
-} from '../components/prototypeFormatters';
-import {
-  formatZonePaceShort,
-} from '../components/zoneVisuals';
-import type {
-  GoalPriority,
-  SportType,
-  TrainingGoal,
-} from '../mock/prototypeData.types';
 
+import type {
+  AthleteProfileDto,
+  GoalPriorityDto,
+  SportTypeDto,
+  TrainingAvailabilityDto,
+  TrainingGoalDto,
+  TrainingZoneSetDto,
+  TrainingZoneTypeDto,
+} from '@pp-trainer/shared';
+
+import {
+  patchAthleteProfile,
+  patchAvailabilityDay,
+  recalculateZones,
+  updateGoal,
+} from '../api/athleteApi';
+import { toast } from 'sonner';
+import { EmptyState, SportBadge, ZoneBand, ZoneList } from '../components';
+import { GoalFormModal } from '../components/GoalFormModal';
+import { SelectMenu } from '../components/SelectMenu';
+import { formatDuration, formatPace } from '../components/prototypeFormatters';
+import { formatZonePaceShort } from '../components/zoneVisuals';
+import { useAthleteSettings } from '../hooks/useAthleteSettings';
+import { PageShell } from '../layout/PageShell';
+
+// ── constants ─────────────────────────────────────────────────────────────────
+
+const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 const WEEKDAY_SHORT: Record<string, string> = {
   monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed',
   thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun',
 };
 
-const GOAL_PRIORITY_OPTIONS: GoalPriority[] = [
-  'main_goal',
-  'secondary_goal',
-  'watchlist',
-];
+const ALL_SPORTS: SportTypeDto[] = ['cycling', 'running', 'swimming', 'strength', 'mobility', 'other'];
+const SPORT_LABELS: Record<SportTypeDto, string> = {
+  cycling: 'Cycling', running: 'Running', swimming: 'Swimming',
+  strength: 'Strength', mobility: 'Mobility', other: 'Other',
+};
 
-const GOAL_PRIORITY_DESCRIPTIONS: Record<GoalPriority, string> = {
+const GOAL_PRIORITY_OPTIONS: GoalPriorityDto[] = ['main_goal', 'secondary_goal', 'watchlist'];
+const GOAL_PRIORITY_LABELS: Record<GoalPriorityDto, string> = {
+  main_goal: 'Main goal',
+  secondary_goal: 'Secondary goal',
+  watchlist: 'Watchlist',
+};
+const GOAL_PRIORITY_DESCRIPTIONS: Record<GoalPriorityDto, string> = {
   main_goal: 'Primary training target for the coach.',
   secondary_goal: 'Included in planning when it fits the main goal.',
   watchlist: 'Tracked on the side without dedicated training.',
 };
 
+const ZONE_TYPE_LABELS: Record<TrainingZoneTypeDto, string> = {
+  heart_rate: 'Heart Rate',
+  cycling_power: 'Cycling Power',
+  running_pace: 'Running Pace',
+  swimming_pace: 'Swimming Pace',
+  perceived_effort: 'Perceived Effort',
+};
+const DURATION_OPTIONS = [
+  { value: '', label: 'Off' },
+  { value: '15', label: '15 min' },
+  { value: '30', label: '30 min' },
+  { value: '45', label: '45 min' },
+  { value: '60', label: '1 h' },
+  { value: '75', label: '1 h 15 min' },
+  { value: '90', label: '1 h 30 min' },
+  { value: '105', label: '1 h 45 min' },
+  { value: '120', label: '2 h' },
+  { value: '135', label: '2 h 15 min' },
+  { value: '150', label: '2 h 30 min' },
+  { value: '165', label: '2 h 45 min' },
+  { value: '180', label: '3 h' },
+  { value: 'open', label: 'Open end' },
+] as const;
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+
 function formatGoalDate(date: string): string {
   return new Intl.DateTimeFormat('de-DE', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
+    day: '2-digit', month: '2-digit', year: 'numeric',
   }).format(new Date(`${date}T12:00:00Z`));
 }
 
-function getGoalMetric(goal: TrainingGoal): string | undefined {
+function getGoalMetric(goal: TrainingGoalDto): string | undefined {
   if (goal.targetDurationSeconds) return formatDuration(goal.targetDurationSeconds);
-  if (goal.targetPaceSecPerKm) return formatPace(goal.targetPaceSecPerKm);
+  if (goal.targetPaceSecPerKm) return formatPace(goal.targetPaceSecPerKm) ?? undefined;
   if (goal.targetPowerWatts) return `${goal.targetPowerWatts} W`;
-  if (goal.targetSwimPaceSecPer100m) {
-    return `${formatZonePaceShort(goal.targetSwimPaceSecPer100m)} /100m`;
-  }
+  if (goal.targetSwimPaceSecPer100m) return `${formatZonePaceShort(goal.targetSwimPaceSecPer100m)} /100m`;
   return undefined;
 }
 
+function buildAvailMap(availability: TrainingAvailabilityDto[]): Record<string, TrainingAvailabilityDto> {
+  const map: Record<string, TrainingAvailabilityDto> = {};
+  for (const a of availability) map[a.weekday] = a;
+  for (const day of WEEKDAYS) {
+    if (!map[day]) map[day] = { weekday: day, available: false, preferredSports: [] };
+  }
+  return map;
+}
+
+function durationToOption(mins?: number | null): string {
+  if (mins == null) return 'open';
+  if (mins === 0) return '';
+  return String(mins);
+}
+
+function optionToDuration(val: string): number | null | undefined {
+  if (val === '' || val === 'off') return undefined;
+  if (val === 'open') return null;
+  return parseInt(val, 10);
+}
+
+// ── main export ───────────────────────────────────────────────────────────────
+
 export function SettingsPage() {
-  const {
-    activeGoals,
-    addActiveGoal,
-    allGoals,
-    availableSports,
-    focusedSports,
-    profile,
-    removeActiveGoal,
-    setGoalPriority,
-    toggleFocusedSport,
-    visibleGoalIds,
-  } = usePrototypeAthleteContext();
-  const [hrSport, setHrSport] = useState<'cycling' | 'running'>('cycling');
-  const [openSportsMenu, setOpenSportsMenu] = useState<string | null>(null);
+  return <SettingsPageApiMode />;
+}
+
+// ── API mode ──────────────────────────────────────────────────────────────────
+
+function SettingsPageApiMode() {
+  const state = useAthleteSettings();
+
+  if (state.status === 'loading') {
+    return (
+      <PageShell title="Settings" eyebrow="Athlete context · Configuration">
+        <div className="settings-page"><p className="settings-loading">Loading settings…</p></div>
+      </PageShell>
+    );
+  }
+
+  if (state.status === 'error') {
+    return (
+      <PageShell title="Settings" eyebrow="Athlete context · Configuration">
+        <div className="settings-page">
+          <p className="settings-error">Failed to load settings. Please refresh the page.</p>
+        </div>
+      </PageShell>
+    );
+  }
+
+  const { data, refresh } = state;
+
+  return (
+    <PageShell title="Settings" eyebrow="Athlete context · Configuration">
+      <div className="settings-page">
+        <ProfileSection profile={data.athleteProfile} refresh={refresh} />
+        <PlanningSection goals={data.goals} availability={data.availability} refresh={refresh} />
+        <ZonesSection zoneSets={data.trainingZoneSets} profile={data.athleteProfile} refresh={refresh} />
+      </div>
+    </PageShell>
+  );
+}
+
+// ── Profile section ───────────────────────────────────────────────────────────
+
+function ProfileSection({
+  profile,
+  refresh,
+}: {
+  profile: AthleteProfileDto;
+  refresh: () => void;
+}) {
+  const [editMode, setEditMode] = useState(false);
+  const [draft, setDraft] = useState(() => profileToDraft(profile));
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [sportSaving, setSportSaving] = useState(false);
+
+  function profileToDraft(p: AthleteProfileDto) {
+    return {
+      birthYear: p.birthYear ? String(p.birthYear) : '',
+      bodyWeightKg: p.bodyWeightKg ? String(p.bodyWeightKg) : '',
+      heightCm: p.heightCm ? String(p.heightCm) : '',
+      ftpWatts: p.thresholds.currentFtpWatts ? String(p.thresholds.currentFtpWatts) : '',
+      bikeThresholdHr: p.thresholds.cyclingThresholdHrBpm ? String(p.thresholds.cyclingThresholdHrBpm) : '',
+      maxHr: p.thresholds.maxHeartRateBpm ? String(p.thresholds.maxHeartRateBpm) : '',
+      restingHr: p.thresholds.restingHeartRateBpm ? String(p.thresholds.restingHeartRateBpm) : '',
+      runThresholdHr: p.thresholds.runningThresholdHrBpm ? String(p.thresholds.runningThresholdHrBpm) : '',
+      runPace: p.thresholds.runningThresholdPaceSecPerKm
+        ? formatZonePaceShort(p.thresholds.runningThresholdPaceSecPerKm)
+        : '',
+      swimPace: p.thresholds.swimmingThresholdPaceSecPer100m
+        ? formatZonePaceShort(p.thresholds.swimmingThresholdPaceSecPer100m)
+        : '',
+    };
+  }
+
+  function parsePaceSecs(val: string): number | undefined {
+    const m = /^(\d+):(\d{2})$/.exec(val.trim());
+    if (!m) return undefined;
+    return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  }
+
+  type DraftKey = keyof ReturnType<typeof profileToDraft>;
+  function setField(key: DraftKey) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      setDraft((d) => ({ ...d, [key]: e.target.value }));
+      setDirty(true);
+    };
+  }
+
+  function handleEditClick() {
+    setDraft(profileToDraft(profile));
+    setDirty(false);
+    setSaveError(null);
+    setEditMode(true);
+  }
+
+  function handleCancel() {
+    setEditMode(false);
+    setDirty(false);
+    setSaveError(null);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await patchAthleteProfile({
+        birthYear: draft.birthYear ? parseInt(draft.birthYear, 10) : undefined,
+        bodyWeightKg: draft.bodyWeightKg ? parseFloat(draft.bodyWeightKg) : undefined,
+        heightCm: draft.heightCm ? parseInt(draft.heightCm, 10) : undefined,
+        thresholds: {
+          currentFtpWatts: draft.ftpWatts ? parseInt(draft.ftpWatts, 10) : undefined,
+          cyclingThresholdHrBpm: draft.bikeThresholdHr ? parseInt(draft.bikeThresholdHr, 10) : undefined,
+          maxHeartRateBpm: draft.maxHr ? parseInt(draft.maxHr, 10) : undefined,
+          restingHeartRateBpm: draft.restingHr ? parseInt(draft.restingHr, 10) : undefined,
+          runningThresholdHrBpm: draft.runThresholdHr ? parseInt(draft.runThresholdHr, 10) : undefined,
+          runningThresholdPaceSecPerKm: draft.runPace ? parsePaceSecs(draft.runPace) : undefined,
+          swimmingThresholdPaceSecPer100m: draft.swimPace ? parsePaceSecs(draft.swimPace) : undefined,
+        },
+      });
+      setEditMode(false);
+      setDirty(false);
+      refresh();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save profile');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleToggleSport(sport: SportTypeDto) {
+    setSportSaving(true);
+    const current = profile.primarySports;
+    const updated = current.includes(sport)
+      ? current.filter((s) => s !== sport)
+      : [...current, sport];
+    try {
+      await patchAthleteProfile({ primarySports: updated });
+      refresh();
+    } catch { /* ignore */ }
+    finally { setSportSaving(false); }
+  }
+
+  const age = profile.birthYear ? new Date().getFullYear() - profile.birthYear : undefined;
+  const t = profile.thresholds;
+  const hasNoThresholds = !t.currentFtpWatts && !t.maxHeartRateBpm && !t.restingHeartRateBpm
+    && !t.runningThresholdHrBpm && !t.runningThresholdPaceSecPerKm && !t.swimmingThresholdPaceSecPer100m
+    && !profile.birthYear && !profile.bodyWeightKg && !profile.heightCm;
+
+  return (
+    <section className="settings-section settings-section--context">
+      <header className="settings-section-head">
+        <div>
+          <p>Athlete context</p>
+          <h2>Profile and performance baselines</h2>
+        </div>
+      </header>
+
+      <div className="settings-context-grid">
+        <div className="settings-identity">
+          <p className="settings-identity__eyebrow">Single athlete profile</p>
+          <h3>{profile.displayName}</h3>
+          <div className="settings-sports">
+            {ALL_SPORTS.map((sport) => (
+              <button
+                key={sport}
+                type="button"
+                className={['settings-sport-toggle', profile.primarySports.includes(sport) ? 'is-active' : ''].filter(Boolean).join(' ')}
+                aria-pressed={profile.primarySports.includes(sport)}
+                disabled={sportSaving}
+                onClick={() => void handleToggleSport(sport)}
+              >
+                <SportBadge sport={sport} />
+                <span aria-hidden="true">{profile.primarySports.includes(sport) ? '×' : '+'}</span>
+              </button>
+            ))}
+          </div>
+          {profile.notes && <p className="settings-notes">{profile.notes}</p>}
+        </div>
+
+        <div>
+          {hasNoThresholds && !editMode ? (
+            <p className="settings-profile-empty">
+              No baselines set yet.{' '}
+              <button type="button" className="settings-profile-empty__link" onClick={handleEditClick}>
+                Edit profile
+              </button>{' '}
+              to add thresholds.
+            </p>
+          ) : (
+            <>
+            <dl className={`settings-metric-strip settings-metric-strip--5${editMode ? ' is-editing' : ''}`}>
+              {/* Birth year → Age */}
+              {(editMode || profile.birthYear !== undefined) && (
+                <div>
+                  <dt>{editMode ? 'Birth year' : 'Age'}</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" type="number" placeholder="e.g. 1998" value={draft.birthYear} onChange={setField('birthYear')} />
+                      : `${age} yrs`
+                    }
+                  </dd>
+                </div>
+              )}
+              {/* Weight */}
+              {(editMode || profile.bodyWeightKg !== undefined) && (
+                <div>
+                  <dt>Weight</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" type="number" step="0.1" placeholder="kg" value={draft.bodyWeightKg} onChange={setField('bodyWeightKg')} />
+                      : `${profile.bodyWeightKg} kg`
+                    }
+                  </dd>
+                </div>
+              )}
+              {/* Height */}
+              {(editMode || profile.heightCm !== undefined) && (
+                <div>
+                  <dt>Height</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" type="number" placeholder="cm" value={draft.heightCm} onChange={setField('heightCm')} />
+                      : `${profile.heightCm} cm`
+                    }
+                  </dd>
+                </div>
+              )}
+              {/* FTP */}
+              {(editMode || t.currentFtpWatts !== undefined) && (
+                <div className="is-accent">
+                  <dt>Bike FTP</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" type="number" placeholder="W" value={draft.ftpWatts} onChange={setField('ftpWatts')} />
+                      : `${t.currentFtpWatts} W`
+                    }
+                  </dd>
+                </div>
+              )}
+              {/* Bike HR threshold — always shown */}
+              <div>
+                <dt>Bike HR threshold</dt>
+                <dd>
+                  {editMode
+                    ? <input className="settings-metric-input" type="number" placeholder="bpm" value={draft.bikeThresholdHr} onChange={setField('bikeThresholdHr')} />
+                    : t.cyclingThresholdHrBpm != null ? `${t.cyclingThresholdHrBpm} bpm` : '—'
+                  }
+                </dd>
+              </div>
+            </dl>
+            <dl className={`settings-metric-strip settings-metric-strip--5${editMode ? ' is-editing' : ''}`}>
+              {/* Max HR */}
+              {(editMode || t.maxHeartRateBpm !== undefined) && (
+                <div>
+                  <dt>Max HR</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" type="number" placeholder="bpm" value={draft.maxHr} onChange={setField('maxHr')} />
+                      : `${t.maxHeartRateBpm} bpm`
+                    }
+                  </dd>
+                </div>
+              )}
+              {/* Resting HR */}
+              {(editMode || t.restingHeartRateBpm !== undefined) && (
+                <div>
+                  <dt>Resting HR</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" type="number" placeholder="bpm" value={draft.restingHr} onChange={setField('restingHr')} />
+                      : `${t.restingHeartRateBpm} bpm`
+                    }
+                  </dd>
+                </div>
+              )}
+              {/* Run threshold HR — always shown, even when empty */}
+              <div>
+                <dt>Run HR threshold</dt>
+                <dd>
+                  {editMode
+                    ? <input className="settings-metric-input" type="number" placeholder="bpm" value={draft.runThresholdHr} onChange={setField('runThresholdHr')} />
+                    : t.runningThresholdHrBpm != null ? `${t.runningThresholdHrBpm} bpm` : '—'
+                  }
+                </dd>
+              </div>
+              {/* Run threshold pace */}
+              {(editMode || t.runningThresholdPaceSecPerKm !== undefined) && (
+                <div>
+                  <dt>Run threshold</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" placeholder="mm:ss" value={draft.runPace} onChange={setField('runPace')} />
+                      : (formatPace(t.runningThresholdPaceSecPerKm!) ?? '—')
+                    }
+                  </dd>
+                </div>
+              )}
+              {/* Swim threshold */}
+              {(editMode || t.swimmingThresholdPaceSecPer100m !== undefined) && (
+                <div>
+                  <dt>Swim threshold</dt>
+                  <dd>
+                    {editMode
+                      ? <input className="settings-metric-input" placeholder="mm:ss" value={draft.swimPace} onChange={setField('swimPace')} />
+                      : `${formatZonePaceShort(t.swimmingThresholdPaceSecPer100m!)} /100m`
+                    }
+                  </dd>
+                </div>
+              )}
+            </dl>
+            </>
+          )}
+
+          {saveError && <p className="settings-profile-edit__error">{saveError}</p>}
+
+          <div className="settings-profile-controls">
+            {editMode ? (
+              <>
+                <button type="button" className="button button--secondary" onClick={handleCancel} disabled={saving}>
+                  Cancel
+                </button>
+                <button type="button" className="button button--primary" onClick={() => void handleSave()} disabled={saving || !dirty}>
+                  {saving ? 'Saving…' : 'Save changes'}
+                </button>
+              </>
+            ) : (
+              <button type="button" className="button button--secondary" onClick={handleEditClick}>
+                Edit profile
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Planning section (goals + availability) ───────────────────────────────────
+
+const PRIORITY_ORDER: Record<GoalPriorityDto, number> = { main_goal: 0, secondary_goal: 1, watchlist: 2 };
+
+function PlanningSection({
+  goals,
+  availability,
+  refresh,
+}: {
+  goals: TrainingGoalDto[];
+  availability: TrainingAvailabilityDto[];
+  refresh: () => void;
+}) {
+  const activeGoals = [...goals.filter((g) => g.isActive)].sort(
+    (a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority],
+  );
+  const inactiveGoals = goals.filter((g) => !g.isActive);
+
   const [openGoalMenu, setOpenGoalMenu] = useState(false);
   const [openPriorityMenu, setOpenPriorityMenu] = useState<string | null>(null);
+  const [openSportsMenu, setOpenSportsMenu] = useState<string | null>(null);
+  const [goalModal, setGoalModal] = useState<
+    null | { mode: 'create' } | { mode: 'edit'; goal: TrainingGoalDto }
+  >(null);
+  const [availMap, setAvailMap] = useState(() => buildAvailMap(availability));
+
   const addGoalTriggerRef = useRef<HTMLButtonElement | null>(null);
   const priorityTriggerRefs = useRef(new Map<string, HTMLButtonElement>());
   const sportsTriggerRefs = useRef(new Map<string, HTMLButtonElement>());
   const lastMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
 
+  useEffect(() => {
+    setAvailMap(buildAvailMap(availability));
+  }, [availability]);
+
   const focusMenuTrigger = useCallback((trigger?: HTMLButtonElement | null) => {
-    window.requestAnimationFrame(() => {
-      trigger?.focus();
-    });
+    window.requestAnimationFrame(() => { trigger?.focus(); });
   }, []);
 
-  const closeSettingsMenus = useCallback(
-    (restoreFocus = false) => {
-      setOpenGoalMenu(false);
-      setOpenPriorityMenu(null);
-      setOpenSportsMenu(null);
-
-      if (restoreFocus) {
-        focusMenuTrigger(lastMenuTriggerRef.current);
-      }
-    },
-    [focusMenuTrigger],
-  );
+  const closeMenus = useCallback((restoreFocus = false) => {
+    setOpenGoalMenu(false);
+    setOpenPriorityMenu(null);
+    setOpenSportsMenu(null);
+    if (restoreFocus) focusMenuTrigger(lastMenuTriggerRef.current);
+  }, [focusMenuTrigger]);
 
   useEffect(() => {
-    const closeMenusOnOutsideClick = (event: PointerEvent) => {
-      const target = event.target;
-
-      if (
-        target instanceof Element
-        && target.closest('[data-settings-menu-root]')
-      ) {
-        return;
-      }
-
-      closeSettingsMenus(false);
+    const closeOnOutside = (e: PointerEvent) => {
+      if (e.target instanceof Element && e.target.closest('[data-settings-menu-root]')) return;
+      closeMenus(false);
     };
-
-    document.addEventListener('pointerdown', closeMenusOnOutsideClick);
-
-    return () => {
-      document.removeEventListener('pointerdown', closeMenusOnOutsideClick);
-    };
-  }, [closeSettingsMenus]);
+    document.addEventListener('pointerdown', closeOnOutside);
+    return () => document.removeEventListener('pointerdown', closeOnOutside);
+  }, [closeMenus]);
 
   useEffect(() => {
-    const hasOpenMenu = openGoalMenu || openPriorityMenu || openSportsMenu;
-    if (!hasOpenMenu) return;
-
-    const closeMenusOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-
-      event.preventDefault();
-      closeSettingsMenus(true);
+    const hasOpen = openGoalMenu || openPriorityMenu || openSportsMenu;
+    if (!hasOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); closeMenus(true); }
     };
-
-    const closeMenusOnFocusLeave = (event: FocusEvent) => {
-      const target = event.target;
-
-      if (
-        target instanceof Element
-        && target.closest('[data-settings-menu-root]')
-      ) {
-        return;
-      }
-
-      closeSettingsMenus(false);
+    const onFocus = (e: FocusEvent) => {
+      if (e.target instanceof Element && e.target.closest('[data-settings-menu-root]')) return;
+      closeMenus(false);
     };
-
-    document.addEventListener('keydown', closeMenusOnEscape);
-    document.addEventListener('focusin', closeMenusOnFocusLeave);
-
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('focusin', onFocus);
     return () => {
-      document.removeEventListener('keydown', closeMenusOnEscape);
-      document.removeEventListener('focusin', closeMenusOnFocusLeave);
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('focusin', onFocus);
     };
-  }, [closeSettingsMenus, openGoalMenu, openPriorityMenu, openSportsMenu]);
+  }, [closeMenus, openGoalMenu, openPriorityMenu, openSportsMenu]);
 
-  const availableGoalOptions = allGoals.filter(
-    (goal) => !visibleGoalIds.includes(goal.id),
-  );
+  async function handleDeactivateGoal(id: string) {
+    try {
+      await updateGoal(id, { isActive: false });
+      refresh();
+    } catch { /* ignore */ }
+  }
 
-  const hrZoneSets = getActiveTrainingZoneSetsByType('heart_rate');
-  const otherZoneSets = getActiveTrainingZoneSets().filter(
-    (zoneSet) => zoneSet.zoneType !== 'heart_rate',
-  );
-  const activeHrZoneSet = hrZoneSets.find((zs) => zs.sport === hrSport) ?? hrZoneSets[0];
-  const hrZones = activeHrZoneSet ? getTrainingZonesBySetId(activeHrZoneSet.id) : [];
+  async function handleActivateGoal(id: string) {
+    try {
+      await updateGoal(id, { isActive: true });
+      closeMenus(false);
+      focusMenuTrigger(addGoalTriggerRef.current);
+      refresh();
+    } catch { /* ignore */ }
+  }
 
-  const age = profile.birthYear
-    ? new Date().getFullYear() - profile.birthYear
-    : undefined;
-  const sportOptions: SportType[] = availableSports;
-  const hasThresholdBaselines = Boolean(
-    profile.currentFtpWatts
-      || profile.maxHeartRateBpm
-      || profile.restingHeartRateBpm
-      || profile.runningThresholdPaceSecPerKm
-      || profile.swimmingThresholdPaceSecPer100m,
-  );
+  async function handleChangePriority(goalId: string, priority: GoalPriorityDto) {
+    const hadOtherMain = priority === 'main_goal' &&
+      activeGoals.some((g) => g.priority === 'main_goal' && g.id !== goalId);
+    try {
+      await updateGoal(goalId, { priority });
+      closeMenus(false);
+      if (hadOtherMain) toast('Previous main goal moved to secondary.');
+      refresh();
+    } catch { /* ignore */ }
+  }
+
+  async function handleToggleDay(weekday: string) {
+    const current = availMap[weekday];
+    const newAvailable = !current.available;
+    setAvailMap((m) => ({ ...m, [weekday]: { ...current, available: newAvailable } }));
+    try {
+      await patchAvailabilityDay(weekday, { available: newAvailable });
+    } catch {
+      setAvailMap((m) => ({ ...m, [weekday]: current }));
+    }
+  }
+
+  async function handleDurationChange(weekday: string, val: string) {
+    const current = availMap[weekday];
+    const maxDurationMinutes = optionToDuration(val);
+    setAvailMap((m) => ({
+      ...m,
+      [weekday]: { ...current, maxDurationMinutes: maxDurationMinutes ?? undefined },
+    }));
+    try {
+      await patchAvailabilityDay(weekday, { maxDurationMinutes });
+    } catch {
+      setAvailMap((m) => ({ ...m, [weekday]: current }));
+    }
+  }
+
+  async function handleRemoveSport(weekday: string, sport: SportTypeDto) {
+    const current = availMap[weekday];
+    const updated = (current.preferredSports ?? []).filter((s) => s !== sport);
+    setAvailMap((m) => ({ ...m, [weekday]: { ...current, preferredSports: updated } }));
+    try {
+      await patchAvailabilityDay(weekday, { preferredSports: updated });
+    } catch {
+      setAvailMap((m) => ({ ...m, [weekday]: current }));
+    }
+  }
+
+  async function handleAddSport(weekday: string, sport: SportTypeDto) {
+    const current = availMap[weekday];
+    if ((current.preferredSports ?? []).includes(sport)) return;
+    const updated = [...(current.preferredSports ?? []), sport];
+    setAvailMap((m) => ({ ...m, [weekday]: { ...current, preferredSports: updated } }));
+    closeMenus(false);
+    try {
+      await patchAvailabilityDay(weekday, { preferredSports: updated });
+    } catch {
+      setAvailMap((m) => ({ ...m, [weekday]: current }));
+    }
+  }
+
+  const canAddMore = activeGoals.length < 3;
 
   return (
-    <PageShell
-      title="Settings"
-      eyebrow="Athlete context · Configuration"
-      description={
-        <span className="settings__prototype-notice">
-          Session prototype — changes reset on reload and are not persisted
-        </span>
-      }
-    >
-      <div className="settings-page">
-        <section className="settings-section settings-section--context">
-          <header className="settings-section-head">
-            <div>
-              <p>Athlete context</p>
-              <h2>Profile and performance baselines</h2>
-            </div>
-            <span>Prototype only</span>
-          </header>
+    <section className="settings-section">
+      <header className="settings-section-head">
+        <div>
+          <p>Planning context</p>
+          <h2>Goals and training availability</h2>
+        </div>
+      </header>
 
-          <div className="settings-context-grid">
-            <div className="settings-identity">
-              <p className="settings-identity__eyebrow">Single athlete profile</p>
-              <h3>{profile.displayName}</h3>
-              <div className="settings-sports">
-                {availableSports.map((sport) => (
-                  <button
-                    key={sport}
-                    type="button"
-                    className={[
-                      'settings-sport-toggle',
-                      focusedSports.includes(sport) ? 'is-active' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    aria-pressed={focusedSports.includes(sport)}
-                    onClick={() => toggleFocusedSport(sport)}
-                  >
-                    <SportBadge sport={sport} />
-                    <span aria-hidden="true">
-                      {focusedSports.includes(sport) ? '×' : '+'}
-                    </span>
-                  </button>
-                ))}
+      <div className="settings-planning-grid">
+        {/* ── Active goals ── */}
+        <div className="settings-goal">
+          <div className="settings-goal__head">
+            <div className="settings-goal__label-group">
+              <p className="settings-section__label">Active goals</p>
+              <span className="settings-goal-active-count">{activeGoals.length} / 3</span>
+            </div>
+            <div className="settings-goal-actions" data-settings-menu-root>
+              <span>{goals.length}</span>
+              <button
+                type="button"
+                ref={addGoalTriggerRef}
+                className={['settings-goal-add', openGoalMenu ? 'is-open' : ''].filter(Boolean).join(' ')}
+                aria-label="Add active goal"
+                aria-expanded={openGoalMenu}
+                aria-haspopup="menu"
+                title={!canAddMore ? 'Max 3 active goals' : undefined}
+                onClick={(e) => {
+                  lastMenuTriggerRef.current = e.currentTarget;
+                  setOpenPriorityMenu(null);
+                  setOpenSportsMenu(null);
+                  setOpenGoalMenu((v) => !v);
+                }}
+              >
+                +
+              </button>
+              <div
+                className={['settings-goal-menu', openGoalMenu ? 'is-open' : ''].filter(Boolean).join(' ')}
+                role="menu"
+                aria-hidden={!openGoalMenu}
+              >
+                {inactiveGoals.length > 0 && (
+                  <>
+                    {inactiveGoals.map((goal) => (
+                      <button
+                        key={goal.id}
+                        type="button"
+                        role="menuitem"
+                        disabled={!canAddMore}
+                        onClick={() => void handleActivateGoal(goal.id)}
+                      >
+                        <span>{goal.title}</span>
+                        <small>{GOAL_PRIORITY_LABELS[goal.priority]}</small>
+                      </button>
+                    ))}
+                    <hr className="settings-goal-menu__divider" />
+                  </>
+                )}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    closeMenus(false);
+                    setGoalModal({ mode: 'create' });
+                  }}
+                >
+                  <span>Add new goal</span>
+                  <small>Create a training goal</small>
+                </button>
               </div>
-              {profile.notes && (
-                <p className="settings-notes">{profile.notes}</p>
-              )}
             </div>
-
-            <dl className="settings-metric-strip">
-              {age && (
-                <div>
-                  <dt>Age</dt>
-                  <dd>{age} yrs</dd>
-                </div>
-              )}
-              {profile.bodyWeightKg && (
-                <div>
-                  <dt>Weight</dt>
-                  <dd>{profile.bodyWeightKg} kg</dd>
-                </div>
-              )}
-              {profile.heightCm && (
-                <div>
-                  <dt>Height</dt>
-                  <dd>{profile.heightCm} cm</dd>
-                </div>
-              )}
-              {profile.currentFtpWatts && (
-                <div className="is-accent">
-                  <dt>Bike FTP</dt>
-                  <dd>{profile.currentFtpWatts} W</dd>
-                </div>
-              )}
-              {profile.maxHeartRateBpm && (
-                <div>
-                  <dt>Max HR</dt>
-                  <dd>{profile.maxHeartRateBpm} bpm</dd>
-                </div>
-              )}
-              {profile.restingHeartRateBpm && (
-                <div>
-                  <dt>Resting HR</dt>
-                  <dd>{profile.restingHeartRateBpm} bpm</dd>
-                </div>
-              )}
-              {profile.runningThresholdPaceSecPerKm && (
-                <div>
-                  <dt>Run threshold</dt>
-                  <dd>{formatPace(profile.runningThresholdPaceSecPerKm)}</dd>
-                </div>
-              )}
-              {profile.swimmingThresholdPaceSecPer100m && (
-                <div>
-                  <dt>Swim threshold</dt>
-                  <dd>
-                    {formatZonePaceShort(profile.swimmingThresholdPaceSecPer100m)} /100m
-                  </dd>
-                </div>
-              )}
-              {!hasThresholdBaselines && (
-                <div>
-                  <dt>Thresholds</dt>
-                  <dd>No threshold baselines available yet.</dd>
-                </div>
-              )}
-            </dl>
           </div>
-        </section>
 
-        <section className="settings-section">
-          <header className="settings-section-head">
-            <div>
-              <p>Planning context</p>
-              <h2>Goal and training availability</h2>
-            </div>
-          </header>
-
-          <div className="settings-planning-grid">
-            <div className="settings-goal">
-              <div className="settings-goal__head">
-                <p className="settings-section__label">Active goals</p>
-                <div className="settings-goal-actions" data-settings-menu-root>
-                  <span>{activeGoals.length} / 3</span>
-                  <button
-                    type="button"
-                    ref={addGoalTriggerRef}
-                    className={[
-                      'settings-goal-add',
-                      openGoalMenu ? 'is-open' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    aria-label="Add active goal"
-                    aria-expanded={openGoalMenu}
-                    aria-haspopup="menu"
-                    disabled={activeGoals.length >= 3 || availableGoalOptions.length === 0}
-                    onClick={(event) => {
-                      lastMenuTriggerRef.current = event.currentTarget;
-                      setOpenPriorityMenu(null);
-                      setOpenSportsMenu(null);
-                      setOpenGoalMenu((current) => !current);
-                    }}
-                  >
-                    +
-                  </button>
-                  <div
-                    className={[
-                      'settings-goal-menu',
-                      openGoalMenu ? 'is-open' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    role="menu"
-                    aria-hidden={!openGoalMenu}
-                  >
-                    {availableGoalOptions.length > 0 ? (
-                      availableGoalOptions.map((goal) => (
+          {activeGoals.length > 0 ? (
+            <div className="settings-goal-list">
+              {activeGoals.map((goal) => {
+                const goalMetric = getGoalMetric(goal);
+                return (
+                  <article key={`${goal.id}-${goal.priority}`} className="settings-goal-card">
+                    <div className="settings-goal-card__main">
+                      <div className="settings-goal-card__meta">
+                        {goal.sport && <SportBadge sport={goal.sport} />}
+                        {goal.targetDate && <span>{formatGoalDate(goal.targetDate)}</span>}
                         <button
-                          key={goal.id}
                           type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            addActiveGoal(goal.id);
-                            closeSettingsMenus(false);
-                            focusMenuTrigger(addGoalTriggerRef.current);
-                          }}
+                          className="settings-goal-edit"
+                          aria-label={`Edit ${goal.title}`}
+                          onClick={() => setGoalModal({ mode: 'edit', goal })}
                         >
-                          <span>{goal.title}</span>
-                          <small>{goalPriorityLabels[goal.priority]}</small>
+                          ✎
                         </button>
-                      ))
-                    ) : (
-                      <span>No more goals</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              {activeGoals.length > 0 ? (
-                <div className="settings-goal-list">
-                  {activeGoals.map((goal) => {
-                    const priority = goal.priority;
-                    const goalMetric = getGoalMetric(goal);
-
-                    return (
-                      <article key={goal.id} className="settings-goal-card">
-                        <div className="settings-goal-card__main">
-                          <div className="settings-goal-card__meta">
-                            {goal.sport ? <SportBadge sport={goal.sport} /> : null}
-                            {goal.targetDate ? <span>{formatGoalDate(goal.targetDate)}</span> : null}
-                            <button
-                              type="button"
-                              className="settings-goal-remove"
-                              aria-label={`Remove ${goal.title} from active goals`}
-                              onClick={() =>
-                                removeActiveGoal(goal.id)
-                              }
-                            >
-                              −
-                            </button>
-                          </div>
-                          <h3>{goal.title}</h3>
-                          {goal.description ? (
-                            <p>{goal.description}</p>
-                          ) : null}
-                        </div>
-                        <div className="settings-goal-card__side">
-                          <div className="settings-goal-priority" data-settings-menu-root>
-                            <span>Priority</span>
-                            <button
-                              type="button"
-                              ref={(element) => {
-                                if (element) {
-                                  priorityTriggerRefs.current.set(goal.id, element);
-                                } else {
-                                  priorityTriggerRefs.current.delete(goal.id);
-                                }
-                              }}
-                              className={[
-                                'settings-goal-priority__trigger',
-                                openPriorityMenu === goal.id ? 'is-open' : '',
-                              ]
-                                .filter(Boolean)
-                                .join(' ')}
-                              aria-expanded={openPriorityMenu === goal.id}
-                              aria-haspopup="menu"
-                              onClick={(event) => {
-                                lastMenuTriggerRef.current = event.currentTarget;
-                                setOpenGoalMenu(false);
-                                setOpenSportsMenu(null);
-                                setOpenPriorityMenu((current) =>
-                                  current === goal.id ? null : goal.id,
-                                );
-                              }}
-                            >
-                              {goalPriorityLabels[priority]}
-                            </button>
-                            <div
-                              className={[
-                                'settings-goal-priority__menu',
-                                openPriorityMenu === goal.id ? 'is-open' : '',
-                              ]
-                                .filter(Boolean)
-                                .join(' ')}
-                              role="menu"
-                              aria-hidden={openPriorityMenu !== goal.id}
-                            >
-                              {GOAL_PRIORITY_OPTIONS.map((option) => (
-                                <button
-                                  key={option}
-                                  type="button"
-                                  role="menuitem"
-                                  className={option === priority ? 'is-selected' : ''}
-                                  onClick={() => {
-                                    setGoalPriority(goal.id, option);
-                                    closeSettingsMenus(false);
-                                    focusMenuTrigger(
-                                      priorityTriggerRefs.current.get(goal.id),
-                                    );
-                                  }}
-                                >
-                                  <span>{goalPriorityLabels[option]}</span>
-                                  <small>{GOAL_PRIORITY_DESCRIPTIONS[option]}</small>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <p>{GOAL_PRIORITY_DESCRIPTIONS[priority]}</p>
-                          <dl>
-                            {goal.targetDistanceMeters ? (
-                              <div>
-                                <dt>Distance</dt>
-                                <dd>{(goal.targetDistanceMeters / 1000).toFixed(1)} km</dd>
-                              </div>
-                            ) : null}
-                            {goalMetric ? (
-                              <div>
-                                <dt>Target</dt>
-                                <dd>{goalMetric}</dd>
-                              </div>
-                            ) : null}
-                          </dl>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              ) : (
-                <EmptyState title="No active goal set" variant="inline" />
-              )}
-            </div>
-            {allGoals.length === 0 && (
-              <EmptyState title="No goals configured" variant="inline" />
-            )}
-
-            {profile.preferredTrainingDays && profile.preferredTrainingDays.length > 0 && (
-              <div className="settings-availability-panel">
-                <div className="settings-availability-head">
-                  <p className="settings-section__label">Training availability</p>
-                  <span>Preferred sports</span>
-                </div>
-                <ul className="settings-availability">
-                  {profile.preferredTrainingDays.map((day) => (
-                    <li key={day.weekday} className="settings-availability__day">
-                      <span
-                        className={[
-                          'settings-availability__toggle',
-                          day.available ? 'is-on' : '',
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
-                        aria-label={`${WEEKDAY_SHORT[day.weekday]} ${
-                          day.available ? 'available' : 'unavailable'
-                        }`}
-                        role="switch"
-                        aria-checked={day.available}
-                      />
-                      <span className="settings-availability__weekday">
-                        {WEEKDAY_SHORT[day.weekday]}
-                      </span>
-                      <span className="settings-availability__duration">
-                        {day.available && day.maxDurationMinutes
-                          ? `${day.maxDurationMinutes} min`
-                          : 'Off'}
-                      </span>
-                    <div className="settings-availability__sports-field" data-settings-menu-root>
-                        <span className="settings-availability__sports" aria-label="Preferred sports">
-                          {day.preferredSports?.length
-                            ? day.preferredSports.map((sport) => (
-                                <SportBadge key={sport} sport={sport} />
-                              ))
-                            : <em>None</em>}
-                        </span>
                         <button
                           type="button"
-                          ref={(element) => {
-                            if (element) {
-                              sportsTriggerRefs.current.set(day.weekday, element);
-                            } else {
-                              sportsTriggerRefs.current.delete(day.weekday);
-                            }
+                          className="settings-goal-remove"
+                          aria-label={`Deactivate ${goal.title}`}
+                          onClick={() => void handleDeactivateGoal(goal.id)}
+                        >
+                          −
+                        </button>
+                      </div>
+                      <h3>{goal.title}</h3>
+                      {goal.description && <p>{goal.description}</p>}
+                    </div>
+                    <div className="settings-goal-card__side">
+                      <div className="settings-goal-priority" data-settings-menu-root>
+                        <span>Priority</span>
+                        <button
+                          type="button"
+                          ref={(el) => {
+                            if (el) priorityTriggerRefs.current.set(goal.id, el);
+                            else priorityTriggerRefs.current.delete(goal.id);
                           }}
-                          className={[
-                            'settings-availability__add',
-                            openSportsMenu === day.weekday ? 'is-open' : '',
-                          ]
-                            .filter(Boolean)
-                            .join(' ')}
-                          aria-label={`Add preferred sport for ${WEEKDAY_SHORT[day.weekday]}`}
-                          aria-expanded={openSportsMenu === day.weekday}
+                          className={['settings-goal-priority__trigger', openPriorityMenu === goal.id ? 'is-open' : ''].filter(Boolean).join(' ')}
+                          aria-expanded={openPriorityMenu === goal.id}
                           aria-haspopup="menu"
-                          onClick={(event) => {
-                            lastMenuTriggerRef.current = event.currentTarget;
+                          onClick={(e) => {
+                            lastMenuTriggerRef.current = e.currentTarget;
                             setOpenGoalMenu(false);
-                            setOpenPriorityMenu(null);
-                            setOpenSportsMenu((current) =>
-                              current === day.weekday ? null : day.weekday,
-                            );
+                            setOpenSportsMenu(null);
+                            setOpenPriorityMenu((v) => v === goal.id ? null : goal.id);
                           }}
                         >
-                          +
+                          {GOAL_PRIORITY_LABELS[goal.priority]}
                         </button>
                         <div
-                          className={[
-                            'settings-availability__menu',
-                            openSportsMenu === day.weekday ? 'is-open' : '',
-                          ]
-                            .filter(Boolean)
-                            .join(' ')}
+                          className={['settings-goal-priority__menu', openPriorityMenu === goal.id ? 'is-open' : ''].filter(Boolean).join(' ')}
                           role="menu"
-                          aria-hidden={openSportsMenu !== day.weekday}
+                          aria-hidden={openPriorityMenu !== goal.id}
                         >
-                          {sportOptions.map((sport) => (
+                          {GOAL_PRIORITY_OPTIONS.map((option) => (
                             <button
-                              key={sport}
+                              key={option}
                               type="button"
                               role="menuitem"
-                              disabled
+                              className={option === goal.priority ? 'is-selected' : ''}
+                              onClick={() => void handleChangePriority(goal.id, option)}
                             >
-                              <SportBadge sport={sport} />
+                              <span>{GOAL_PRIORITY_LABELS[option]}</span>
+                              <small>{GOAL_PRIORITY_DESCRIPTIONS[option]}</small>
                             </button>
                           ))}
                         </div>
                       </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="settings-section">
-          <header className="settings-section-head">
-            <div>
-              <p>Training zones</p>
-              <h2>Intensity model</h2>
-            </div>
-          </header>
-
-          <div className="settings-zones-grid">
-            {hrZoneSets.length > 0 && (
-              <section className="settings-zone-card">
-                <div className="settings-zone-card__top">
-                  <p className="settings-section__label">Heart Rate Zones</p>
-                  {hrZoneSets.length > 1 && (
-                    <div
-                      className="segmented-control settings-zone-toggle"
-                      role="tablist"
-                      aria-label="HR zone sport"
-                    >
-                      <span
-                        className="segmented-control__indicator"
-                        aria-hidden="true"
-                        style={{
-                          left: hrSport === 'cycling' ? '0%' : '50%',
-                          width: '50%',
-                        }}
-                      />
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={hrSport === 'cycling'}
-                        className={`segmented-control__tab${hrSport === 'cycling' ? ' is-active' : ''}`}
-                        onClick={() => setHrSport('cycling')}
-                      >
-                        Cycling
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={hrSport === 'running'}
-                        className={`segmented-control__tab${hrSport === 'running' ? ' is-active' : ''}`}
-                        onClick={() => setHrSport('running')}
-                      >
-                        Running
-                      </button>
+                      <p>{GOAL_PRIORITY_DESCRIPTIONS[goal.priority]}</p>
+                      <dl>
+                        {goal.targetDistanceMeters !== undefined && (
+                          <div>
+                            <dt>Distance</dt>
+                            <dd>{(goal.targetDistanceMeters / 1000).toFixed(1)} km</dd>
+                          </div>
+                        )}
+                        {goalMetric && (
+                          <div><dt>Target</dt><dd>{goalMetric}</dd></div>
+                        )}
+                      </dl>
                     </div>
-                  )}
-                </div>
-                {activeHrZoneSet?.basedOn && (
-                  <p className="settings-zone-basis">{activeHrZoneSet.basedOn}</p>
-                )}
-                <ZoneBand zones={hrZones} className="settings-zone-band" />
-                <ZoneList
-                  zones={hrZones}
-                  className="zone-table"
-                  rowClassName="zone-row"
-                  dotClassName="zone-row__dot"
-                  numberClassName="zone-row__num"
-                  nameClassName="zone-row__name"
-                  rangeClassName="zone-row__range"
-                />
-              </section>
-            )}
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState title="No active goals — click + to add one" variant="inline" />
+          )}
+        </div>
 
-            {otherZoneSets.map((zoneSet) => {
-              const zones = getTrainingZonesBySetId(zoneSet.id);
-              if (zones.length === 0) return null;
+        {/* ── Training availability ── */}
+        <div className="settings-availability-panel">
+          <div className="settings-availability-head">
+            <p className="settings-section__label">Training availability</p>
+            <span>Preferred sports</span>
+          </div>
+          <ul className="settings-availability">
+            {WEEKDAYS.map((day) => {
+              const avail = availMap[day];
+              const durationVal = avail.available
+                ? durationToOption(avail.maxDurationMinutes)
+                : '';
+              const sports = avail.preferredSports ?? [];
+
               return (
-                <section key={zoneSet.id} className="settings-zone-card">
-                  <div className="settings-zone-card__top">
-                    <p className="settings-section__label">{zoneSet.name}</p>
-                  </div>
-                  {zoneSet.basedOn && (
-                    <p className="settings-zone-basis">{zoneSet.basedOn}</p>
-                  )}
-                  <ZoneBand zones={zones} className="settings-zone-band" />
-                  <ZoneList
-                    zones={zones}
-                    className="zone-table"
-                    rowClassName="zone-row"
-                    dotClassName="zone-row__dot"
-                    numberClassName="zone-row__num"
-                    nameClassName="zone-row__name"
-                    rangeClassName="zone-row__range"
+                <li key={day} className="settings-availability__day">
+                  <button
+                    type="button"
+                    className={['settings-availability__toggle', avail.available ? 'is-on' : ''].filter(Boolean).join(' ')}
+                    role="switch"
+                    aria-checked={avail.available}
+                    aria-label={`${WEEKDAY_SHORT[day]} ${avail.available ? 'available' : 'unavailable'}`}
+                    onClick={() => void handleToggleDay(day)}
                   />
-                </section>
+                  <span className="settings-availability__weekday">{WEEKDAY_SHORT[day]}</span>
+                  {avail.available ? (
+                    <SelectMenu
+                      value={durationVal}
+                      options={DURATION_OPTIONS.filter((o) => o.value !== '')}
+                      onChange={(val) => void handleDurationChange(day, val)}
+                      className="settings-availability__duration-select"
+                      aria-label={`Training duration for ${WEEKDAY_SHORT[day]}`}
+                    />
+                  ) : (
+                    <span className="settings-availability__duration">Rest day</span>
+                  )}
+                  <div className="settings-availability__sports-field" data-settings-menu-root>
+                    <span className="settings-availability__sports" aria-label="Preferred sports">
+                      {sports.length > 0
+                        ? sports.map((sport) => (
+                            <button
+                              key={sport}
+                              type="button"
+                              className="settings-availability__sport-remove"
+                              aria-label={`Remove ${sport}`}
+                              title={`Remove ${SPORT_LABELS[sport]}`}
+                              onClick={() => void handleRemoveSport(day, sport)}
+                            >
+                              <SportBadge sport={sport} />
+                            </button>
+                          ))
+                        : <em>None</em>}
+                    </span>
+                    <button
+                      type="button"
+                      ref={(el) => {
+                        if (el) sportsTriggerRefs.current.set(day, el);
+                        else sportsTriggerRefs.current.delete(day);
+                      }}
+                      className={['settings-availability__add', openSportsMenu === day ? 'is-open' : ''].filter(Boolean).join(' ')}
+                      aria-label={`Add preferred sport for ${WEEKDAY_SHORT[day]}`}
+                      aria-expanded={openSportsMenu === day}
+                      aria-haspopup="menu"
+                      onClick={(e) => {
+                        lastMenuTriggerRef.current = e.currentTarget;
+                        setOpenGoalMenu(false);
+                        setOpenPriorityMenu(null);
+                        setOpenSportsMenu((v) => v === day ? null : day);
+                      }}
+                    >
+                      +
+                    </button>
+                    <div
+                      className={['settings-availability__menu', openSportsMenu === day ? 'is-open' : ''].filter(Boolean).join(' ')}
+                      role="menu"
+                      aria-hidden={openSportsMenu !== day}
+                    >
+                      {ALL_SPORTS.filter((s) => !sports.includes(s)).map((sport) => (
+                        <button
+                          key={sport}
+                          type="button"
+                          role="menuitem"
+                          onClick={() => void handleAddSport(day, sport)}
+                        >
+                          <SportBadge sport={sport} />
+                        </button>
+                      ))}
+                      {ALL_SPORTS.every((s) => sports.includes(s)) && (
+                        <span className="settings-availability__menu-empty">All sports added</span>
+                      )}
+                    </div>
+                  </div>
+                </li>
               );
             })}
-          </div>
-        </section>
-
-        <div className="settings-save">
-          <span className="settings-save__status">Read-only prototype</span>
-          <p className="settings-save__note">
-            Persistence is not implemented in Phase 2. These values represent the
-            future athlete context configuration surface.
-          </p>
+          </ul>
         </div>
       </div>
 
-    </PageShell>
+      {/* Goal modal */}
+      {goalModal && (
+        goalModal.mode === 'create'
+          ? (
+            <GoalFormModal
+              mode="create"
+              onSave={() => { setGoalModal(null); refresh(); }}
+              onClose={() => setGoalModal(null)}
+            />
+          )
+          : (
+            <GoalFormModal
+              mode="edit"
+              goal={goalModal.goal}
+              onSave={() => { setGoalModal(null); refresh(); }}
+              onClose={() => setGoalModal(null)}
+            />
+          )
+      )}
+    </section>
   );
 }
+
+// ── Zones section (auto-calculated from profile thresholds, read-only) ──────
+
+type ZonesMissingPromptProps = { text: string };
+function ZonesMissingPrompt({ text }: ZonesMissingPromptProps) {
+  return (
+    <p className="settings-zone-missing">
+      <span className="settings-zone-missing__icon">○</span>
+      {text}
+    </p>
+  );
+}
+
+type ZoneCardProps = { zoneSet: TrainingZoneSetDto };
+function ZoneCard({ zoneSet }: ZoneCardProps) {
+  return (
+    <>
+      {zoneSet.basedOn && <p className="settings-zone-basis">{zoneSet.basedOn}</p>}
+      <ZoneBand zones={zoneSet.zones as never} className="settings-zone-band" />
+      <ZoneList zones={zoneSet.zones as never} className="zone-table" rowClassName="zone-row" dotClassName="zone-row__dot" numberClassName="zone-row__num" nameClassName="zone-row__name" rangeClassName="zone-row__range" />
+    </>
+  );
+}
+
+function ZonesSection({
+  zoneSets,
+  profile,
+  refresh,
+}: {
+  zoneSets: TrainingZoneSetDto[];
+  profile: AthleteProfileDto;
+  refresh: () => void;
+}) {
+  const [hrSport, setHrSport] = useState<'cycling' | 'running'>('cycling');
+  const [recalculating, setRecalculating] = useState(false);
+
+  const t = profile.thresholds;
+
+  const hasCyclingHrFields = t.cyclingThresholdHrBpm != null && t.maxHeartRateBpm != null;
+  const hasCyclingPowerFields = t.currentFtpWatts != null;
+  const hasRunningHrFields = t.runningThresholdHrBpm != null && t.maxHeartRateBpm != null;
+  const hasRunningPaceFields = t.runningThresholdPaceSecPerKm != null;
+  const hasSwimmingPaceFields = t.swimmingThresholdPaceSecPer100m != null;
+
+  const cyclingHrSet = zoneSets.find((zs) => zs.zoneType === 'heart_rate' && zs.sport === 'cycling');
+  const runningHrSet = zoneSets.find((zs) => zs.zoneType === 'heart_rate' && zs.sport === 'running');
+  const cyclingPowerSet = zoneSets.find((zs) => zs.zoneType === 'cycling_power');
+  const runningPaceSet = zoneSets.find((zs) => zs.zoneType === 'running_pace');
+  const swimmingPaceSet = zoneSets.find((zs) => zs.zoneType === 'swimming_pace');
+
+  const activeHrSet = hrSport === 'running' ? (runningHrSet ?? cyclingHrSet) : (cyclingHrSet ?? runningHrSet);
+  const hasAnyHrFields = hasCyclingHrFields || hasRunningHrFields;
+  const hasAnyHrZones = cyclingHrSet != null || runningHrSet != null;
+  const showHrToggle = cyclingHrSet != null && runningHrSet != null;
+
+  const hasAnything = hasAnyHrFields || hasCyclingPowerFields || hasRunningPaceFields || hasSwimmingPaceFields;
+  if (!hasAnything) return null;
+
+  async function handleRecalculate() {
+    setRecalculating(true);
+    try {
+      await recalculateZones();
+      refresh();
+    } finally {
+      setRecalculating(false);
+    }
+  }
+
+  const noZonesYet = zoneSets.length === 0;
+
+  return (
+    <section className="settings-section">
+      <header className="settings-section-head">
+        <div>
+          <p>Training zones</p>
+          <h2>Intensity model</h2>
+        </div>
+        {noZonesYet && (
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => void handleRecalculate()}
+            disabled={recalculating}
+          >
+            {recalculating ? 'Calculating…' : 'Calculate zones'}
+          </button>
+        )}
+      </header>
+
+      <div className="settings-zones-grid">
+        {/* ── Heart Rate (Cycling + Running grouped) ── */}
+        {hasAnyHrFields && (
+          <section className="settings-zone-card">
+            <div className="settings-zone-card__top">
+              <p className="settings-section__label">Heart Rate Zones</p>
+              {showHrToggle && (
+                <div className="segmented-control settings-zone-toggle" role="tablist" aria-label="HR zone sport">
+                  <span className="segmented-control__indicator" aria-hidden="true" style={{ left: hrSport === 'cycling' ? '0%' : '50%', width: '50%' }} />
+                  <button type="button" role="tab" aria-selected={hrSport === 'cycling'} className={`segmented-control__tab${hrSport === 'cycling' ? ' is-active' : ''}`} onClick={() => setHrSport('cycling')}>Cycling</button>
+                  <button type="button" role="tab" aria-selected={hrSport === 'running'} className={`segmented-control__tab${hrSport === 'running' ? ' is-active' : ''}`} onClick={() => setHrSport('running')}>Running</button>
+                </div>
+              )}
+            </div>
+            {hasAnyHrZones && activeHrSet
+              ? <ZoneCard zoneSet={activeHrSet} />
+              : <ZonesMissingPrompt text={
+                  !hasCyclingHrFields && !hasRunningHrFields
+                    ? 'Set Bike HR threshold + Max HR (cycling) or Run HR threshold + Max HR (running) in your profile'
+                    : 'Save your profile to generate HR zones'
+                } />
+            }
+          </section>
+        )}
+
+        {/* ── Cycling Power ── */}
+        {hasCyclingPowerFields && (
+          <section className="settings-zone-card">
+            <div className="settings-zone-card__top">
+              <p className="settings-section__label">Cycling Power</p>
+              <span className="settings-zone-type-label">{ZONE_TYPE_LABELS['cycling_power']}</span>
+            </div>
+            {cyclingPowerSet
+              ? <ZoneCard zoneSet={cyclingPowerSet} />
+              : <ZonesMissingPrompt text="Save your profile to generate power zones" />
+            }
+          </section>
+        )}
+
+        {/* ── Running Pace ── */}
+        {hasRunningPaceFields && (
+          <section className="settings-zone-card">
+            <div className="settings-zone-card__top">
+              <p className="settings-section__label">Running Pace</p>
+              <span className="settings-zone-type-label">{ZONE_TYPE_LABELS['running_pace']}</span>
+            </div>
+            {runningPaceSet
+              ? <ZoneCard zoneSet={runningPaceSet} />
+              : <ZonesMissingPrompt text="Save your profile to generate running pace zones" />
+            }
+          </section>
+        )}
+
+        {/* ── Swimming Pace ── */}
+        {hasSwimmingPaceFields && (
+          <section className="settings-zone-card">
+            <div className="settings-zone-card__top">
+              <p className="settings-section__label">Swimming Pace</p>
+              <span className="settings-zone-type-label">{ZONE_TYPE_LABELS['swimming_pace']}</span>
+            </div>
+            {swimmingPaceSet
+              ? <ZoneCard zoneSet={swimmingPaceSet} />
+              : <ZonesMissingPrompt text="Save your profile to generate swimming pace zones" />
+            }
+          </section>
+        )}
+      </div>
+    </section>
+  );
+}
+

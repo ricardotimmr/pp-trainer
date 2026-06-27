@@ -14,12 +14,10 @@ import {
   sourceLabels,
   sportLabels,
 } from '../components/prototypeFormatters';
-import { DATA_MODE } from '../config/dataMode';
 import { fetchActivityById } from '../api/activitiesApi';
 import { mapApiActivityDetail } from '../api/mapApiActivity';
 import { PageShell } from '../layout/PageShell';
 import {
-  getActivityById,
   getTrainingZones,
 } from '../mock/prototypeData.helpers';
 import type {
@@ -30,7 +28,7 @@ import type {
   ActivityTimeSeriesSample,
   TimeInZone,
   TrainingZone,
-} from '../mock/prototypeData.types';
+} from '../types/domain';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 type ChartMetric = {
@@ -1095,43 +1093,8 @@ function ActivityDetailApiMode({ params, navigate }: PageComponentProps) {
   return <ActivityDetailContent activity={state.activity} navigate={navigate} />;
 }
 
-function ActivityDetailMockMode({ params, navigate }: PageComponentProps) {
-  const activity = params.id ? getActivityById(params.id) : undefined;
-
-  if (!activity) {
-    return (
-      <PageShell
-        title="Activity not found"
-        eyebrow="Activity detail"
-        description="The requested activity does not exist in the current prototype data."
-        actions={
-          <button
-            type="button"
-            className="button button--secondary"
-            onClick={() => navigate('/activities')}
-          >
-            Back to activities
-          </button>
-        }
-      >
-        <ErrorState
-          title="Unknown activity"
-          description={
-            <>
-              No mock activity was found for ID <strong>{params.id}</strong>.
-            </>
-          }
-        />
-      </PageShell>
-    );
-  }
-
-  return <ActivityDetailContent activity={activity} navigate={navigate} />;
-}
-
 export function ActivityDetailPage(props: PageComponentProps) {
-  if (DATA_MODE === 'api') return <ActivityDetailApiMode {...props} />;
-  return <ActivityDetailMockMode {...props} />;
+  return <ActivityDetailApiMode {...props} />;
 }
 
 function ActivityDetailContent({ activity, navigate }: { activity: Activity; navigate: PageComponentProps['navigate'] }) {

@@ -1,4 +1,6 @@
 import {
+  AcceptAiOutputRequestSchema,
+  GenerateWeekAnalysisRequestSchema,
   GenerateWeekPlanRequestSchema,
   GenerateWorkoutRequestSchema,
 } from '@pp-trainer/shared';
@@ -69,6 +71,21 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     return reply.status(201).send(output);
   });
 
+  app.post('/api/ai/generate-week-analysis', async (request, reply) => {
+    let body: unknown;
+    try {
+      body = GenerateWeekAnalysisRequestSchema.parse(request.body ?? {});
+    } catch (err) {
+      if (err instanceof ZodError) return reply.status(400).send(zodValidationError(err));
+      throw err;
+    }
+
+    const output = await AiService.generateWeekAnalysis(
+      body as ReturnType<typeof GenerateWeekAnalysisRequestSchema.parse>,
+    );
+    return reply.status(201).send(output);
+  });
+
   app.get('/api/ai/outputs/:id', async (request) => {
     const { id } = request.params as { id: string };
     return AiAcceptService.getOutput(id);
@@ -76,7 +93,18 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/api/ai/outputs/:id/accept', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const result = await AiAcceptService.acceptOutput(id);
+    let body: unknown;
+    try {
+      body = AcceptAiOutputRequestSchema.parse(request.body ?? {});
+    } catch (err) {
+      if (err instanceof ZodError) return reply.status(400).send(zodValidationError(err));
+      throw err;
+    }
+
+    const result = await AiAcceptService.acceptOutput(
+      id,
+      body as ReturnType<typeof AcceptAiOutputRequestSchema.parse>,
+    );
     return reply.status(201).send(result);
   });
 

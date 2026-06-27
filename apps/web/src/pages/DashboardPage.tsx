@@ -3,6 +3,7 @@ import type { PlannedWorkoutDto } from '@pp-trainer/shared';
 import {
   ActivityCard,
   ActivitySummaryStats,
+  DashboardChartsSection,
   DashboardWidget,
   EmptyState,
   ErrorState,
@@ -15,13 +16,13 @@ import {
   formatDate,
   formatDistance,
   formatDuration,
-  goalPriorityLabels,
   sportLabels,
 } from '../components/prototypeFormatters';
 import { useDashboard } from '../hooks/useDashboard';
 import type { WeekVolume } from '../hooks/useDashboard';
+import { useDashboardAnalytics } from '../hooks/useDashboardAnalytics';
 import { PageShell } from '../layout/PageShell';
-import type { SportType } from '../mock/prototypeData.types';
+import type { SportType } from '../types/domain';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 type SportSplitItem = { sport: SportType; durationSeconds: number };
@@ -61,7 +62,7 @@ function WeekBalancePanel({
         </div>
         <div>
           <dt>Remaining</dt>
-          <dd>{formatDuration(remainingSeconds)}</dd>
+          <dd>{remainingSeconds === 0 ? <span style={{ color: 'var(--color-accent)', fontWeight: 700 }}>Completed</span> : formatDuration(remainingSeconds)}</dd>
         </div>
       </dl>
       {sportSplit.length > 0 && (
@@ -175,6 +176,7 @@ function toWorkoutCardData(w: PlannedWorkoutDto): WorkoutCardData {
 
 export function DashboardPage({ navigate }: PageComponentProps) {
   const state = useDashboard();
+  const analyticsState = useDashboardAnalytics();
 
   if (state.status === 'loading') {
     return (
@@ -304,8 +306,8 @@ export function DashboardPage({ navigate }: PageComponentProps) {
             )}
 
             <DashboardWidget
-              title="Upcoming workouts"
-              eyebrow="Next sessions"
+              title="This week's workouts"
+              eyebrow="Planned sessions"
               action={
                 <button
                   type="button"
@@ -391,21 +393,9 @@ export function DashboardPage({ navigate }: PageComponentProps) {
                 {mainGoal ? (
                   <div className="dashboard-goal">
                     <div className="badge-row">
+                      <span className="badge badge--priority badge--priority-main">Main goal</span>
                       {mainGoal.sport ? (
                         <SportBadge sport={mainGoal.sport as SportType} />
-                      ) : null}
-                      <span className="badge badge--source">
-                        {goalPriorityLabels[mainGoal.priority]}
-                      </span>
-                      {secondaryGoals.length > 0 ? (
-                        <span className="badge badge--goal badge--goal-secondary">
-                          {secondaryGoals.length} secondary
-                        </span>
-                      ) : null}
-                      {watchlistGoals.length > 0 ? (
-                        <span className="badge badge--goal badge--goal-watchlist">
-                          {watchlistGoals.length} watchlist
-                        </span>
                       ) : null}
                     </div>
                     <h3>{mainGoal.title}</h3>
@@ -413,6 +403,24 @@ export function DashboardPage({ navigate }: PageComponentProps) {
                     {mainGoal.targetDate ? (
                       <span>Target: {formatDate(mainGoal.targetDate)}</span>
                     ) : null}
+                    {(secondaryGoals.length > 0 || watchlistGoals.length > 0) && (
+                      <ul className="dashboard-goal-list">
+                        {[...secondaryGoals, ...watchlistGoals].map((goal) => (
+                          <li key={goal.id} className="dashboard-goal-list__item">
+                            <div className="dashboard-goal-list__meta">
+                              <span className={`badge badge--priority badge--priority-${goal.priority === 'secondary_goal' ? 'secondary' : 'watchlist'}`}>
+                                {goal.priority === 'secondary_goal' ? 'Secondary' : 'Watchlist'}
+                              </span>
+                              {goal.sport ? <SportBadge sport={goal.sport as SportType} /> : null}
+                            </div>
+                            <span className="dashboard-goal-list__title">{goal.title}</span>
+                            {goal.targetDate ? (
+                              <span className="dashboard-goal-list__date">{formatDate(goal.targetDate)}</span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 ) : (
                   <EmptyState
@@ -453,6 +461,7 @@ export function DashboardPage({ navigate }: PageComponentProps) {
             </div>
           </div>
         </div>
+        <DashboardChartsSection state={analyticsState} />
       </div>
     </PageShell>
   );

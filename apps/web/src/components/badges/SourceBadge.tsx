@@ -1,4 +1,4 @@
-import type { DataSourceType } from '../../mock/prototypeData.types';
+import type { DataSourceType } from '../../types/domain';
 import { sourceLabels } from '../prototypeFormatters';
 
 type SourceBadgeProps = {

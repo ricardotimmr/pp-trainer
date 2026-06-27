@@ -154,6 +154,68 @@ export function buildMemoryEntryPrompt(
   };
 }
 
+export type WeekAnalysisInput = {
+  weekStartDate: string;
+  weekEndDate: string;
+  activities: {
+    sport: string;
+    startTime: string;
+    durationSeconds: number;
+    distanceMeters?: number;
+    averageHeartRateBpm?: number;
+    averagePowerWatts?: number;
+    averagePaceSecPerKm?: number;
+  }[];
+};
+
+const WEEK_ANALYSIS_SCHEMA_HINT = `Return a JSON object:
+{
+  "weekStartDate": "YYYY-MM-DD",
+  "weekEndDate": "YYYY-MM-DD",
+  "totalDurationSeconds": number,
+  "totalDistanceMeters": number (optional),
+  "sportBreakdown": [
+    {
+      "sport": string,
+      "durationSeconds": number,
+      "distanceMeters": number (optional),
+      "activityCount": number
+    }
+  ],
+  "keyObservations": [string, string, ...] (2–4 bullet-point strings),
+  "suggestedFocus": string (one sentence for the athlete's next training focus),
+  "coachComment": string (1–3 sentences of coaching commentary)
+}`;
+
+export function buildWeekAnalysisPrompt(
+  context: AthleteContextForAi,
+  weekInput: WeekAnalysisInput,
+): BuiltPrompt {
+  const { weekStartDate, weekEndDate, activities } = weekInput;
+  const lines = [
+    `Analyse the athlete's completed training week from ${weekStartDate} to ${weekEndDate}.`,
+    `${activities.length} activit${activities.length === 1 ? 'y was' : 'ies were'} completed this week.`,
+    '',
+    '## Completed Activities',
+    '```json',
+    JSON.stringify(activities, null, 2),
+    '```',
+    '',
+    '## Athlete Context',
+    '```json',
+    formatContext(context),
+    '```',
+    '',
+    '## Output Schema',
+    WEEK_ANALYSIS_SCHEMA_HINT,
+  ];
+
+  return {
+    systemRole: COACH_SYSTEM_ROLE,
+    userContent: lines.join('\n'),
+  };
+}
+
 export function buildSingleWorkoutPrompt(
   context: AthleteContextForAi,
   sport: string,

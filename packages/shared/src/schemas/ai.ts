@@ -160,6 +160,38 @@ export const AiTrainingHistorySchema = z.object({
   totalActivitiesAllTime: z.number().int().nonnegative().optional(),
 });
 
+// ── AI Generated Week Analysis ───────────────────────────────────────────────
+
+export const AiGeneratedWeekAnalysisSchema = z
+  .object({
+    weekStartDate: IsoDateStringSchema,
+    weekEndDate: IsoDateStringSchema,
+    totalDurationSeconds: NonNegativeIntegerSchema,
+    totalDistanceMeters: NonNegativeIntegerSchema.optional(),
+    sportBreakdown: z.array(
+      z.object({
+        sport: z.string(),
+        durationSeconds: NonNegativeIntegerSchema,
+        distanceMeters: NonNegativeIntegerSchema.optional(),
+        activityCount: NonNegativeIntegerSchema,
+      }),
+    ),
+    keyObservations: z.array(z.string()).min(2).max(4),
+    suggestedFocus: z.string(),
+    coachComment: z.string(),
+  })
+  .strict();
+
+export const GenerateWeekAnalysisRequestSchema = z.object({
+  weekStartDate: IsoDateStringSchema.optional(),
+});
+
+export const AcceptAiOutputRequestSchema = z
+  .object({
+    singleWorkoutOverride: AiGeneratedSingleWorkoutSchema.optional(),
+  })
+  .strict();
+
 // ── Coaching Memory (Layer 2 long-term memory) ───────────────────────────────
 
 export const AiCoachingMemorySchema = z.object({
@@ -181,3 +213,6 @@ export type GenerateWorkoutRequest = z.infer<typeof GenerateWorkoutRequestSchema
 export type AiMonthlyTrainingSummary = z.infer<typeof AiMonthlyTrainingSummarySchema>;
 export type AiTrainingHistory = z.infer<typeof AiTrainingHistorySchema>;
 export type AiCoachingMemory = z.infer<typeof AiCoachingMemorySchema>;
+export type AiGeneratedWeekAnalysis = z.infer<typeof AiGeneratedWeekAnalysisSchema>;
+export type GenerateWeekAnalysisRequest = z.infer<typeof GenerateWeekAnalysisRequestSchema>;
+export type AcceptAiOutputRequest = z.infer<typeof AcceptAiOutputRequestSchema>;

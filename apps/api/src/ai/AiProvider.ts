@@ -1,6 +1,6 @@
 import type { ZodIssue } from 'zod';
 
-import type { AiGeneratedSingleWorkout, AiGeneratedWeekPlan } from '@pp-trainer/shared';
+import type { AiGeneratedSingleWorkout, AiGeneratedWeekAnalysis, AiGeneratedWeekPlan } from '@pp-trainer/shared';
 
 import type { BuiltPrompt } from './PromptBuilder.js';
 
@@ -13,5 +13,6 @@ export type AiProviderResult<T> = {
 export interface AiProvider {
   generateWeekPlan(prompt: BuiltPrompt): Promise<AiProviderResult<AiGeneratedWeekPlan>>;
   generateSingleWorkout(prompt: BuiltPrompt): Promise<AiProviderResult<AiGeneratedSingleWorkout>>;
+  generateWeekAnalysis(prompt: BuiltPrompt): Promise<AiProviderResult<AiGeneratedWeekAnalysis>>;
   generateMemoryEntry(prompt: BuiltPrompt): Promise<string>;
 }

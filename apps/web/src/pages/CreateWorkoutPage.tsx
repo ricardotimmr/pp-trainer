@@ -2,12 +2,13 @@ import type { FormEvent } from 'react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import type { CreatePlannedWorkoutRequest, CreateWorkoutStepRequest } from '@pp-trainer/shared';
+import type { CreatePlannedWorkoutRequest, CreateWorkoutStepRequest, TrainingZoneSetDto } from '@pp-trainer/shared';
 
 import { createWorkout } from '../api/trainingApi';
 import { SelectMenu } from '../components';
 import { useCurrentWeekPlan } from '../hooks/useCurrentWeekPlan';
 import { useTrainingPlans } from '../hooks/useTrainingPlans';
+import { useTrainingZones } from '../hooks/useTrainingZones';
 import { PageShell } from '../layout/PageShell';
 import type { PageComponentProps } from '../routes/routeTypes';
 
@@ -84,6 +85,12 @@ type SubStepDraft = {
   targetFrom: string;
   targetTo: string;
   repetitions: string;
+  hrZoneId: string;
+  hrZoneName: string;
+  paceZoneId: string;
+  paceZoneName: string;
+  powerZoneId: string;
+  powerZoneName: string;
 };
 
 type SingleStep = {
@@ -96,6 +103,12 @@ type SingleStep = {
   repetitions: string;
   targetFrom: string;
   targetTo: string;
+  hrZoneId: string;
+  hrZoneName: string;
+  paceZoneId: string;
+  paceZoneName: string;
+  powerZoneId: string;
+  powerZoneName: string;
 };
 
 type RepeatBlock = {
@@ -113,12 +126,14 @@ function uid(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+const BLANK_ZONE_FIELDS = { hrZoneId: '', hrZoneName: '', paceZoneId: '', paceZoneName: '', powerZoneId: '', powerZoneName: '' };
+
 function newSingleStep(stepType = 'main'): SingleStep {
-  return { kind: 'step', key: uid(), stepType, instruction: '', durationMinutes: '', distanceKm: '', repetitions: '', targetFrom: '', targetTo: '' };
+  return { kind: 'step', key: uid(), stepType, instruction: '', durationMinutes: '', distanceKm: '', repetitions: '', targetFrom: '', targetTo: '', ...BLANK_ZONE_FIELDS };
 }
 
 function newSubStep(stepType = 'interval'): SubStepDraft {
-  return { key: uid(), stepType, instruction: '', durationMinutes: '', distanceKm: '', targetFrom: '', targetTo: '', repetitions: '' };
+  return { key: uid(), stepType, instruction: '', durationMinutes: '', distanceKm: '', targetFrom: '', targetTo: '', repetitions: '', ...BLANK_ZONE_FIELDS };
 }
 
 function newRepeatBlock(): RepeatBlock {
@@ -166,13 +181,125 @@ function computeBarSegs(items: SessionItem[]): BarSeg[] {
   return segs;
 }
 
-/* ─── Submit payload builder ─────────────────────────────────────────────── */
+/* ─── Pace / zone helpers ────────────────────────────────────────────────── */
 
 function parsePaceToSec(pace: string): number | null {
   const m = pace.trim().match(/^(\d+):(\d{2})$/);
   if (!m) return null;
   return parseInt(m[1]) * 60 + parseInt(m[2]);
 }
+
+function secToMmSs(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function getItemAvgPaceSecPerKm(item: { targetFrom: string; targetTo: string }, sport: string): number | undefined {
+  if (sport !== 'running' && sport !== 'swimming') return undefined;
+  const lo = parsePaceToSec(item.targetFrom);
+  const hi = parsePaceToSec(item.targetTo);
+  if (lo && hi) return (lo + hi) / 2;
+  if (lo) return lo;
+  if (hi) return hi;
+  return undefined;
+}
+
+function syncStepDistanceFromDuration<T extends { durationMinutes: string; distanceKm: string; targetFrom: string; targetTo: string }>(
+  item: T, durationMinutes: string, sport: string,
+): Partial<T> {
+  const pace = getItemAvgPaceSecPerKm(item, sport);
+  if (!pace) return { durationMinutes } as Partial<T>;
+  const mins = parseFloat(durationMinutes);
+  if (!isNaN(mins) && mins > 0) {
+    const km = (mins * 60) / pace;
+    return { durationMinutes, distanceKm: km.toFixed(2).replace(/\.?0+$/, '') } as Partial<T>;
+  }
+  return { durationMinutes } as Partial<T>;
+}
+
+function syncStepDurationFromDistance<T extends { durationMinutes: string; distanceKm: string; targetFrom: string; targetTo: string }>(
+  item: T, distanceKm: string, sport: string,
+): Partial<T> {
+  const pace = getItemAvgPaceSecPerKm(item, sport);
+  if (!pace) return { distanceKm } as Partial<T>;
+  const km = parseFloat(distanceKm);
+  if (!isNaN(km) && km > 0) {
+    const mins = (km * pace) / 60;
+    return { distanceKm, durationMinutes: mins.toFixed(1).replace(/\.0$/, '') } as Partial<T>;
+  }
+  return { distanceKm } as Partial<T>;
+}
+
+/* ─── ZonePicker component ───────────────────────────────────────────────── */
+
+type ZoneType = 'heart_rate' | 'cycling_power' | 'running_pace' | 'swimming_pace';
+
+type ZonePickerProps = {
+  id: string;
+  label: string;
+  zoneType: ZoneType;
+  sport?: string;
+  zoneSets: TrainingZoneSetDto[];
+  selectedId: string;
+  navigate: (path: string) => void;
+  onSelect: (zoneId: string, zoneName: string, lower?: number, upper?: number) => void;
+};
+
+const ZONE_TYPE_LABEL: Record<ZoneType, string> = {
+  heart_rate: 'HR', cycling_power: 'Power', running_pace: 'Pace', swimming_pace: 'Pace',
+};
+
+function ZonePicker({ id, label, zoneType, sport, zoneSets, selectedId, onSelect, navigate }: ZonePickerProps) {
+  const activeSets = zoneSets.filter((s) => {
+    if (!s.isActive || s.zoneType !== zoneType) return false;
+    if (zoneType === 'heart_rate' && sport) return s.sport === sport || s.sport == null;
+    return true;
+  });
+
+  if (activeSets.length === 0) {
+    return (
+      <div className="cw-field">
+        <span className="cw-label">{label}</span>
+        <p className="cw-zone-empty">
+          No {ZONE_TYPE_LABEL[zoneType]} zones configured —{' '}
+          <button type="button" className="cw-zone-empty__link" onClick={() => navigate('/settings')}>
+            add them in Settings
+          </button>
+        </p>
+      </div>
+    );
+  }
+
+  const allZones = activeSets.flatMap((s) => s.zones);
+  const options = [
+    { value: '', label: 'None' },
+    ...activeSets.flatMap((set) =>
+      set.zones.map((z) => ({
+        value: z.id,
+        label: `${z.name}${z.lowerBound != null && z.upperBound != null ? ` (${z.lowerBound}–${z.upperBound})` : ''}`,
+      })),
+    ),
+  ];
+
+  return (
+    <div className="cw-field">
+      <label className="cw-label" htmlFor={id}>{label}</label>
+      <SelectMenu
+        id={id}
+        value={selectedId}
+        options={options}
+        onChange={(zoneId) => {
+          if (!zoneId) { onSelect('', '', undefined, undefined); return; }
+          const zone = allZones.find((z) => z.id === zoneId);
+          if (zone) onSelect(zoneId, zone.name, zone.lowerBound, zone.upperBound);
+        }}
+      />
+    </div>
+  );
+}
+
+/* ─── Submit payload builder ─────────────────────────────────────────────── */
 
 function buildStepsPayload(items: SessionItem[], sport: string): CreateWorkoutStepRequest[] {
   const steps: CreateWorkoutStepRequest[] = [];
@@ -186,6 +313,12 @@ function buildStepsPayload(items: SessionItem[], sport: string): CreateWorkoutSt
     repetitions?: string,
     targetFrom?: string,
     targetTo?: string,
+    hrZoneId?: string,
+    hrZoneName?: string,
+    paceZoneId?: string,
+    paceZoneName?: string,
+    powerZoneId?: string,
+    powerZoneName?: string,
   ) => {
     const step: CreateWorkoutStepRequest = {
       stepIndex: idx++,
@@ -218,17 +351,23 @@ function buildStepsPayload(items: SessionItem[], sport: string): CreateWorkoutSt
       if (!isNaN(hi) && hi > 0) step.targetPowerUpperWatts = hi;
     }
 
+    if (hrZoneId) step.targetHeartRateZoneId = hrZoneId;
+    if (paceZoneId) step.targetPaceZoneId = paceZoneId;
+    if (powerZoneId) step.targetPowerZoneId = powerZoneId;
+    const notesValue = paceZoneName || powerZoneName || hrZoneName;
+    if (notesValue) step.notes = notesValue;
+
     steps.push(step);
   };
 
   for (const item of items) {
     if (item.kind === 'step') {
-      addStep(item.stepType, item.instruction, item.durationMinutes, item.distanceKm, item.repetitions, item.targetFrom, item.targetTo);
+      addStep(item.stepType, item.instruction, item.durationMinutes, item.distanceKm, item.repetitions, item.targetFrom, item.targetTo, item.hrZoneId, item.hrZoneName, item.paceZoneId, item.paceZoneName, item.powerZoneId, item.powerZoneName);
     } else {
       const c = Math.max(1, item.count || 1);
       for (let r = 0; r < c; r++) {
         for (const sub of item.steps) {
-          addStep(sub.stepType, sub.instruction, sub.durationMinutes, sub.distanceKm, sub.repetitions, sub.targetFrom, sub.targetTo);
+          addStep(sub.stepType, sub.instruction, sub.durationMinutes, sub.distanceKm, sub.repetitions, sub.targetFrom, sub.targetTo, sub.hrZoneId, sub.hrZoneName, sub.paceZoneId, sub.paceZoneName, sub.powerZoneId, sub.powerZoneName);
         }
       }
     }
@@ -404,10 +543,40 @@ function useModalEscape(onClose: () => void) {
   }, [onClose]);
 }
 
-function StepEditModal({ item, sport, onUpdate, onClose }: { item: SingleStep; sport: string; onUpdate: (p: Partial<SingleStep>) => void; onClose: () => void }) {
+function StepEditModal({ item, sport, zoneSets, navigate, onUpdate, onClose }: {
+  item: SingleStep;
+  sport: string;
+  zoneSets: TrainingZoneSetDto[];
+  navigate: (path: string) => void;
+  onUpdate: (p: Partial<SingleStep>) => void;
+  onClose: () => void;
+}) {
   useModalEscape(onClose);
   const typeLabel = STEP_TYPE_OPTIONS.find((o) => o.value === item.stepType)?.label ?? item.stepType;
   const intensityCfg = getSportIntensityConfig(sport);
+
+  function handlePaceZoneSelect(zoneId: string, zoneName: string, lower?: number, upper?: number) {
+    const patch: Partial<SingleStep> = { paceZoneId: zoneId, paceZoneName: zoneName };
+    if (zoneId && lower != null && upper != null) {
+      patch.targetFrom = secToMmSs(lower);
+      patch.targetTo = secToMmSs(upper);
+      const avgPace = (lower + upper) / 2;
+      const dur = parseFloat(item.durationMinutes);
+      if (!isNaN(dur) && dur > 0 && avgPace > 0) {
+        patch.distanceKm = ((dur * 60) / avgPace).toFixed(2).replace(/\.?0+$/, '');
+      }
+    }
+    onUpdate(patch);
+  }
+
+  function handlePowerZoneSelect(zoneId: string, zoneName: string, lower?: number, upper?: number) {
+    const patch: Partial<SingleStep> = { powerZoneId: zoneId, powerZoneName: zoneName };
+    if (zoneId && lower != null && upper != null) {
+      patch.targetFrom = String(lower);
+      patch.targetTo = String(upper);
+    }
+    onUpdate(patch);
+  }
 
   return createPortal(
     <div className="cw-modal-overlay" onPointerDown={onClose}>
@@ -424,15 +593,37 @@ function StepEditModal({ item, sport, onUpdate, onClose }: { item: SingleStep; s
           {intensityCfg && (
             <IntensityFields cfg={intensityCfg} idPrefix={item.key} item={item} onChange={(p) => onUpdate(p as Partial<SingleStep>)} />
           )}
+          {(sport === 'running') && (
+            <ZonePicker id={`pz-${item.key}`} label="Pace Zone" zoneType="running_pace" zoneSets={zoneSets} selectedId={item.paceZoneId} navigate={navigate} onSelect={handlePaceZoneSelect} />
+          )}
+          {sport === 'swimming' && (
+            <ZonePicker id={`pz-${item.key}`} label="Pace Zone" zoneType="swimming_pace" zoneSets={zoneSets} selectedId={item.paceZoneId} navigate={navigate} onSelect={handlePaceZoneSelect} />
+          )}
+          {sport === 'cycling' && (
+            <ZonePicker id={`pwz-${item.key}`} label="Power Zone" zoneType="cycling_power" zoneSets={zoneSets} selectedId={item.powerZoneId} navigate={navigate} onSelect={handlePowerZoneSelect} />
+          )}
+          <ZonePicker
+            id={`hrz-${item.key}`} label="HR Zone" zoneType="heart_rate" sport={sport}
+            zoneSets={zoneSets} selectedId={item.hrZoneId} navigate={navigate}
+            onSelect={(id, name) => onUpdate({ hrZoneId: id, hrZoneName: name })}
+          />
           <Field label="Instruction" htmlFor={`mi-${item.key}`} className="cw-field--full">
             <textarea id={`mi-${item.key}`} className="cw-textarea" placeholder="What to do in this step..." rows={3} value={item.instruction} onChange={(e) => onUpdate({ instruction: e.target.value })} />
           </Field>
           <div className="cw-row">
             <Field label="Duration (min)" htmlFor={`md-${item.key}`} className="cw-field--1">
-              <input id={`md-${item.key}`} className="cw-input" type="number" min="0" step="0.5" placeholder="—" value={item.durationMinutes} onChange={(e) => onUpdate({ durationMinutes: e.target.value })} />
+              <input
+                id={`md-${item.key}`} className="cw-input" type="number" min="0" step="0.5" placeholder="—"
+                value={item.durationMinutes}
+                onChange={(e) => onUpdate(syncStepDistanceFromDuration(item, e.target.value, sport) as Partial<SingleStep>)}
+              />
             </Field>
             <Field label="Distance (km)" htmlFor={`mdi-${item.key}`} className="cw-field--1">
-              <input id={`mdi-${item.key}`} className="cw-input" type="number" min="0" step="0.1" placeholder="—" value={item.distanceKm} onChange={(e) => onUpdate({ distanceKm: e.target.value })} />
+              <input
+                id={`mdi-${item.key}`} className="cw-input" type="number" min="0" step="0.1" placeholder="—"
+                value={item.distanceKm}
+                onChange={(e) => onUpdate(syncStepDurationFromDistance(item, e.target.value, sport) as Partial<SingleStep>)}
+              />
             </Field>
             {intensityCfg?.type !== 'reps' && (
               <Field label="Repetitions" htmlFor={`mr-${item.key}`} className="cw-field--1">
@@ -450,7 +641,14 @@ function StepEditModal({ item, sport, onUpdate, onClose }: { item: SingleStep; s
   );
 }
 
-function RepeatBlockEditModal({ item, sport, onUpdate, onClose }: { item: RepeatBlock; sport: string; onUpdate: (p: Partial<RepeatBlock>) => void; onClose: () => void }) {
+function RepeatBlockEditModal({ item, sport, zoneSets, navigate, onUpdate, onClose }: {
+  item: RepeatBlock;
+  sport: string;
+  zoneSets: TrainingZoneSetDto[];
+  navigate: (path: string) => void;
+  onUpdate: (p: Partial<RepeatBlock>) => void;
+  onClose: () => void;
+}) {
   useModalEscape(onClose);
   const intensityCfg = getSportIntensityConfig(sport);
 
@@ -467,6 +665,29 @@ function RepeatBlockEditModal({ item, sport, onUpdate, onClose }: { item: Repeat
     const next = [...item.steps];
     [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
     onUpdate({ steps: next });
+  }
+
+  function handleSubPaceZoneSelect(subKey: string, sub: SubStepDraft, zoneId: string, zoneName: string, lower?: number, upper?: number) {
+    const patch: Partial<SubStepDraft> = { paceZoneId: zoneId, paceZoneName: zoneName };
+    if (zoneId && lower != null && upper != null) {
+      patch.targetFrom = secToMmSs(lower);
+      patch.targetTo = secToMmSs(upper);
+      const avgPace = (lower + upper) / 2;
+      const dur = parseFloat(sub.durationMinutes);
+      if (!isNaN(dur) && dur > 0 && avgPace > 0) {
+        patch.distanceKm = ((dur * 60) / avgPace).toFixed(2).replace(/\.?0+$/, '');
+      }
+    }
+    updateSubStep(subKey, patch);
+  }
+
+  function handleSubPowerZoneSelect(subKey: string, zoneId: string, zoneName: string, lower?: number, upper?: number) {
+    const patch: Partial<SubStepDraft> = { powerZoneId: zoneId, powerZoneName: zoneName };
+    if (zoneId && lower != null && upper != null) {
+      patch.targetFrom = String(lower);
+      patch.targetTo = String(upper);
+    }
+    updateSubStep(subKey, patch);
   }
 
   return createPortal(
@@ -499,13 +720,35 @@ function RepeatBlockEditModal({ item, sport, onUpdate, onClose }: { item: Repeat
                 {intensityCfg && (
                   <IntensityFields cfg={intensityCfg} idPrefix={sub.key} item={sub} onChange={(p) => updateSubStep(sub.key, p)} />
                 )}
+                {sport === 'running' && (
+                  <ZonePicker id={`spz-${sub.key}`} label="Pace Zone" zoneType="running_pace" zoneSets={zoneSets} selectedId={sub.paceZoneId} navigate={navigate} onSelect={(id, name, lo, hi) => handleSubPaceZoneSelect(sub.key, sub, id, name, lo, hi)} />
+                )}
+                {sport === 'swimming' && (
+                  <ZonePicker id={`spz-${sub.key}`} label="Pace Zone" zoneType="swimming_pace" zoneSets={zoneSets} selectedId={sub.paceZoneId} navigate={navigate} onSelect={(id, name, lo, hi) => handleSubPaceZoneSelect(sub.key, sub, id, name, lo, hi)} />
+                )}
+                {sport === 'cycling' && (
+                  <ZonePicker id={`spwz-${sub.key}`} label="Power Zone" zoneType="cycling_power" zoneSets={zoneSets} selectedId={sub.powerZoneId} navigate={navigate} onSelect={(id, name, lo, hi) => handleSubPowerZoneSelect(sub.key, id, name, lo, hi)} />
+                )}
+                <ZonePicker
+                  id={`shrz-${sub.key}`} label="HR Zone" zoneType="heart_rate" sport={sport}
+                  zoneSets={zoneSets} selectedId={sub.hrZoneId} navigate={navigate}
+                  onSelect={(id, name) => updateSubStep(sub.key, { hrZoneId: id, hrZoneName: name })}
+                />
                 <textarea className="cw-textarea cw-textarea--sm" placeholder="Instruction..." rows={1} value={sub.instruction} onChange={(e) => updateSubStep(sub.key, { instruction: e.target.value })} />
                 <div className="cw-row">
                   <Field label="Duration (min)" htmlFor={`sd-${sub.key}`} className="cw-field--1">
-                    <input id={`sd-${sub.key}`} className="cw-input cw-input--sm" type="number" min="0" step="0.5" placeholder="—" value={sub.durationMinutes} onChange={(e) => updateSubStep(sub.key, { durationMinutes: e.target.value })} />
+                    <input
+                      id={`sd-${sub.key}`} className="cw-input cw-input--sm" type="number" min="0" step="0.5" placeholder="—"
+                      value={sub.durationMinutes}
+                      onChange={(e) => updateSubStep(sub.key, syncStepDistanceFromDuration(sub, e.target.value, sport) as Partial<SubStepDraft>)}
+                    />
                   </Field>
                   <Field label="Distance (km)" htmlFor={`sdi-${sub.key}`} className="cw-field--1">
-                    <input id={`sdi-${sub.key}`} className="cw-input cw-input--sm" type="number" min="0" step="0.1" placeholder="—" value={sub.distanceKm} onChange={(e) => updateSubStep(sub.key, { distanceKm: e.target.value })} />
+                    <input
+                      id={`sdi-${sub.key}`} className="cw-input cw-input--sm" type="number" min="0" step="0.1" placeholder="—"
+                      value={sub.distanceKm}
+                      onChange={(e) => updateSubStep(sub.key, syncStepDurationFromDistance(sub, e.target.value, sport) as Partial<SubStepDraft>)}
+                    />
                   </Field>
                 </div>
               </div>
@@ -530,6 +773,8 @@ function RepeatBlockEditModal({ item, sport, onUpdate, onClose }: { item: Repeat
 export function CreateWorkoutPage({ navigate }: PageComponentProps) {
   const plansState = useTrainingPlans();
   const { refresh: refreshWeekPlan } = useCurrentWeekPlan();
+  const zonesState = useTrainingZones();
+  const zoneSets = zonesState.status === 'success' ? zonesState.zoneSets : [];
 
   /* form fields */
   const [title, setTitle] = useState('');
@@ -821,8 +1066,8 @@ export function CreateWorkoutPage({ navigate }: PageComponentProps) {
         if (!item) return null;
         const onClose = () => setEditingKey(null);
         return item.kind === 'step'
-          ? <StepEditModal item={item} sport={sport} onUpdate={(p) => updateItem<SingleStep>(editingKey, p)} onClose={onClose} />
-          : <RepeatBlockEditModal item={item} sport={sport} onUpdate={(p) => updateItem<RepeatBlock>(editingKey, p)} onClose={onClose} />;
+          ? <StepEditModal item={item} sport={sport} zoneSets={zoneSets} navigate={navigate} onUpdate={(p) => updateItem<SingleStep>(editingKey, p)} onClose={onClose} />
+          : <RepeatBlockEditModal item={item} sport={sport} zoneSets={zoneSets} navigate={navigate} onUpdate={(p) => updateItem<RepeatBlock>(editingKey, p)} onClose={onClose} />;
       })()}
     </PageShell>
   );

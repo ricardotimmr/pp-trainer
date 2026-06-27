@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import * as ActivityRepository from '../../repositories/ActivityRepository.js';
 import * as AthleteRepository from '../../repositories/AthleteRepository.js';
 import * as TrainingRepository from '../../repositories/TrainingRepository.js';
 import {
@@ -10,14 +11,17 @@ import {
   getCurrentWeekPlan,
   getTrainingPlanById,
   getWorkoutById,
+  linkActivity,
   listTrainingPlans,
   listWorkouts,
+  unlinkActivity,
   updateTrainingPlan,
   updateWorkout,
   validateStatusTransition,
 } from '../../services/TrainingService.js';
 
 vi.mock('../../lib/prisma.js', () => ({ prisma: {}, disconnectPrisma: vi.fn() }));
+vi.mock('../../repositories/ActivityRepository.js');
 vi.mock('../../repositories/AthleteRepository.js');
 vi.mock('../../repositories/TrainingRepository.js');
 
@@ -36,7 +40,7 @@ const mockPlanRow = {
   createdAt: new Date(),
   updatedAt: new Date(),
   plannedWorkouts: [],
-} as never;
+} as unknown as TrainingRepository.TrainingPlanWithWorkouts;
 
 const mockWorkoutRow = {
   id: 'wo-1',
@@ -58,7 +62,9 @@ const mockWorkoutRow = {
   createdAt: new Date(),
   updatedAt: new Date(),
   steps: [],
-} as never;
+  aiCoachOutputId: null,
+  completedWorkoutLink: null,
+} as unknown as TrainingRepository.WorkoutWithSteps;
 
 const minimalPlanInput = {
   title: 'Base Phase',
@@ -588,5 +594,124 @@ describe('deleteTrainingPlan()', () => {
     vi.mocked(TrainingRepository.deleteTrainingPlan).mockResolvedValue(undefined);
     await deleteTrainingPlan('plan-1');
     expect(TrainingRepository.deleteTrainingPlan).toHaveBeenCalledWith('plan-1');
+  });
+});
+
+// ── deleteWorkout() cascade guard ─────────────────────────────────────────────
+
+const mockLink = {
+  id: 'link-1',
+  linkedAt: new Date(),
+  matchConfidence: null,
+  plannedWorkoutId: 'wo-1',
+  activityId: 'act-1',
+};
+
+describe('deleteWorkout() — cascade guard', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('throws 409 when workout is linked to an activity', async () => {
+    const linked = { ...mockWorkoutRow, completedWorkoutLink: mockLink } as never;
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(linked);
+    await expect(deleteWorkout('wo-1')).rejects.toMatchObject({
+      code: 'CONFLICT',
+      details: { linkedActivityId: 'act-1' },
+    });
+  });
+
+  it('deletes successfully with force=true even when linked', async () => {
+    const linked = { ...mockWorkoutRow, completedWorkoutLink: mockLink } as never;
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(linked);
+    vi.mocked(TrainingRepository.deletePlannedWorkout).mockResolvedValue(undefined);
+    await deleteWorkout('wo-1', true);
+    expect(TrainingRepository.deletePlannedWorkout).toHaveBeenCalledWith('wo-1');
+  });
+});
+
+// ── linkActivity() / unlinkActivity() ─────────────────────────────────────────
+
+const mockActivityRow = {
+  id: 'act-1',
+  athleteProfileId: 'profile-1',
+  sport: 'Running',
+  startTime: new Date(),
+  durationSeconds: 3600,
+} as unknown as ActivityRepository.ActivityWithDetails;
+
+describe('linkActivity()', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('throws 404 when workout not found', async () => {
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(null);
+    await expect(linkActivity('no-workout', { activityId: 'act-1' })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('throws 404 when activity not found', async () => {
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(mockWorkoutRow);
+    vi.mocked(ActivityRepository.findActivityById).mockResolvedValue(null);
+    await expect(linkActivity('wo-1', { activityId: 'no-activity' })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('throws 422 when workout and activity belong to different athletes', async () => {
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(mockWorkoutRow);
+    const otherAthleteActivity = { ...mockActivityRow, athleteProfileId: 'other-profile' } as never;
+    vi.mocked(ActivityRepository.findActivityById).mockResolvedValue(otherAthleteActivity);
+    await expect(linkActivity('wo-1', { activityId: 'act-1' })).rejects.toMatchObject({
+      code: 'UNPROCESSABLE',
+    });
+  });
+
+  it('links activity, auto-completes the workout, and returns updated dto', async () => {
+    const completedRow = {
+      ...mockWorkoutRow,
+      status: 'Completed',
+      completedWorkoutLink: mockLink,
+    } as never;
+    vi.mocked(TrainingRepository.findWorkoutById)
+      .mockResolvedValueOnce(mockWorkoutRow)
+      .mockResolvedValueOnce(completedRow);
+    vi.mocked(ActivityRepository.findActivityById).mockResolvedValue(mockActivityRow);
+    vi.mocked(TrainingRepository.linkWorkoutToActivity).mockResolvedValue(mockLink as never);
+    vi.mocked(TrainingRepository.updatePlannedWorkout).mockResolvedValue(completedRow);
+    const dto = await linkActivity('wo-1', { activityId: 'act-1' });
+    expect(TrainingRepository.linkWorkoutToActivity).toHaveBeenCalledWith('wo-1', 'act-1');
+    expect(TrainingRepository.updatePlannedWorkout).toHaveBeenCalledWith('wo-1', { status: 'Completed' });
+    expect(dto.activityId).toBe('act-1');
+    expect(dto.status).toBe('completed');
+  });
+
+  it('skips status update when workout is already completed', async () => {
+    const alreadyCompleted = { ...mockWorkoutRow, status: 'Completed' } as unknown as TrainingRepository.WorkoutWithSteps;
+    const linkedRow = { ...mockWorkoutRow, status: 'Completed', completedWorkoutLink: mockLink } as unknown as TrainingRepository.WorkoutWithSteps;
+    vi.mocked(TrainingRepository.findWorkoutById)
+      .mockResolvedValueOnce(alreadyCompleted)
+      .mockResolvedValueOnce(linkedRow);
+    vi.mocked(ActivityRepository.findActivityById).mockResolvedValue(mockActivityRow);
+    vi.mocked(TrainingRepository.linkWorkoutToActivity).mockResolvedValue(mockLink as never);
+    await linkActivity('wo-1', { activityId: 'act-1' });
+    expect(TrainingRepository.updatePlannedWorkout).not.toHaveBeenCalled();
+  });
+});
+
+describe('unlinkActivity()', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('throws 404 when workout not found', async () => {
+    vi.mocked(TrainingRepository.findWorkoutById).mockResolvedValue(null);
+    await expect(unlinkActivity('no-workout')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('unlinks and returns updated workout', async () => {
+    vi.mocked(TrainingRepository.findWorkoutById)
+      .mockResolvedValueOnce({ ...mockWorkoutRow, completedWorkoutLink: mockLink } as never)
+      .mockResolvedValueOnce(mockWorkoutRow);
+    vi.mocked(TrainingRepository.unlinkWorkout).mockResolvedValue(undefined);
+    const dto = await unlinkActivity('wo-1');
+    expect(TrainingRepository.unlinkWorkout).toHaveBeenCalledWith('wo-1');
+    expect(dto.activityId).toBeNull();
   });
 });

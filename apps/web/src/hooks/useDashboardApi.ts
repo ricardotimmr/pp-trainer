@@ -4,7 +4,7 @@ import type { ActivitySummaryDto } from '@pp-trainer/shared';
 
 import { fetchActivities, fetchActivitiesForWeek } from '../api/activitiesApi';
 import { mapApiActivity } from '../api/mapApiActivity';
-import type { Activity, SportType } from '../mock/prototypeData.types';
+import type { Activity, SportType } from '../types/domain';
 
 export type WeekVolume = {
   totalSeconds: number;

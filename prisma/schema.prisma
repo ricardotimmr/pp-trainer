@@ -253,8 +253,10 @@ model AthleteProfile {
   primarySports SportType[]
 
   currentFtpWatts                 Int?
+  cyclingThresholdHrBpm           Int?
   maxHeartRateBpm                 Int?
   restingHeartRateBpm             Int?
+  runningThresholdHrBpm           Int?
   runningThresholdPaceSecPerKm    Int?
   swimmingThresholdPaceSecPer100m Int?
 
@@ -422,6 +424,7 @@ model Activity {
   strengthExercises        ActivityStrengthExercise[]
   createdFromImportedFiles ImportedFile[]             @relation("ImportedFileCreatedActivity")
   importJobs               ImportJob[]
+  completedWorkoutLink     CompletedWorkoutLink?
 
   @@index([athleteProfileId, startTime])
   @@index([athleteProfileId, sport, startTime, durationSeconds, distanceMeters])
@@ -605,6 +608,7 @@ model PlannedWorkout {
 
   steps                   WorkoutStep[]
   createdByAiCoachOutputs AiCoachOutput[] @relation("AiCoachOutputCreatedPlannedWorkout")
+  completedWorkoutLink    CompletedWorkoutLink?
 
   @@index([athleteProfileId, scheduledDate])
   @@index([athleteProfileId, status, scheduledDate])
@@ -645,6 +649,18 @@ model WorkoutStep {
   @@index([targetHeartRateZoneId])
   @@index([targetPowerZoneId])
   @@index([targetPaceZoneId])
+}
+
+model CompletedWorkoutLink {
+  id              String   @id @default(cuid())
+  linkedAt        DateTime @default(now())
+  matchConfidence Decimal? @db.Decimal(4, 3)
+
+  plannedWorkoutId String        @unique
+  plannedWorkout   PlannedWorkout @relation(fields: [plannedWorkoutId], references: [id], onDelete: Cascade)
+
+  activityId String   @unique
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
 }
 
 model PerformanceSportMetric {

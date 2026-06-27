@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchActivities } from '../api/activitiesApi';
 import { mapApiActivity } from '../api/mapApiActivity';
-import type { Activity } from '../mock/prototypeData.types';
+import type { Activity } from '../types/domain';
 
 type ActivitiesApiState =
   | { status: 'loading' }

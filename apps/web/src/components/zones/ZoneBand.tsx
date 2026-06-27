@@ -1,5 +1,5 @@
 import { getZoneColor } from '../zoneVisuals';
-import type { TrainingZone } from '../../mock/prototypeData.types';
+import type { TrainingZone } from '../../types/domain';
 
 type ZoneBandProps = {
   zones: TrainingZone[];

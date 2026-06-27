@@ -1,8 +1,10 @@
 import OpenAI from 'openai';
 import {
   AiGeneratedSingleWorkoutSchema,
+  AiGeneratedWeekAnalysisSchema,
   AiGeneratedWeekPlanSchema,
   type AiGeneratedSingleWorkout,
+  type AiGeneratedWeekAnalysis,
   type AiGeneratedWeekPlan,
 } from '@pp-trainer/shared';
 
@@ -34,6 +36,15 @@ export class OpenAiProvider implements AiProvider {
   async generateSingleWorkout(prompt: BuiltPrompt): Promise<AiProviderResult<AiGeneratedSingleWorkout>> {
     const raw = await this.callWithJsonFormat(prompt);
     const parsed = AiGeneratedSingleWorkoutSchema.safeParse(raw);
+    if (!parsed.success) {
+      return { data: null, rawOutput: raw, validationErrors: parsed.error.issues };
+    }
+    return { data: parsed.data, rawOutput: raw };
+  }
+
+  async generateWeekAnalysis(prompt: BuiltPrompt): Promise<AiProviderResult<AiGeneratedWeekAnalysis>> {
+    const raw = await this.callWithJsonFormat(prompt);
+    const parsed = AiGeneratedWeekAnalysisSchema.safeParse(raw);
     if (!parsed.success) {
       return { data: null, rawOutput: raw, validationErrors: parsed.error.issues };
     }

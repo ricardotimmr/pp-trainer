@@ -1,4 +1,5 @@
 import type {
+  CompletedWorkoutLink,
   PlannedWorkout,
   PlannedWorkoutSource,
   SportType,
@@ -14,7 +15,10 @@ import type {
 
 import { prisma } from '../lib/prisma.js';
 
-export type WorkoutWithSteps = PlannedWorkout & { steps: WorkoutStep[] };
+export type WorkoutWithSteps = PlannedWorkout & {
+  steps: WorkoutStep[];
+  completedWorkoutLink: CompletedWorkoutLink | null;
+};
 export type TrainingPlanWithWorkouts = TrainingPlan & { plannedWorkouts: WorkoutWithSteps[] };
 
 export type CreateTrainingPlanInput = {
@@ -106,7 +110,7 @@ export async function findActivePlanWithWeekWorkouts(
       athleteProfileId,
       scheduledDate: { gte: weekStart, lt: weekEnd },
     },
-    include: { steps: { orderBy: { stepIndex: 'asc' } } },
+    include: { steps: { orderBy: { stepIndex: 'asc' } }, completedWorkoutLink: true },
     orderBy: { scheduledDate: 'asc' },
   });
 
@@ -118,7 +122,7 @@ export async function findTrainingPlanById(id: string): Promise<TrainingPlanWith
     where: { id },
     include: {
       plannedWorkouts: {
-        include: { steps: { orderBy: { stepIndex: 'asc' } } },
+        include: { steps: { orderBy: { stepIndex: 'asc' } }, completedWorkoutLink: true },
         orderBy: { scheduledDate: 'asc' },
       },
     },
@@ -128,7 +132,7 @@ export async function findTrainingPlanById(id: string): Promise<TrainingPlanWith
 export async function findWorkoutById(id: string): Promise<WorkoutWithSteps | null> {
   return prisma.plannedWorkout.findUnique({
     where: { id },
-    include: { steps: { orderBy: { stepIndex: 'asc' } } },
+    include: { steps: { orderBy: { stepIndex: 'asc' } }, completedWorkoutLink: true },
   });
 }
 
@@ -146,7 +150,7 @@ export async function createTrainingPlan(
     data,
     include: {
       plannedWorkouts: {
-        include: { steps: { orderBy: { stepIndex: 'asc' } } },
+        include: { steps: { orderBy: { stepIndex: 'asc' } }, completedWorkoutLink: true },
         orderBy: { scheduledDate: 'asc' },
       },
     },
@@ -162,7 +166,7 @@ export async function updateTrainingPlan(
     data,
     include: {
       plannedWorkouts: {
-        include: { steps: { orderBy: { stepIndex: 'asc' } } },
+        include: { steps: { orderBy: { stepIndex: 'asc' } }, completedWorkoutLink: true },
         orderBy: { scheduledDate: 'asc' },
       },
     },
@@ -178,7 +182,7 @@ export async function createPlannedWorkout(
       ...workoutData,
       steps: { create: steps },
     },
-    include: { steps: { orderBy: { stepIndex: 'asc' } } },
+    include: { steps: { orderBy: { stepIndex: 'asc' } }, completedWorkoutLink: true },
   });
 }
 
@@ -195,7 +199,7 @@ export async function updatePlannedWorkout(
         steps: { deleteMany: {}, create: steps },
       }),
     },
-    include: { steps: { orderBy: { stepIndex: 'asc' } } },
+    include: { steps: { orderBy: { stepIndex: 'asc' } }, completedWorkoutLink: true },
   });
 }
 
@@ -212,10 +216,15 @@ export async function listWorkouts(
     where: {
       athleteProfileId,
       ...(from != null || to != null
-        ? { scheduledDate: { ...(from != null && { gte: from }), ...(to != null && { lte: to }) } }
+        ? {
+            scheduledDate: {
+              ...(from != null && { gte: from }),
+              ...(to != null && { lt: new Date(to.getTime() + 86_400_000) }),
+            },
+          }
         : {}),
     },
-    include: { steps: { orderBy: { stepIndex: 'asc' } } },
+    include: { steps: { orderBy: { stepIndex: 'asc' } }, completedWorkoutLink: true },
     orderBy: { scheduledDate: 'desc' },
   });
 }
@@ -232,4 +241,28 @@ export async function deactivateOtherActivePlans(
     where: { athleteProfileId, status: 'Active', id: { not: excludeId } },
     data: { status: 'Draft' },
   });
+}
+
+export async function linkWorkoutToActivity(
+  plannedWorkoutId: string,
+  activityId: string,
+  matchConfidence?: number,
+): Promise<CompletedWorkoutLink> {
+  return prisma.completedWorkoutLink.upsert({
+    where: { plannedWorkoutId },
+    create: {
+      plannedWorkoutId,
+      activityId,
+      ...(matchConfidence != null && { matchConfidence }),
+    },
+    update: {
+      activityId,
+      linkedAt: new Date(),
+      ...(matchConfidence != null && { matchConfidence }),
+    },
+  });
+}
+
+export async function unlinkWorkout(plannedWorkoutId: string): Promise<void> {
+  await prisma.completedWorkoutLink.deleteMany({ where: { plannedWorkoutId } });
 }

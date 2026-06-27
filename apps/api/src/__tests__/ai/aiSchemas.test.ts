@@ -5,6 +5,7 @@ import {
   AiGeneratedWorkoutSchema,
   AiGeneratedWorkoutStepSchema,
   AiGeneratedSingleWorkoutSchema,
+  AcceptAiOutputRequestSchema,
   GenerateWeekPlanRequestSchema,
   GenerateWorkoutRequestSchema,
 } from '@pp-trainer/shared';
@@ -191,6 +192,29 @@ describe('AiGeneratedWorkoutSchema', () => {
 
   it('fails with unknown fields (.strict())', () => {
     const result = AiGeneratedWorkoutSchema.safeParse({ ...validWorkout, aiVersion: '1' });
+    expect(result.success).toBe(false);
+  });
+});
+
+// ── AcceptAiOutputRequestSchema ──────────────────────────────────────────────
+
+describe('AcceptAiOutputRequestSchema', () => {
+  it('passes an empty accept request', () => {
+    const result = AcceptAiOutputRequestSchema.safeParse({});
+    expect(result.success).toBe(true);
+  });
+
+  it('passes a valid single workout override', () => {
+    const result = AcceptAiOutputRequestSchema.safeParse({
+      singleWorkoutOverride: { workout: validWorkout },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('fails with unknown fields', () => {
+    const result = AcceptAiOutputRequestSchema.safeParse({
+      unknown: true,
+    });
     expect(result.success).toBe(false);
   });
 });

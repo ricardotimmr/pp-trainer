@@ -1,4 +1,4 @@
-import type { PlannedWorkout, TrainingPlan, WorkoutStep } from '@prisma/client';
+import type { CompletedWorkoutLink, PlannedWorkout, TrainingPlan, WorkoutStep } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
 import { mapPlannedWorkout, mapTrainingPlan, mapWorkoutStep } from '../../mappers/mapTraining.js';
@@ -120,14 +120,32 @@ describe('mapWorkoutStep', () => {
   });
 });
 
+const baseLink: CompletedWorkoutLink = {
+  id: 'link-1',
+  linkedAt: new Date('2024-06-10T10:00:00Z'),
+  matchConfidence: null,
+  plannedWorkoutId: 'wo-1',
+  activityId: 'act-1',
+};
+
 describe('mapPlannedWorkout', () => {
-  const workoutWithSteps: WorkoutWithSteps = { ...baseWorkout, steps: [baseStep] };
+  const workoutWithSteps: WorkoutWithSteps = {
+    ...baseWorkout,
+    steps: [baseStep],
+    completedWorkoutLink: null,
+  };
 
   it('maps required fields', () => {
     const dto = mapPlannedWorkout(workoutWithSteps);
     expect(dto.id).toBe('wo-1');
     expect(dto.title).toBe('Easy Run');
     expect(dto.trainingPlanId).toBe('plan-1');
+    expect(dto.activityId).toBeNull();
+  });
+
+  it('maps linked activity id when present', () => {
+    const dto = mapPlannedWorkout({ ...workoutWithSteps, completedWorkoutLink: baseLink });
+    expect(dto.activityId).toBe('act-1');
   });
 
   it('formats scheduledDate as YYYY-MM-DD', () => {
@@ -192,7 +210,7 @@ describe('mapPlannedWorkout', () => {
 describe('mapTrainingPlan', () => {
   const planWithWorkouts: TrainingPlanWithWorkouts = {
     ...basePlan,
-    plannedWorkouts: [{ ...baseWorkout, steps: [baseStep] }],
+    plannedWorkouts: [{ ...baseWorkout, steps: [baseStep], completedWorkoutLink: null }],
   };
 
   it('maps required fields', () => {

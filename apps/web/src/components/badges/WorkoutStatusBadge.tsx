@@ -1,4 +1,4 @@
-import type { WorkoutStatus } from '../../mock/prototypeData.types';
+import type { WorkoutStatus } from '../../types/domain';
 
 const statusLabels: Record<WorkoutStatus, string> = {
   planned: 'Planned',

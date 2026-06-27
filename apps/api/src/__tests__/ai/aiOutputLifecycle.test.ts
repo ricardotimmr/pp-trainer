@@ -127,7 +127,7 @@ describe('POST /api/ai/outputs/:id/accept — week_plan', () => {
 
     await app.inject({ method: 'POST', url: '/api/ai/outputs/output-abc/accept' });
 
-    expect(vi.mocked(AiAcceptService.acceptOutput)).toHaveBeenCalledWith('output-abc');
+    expect(vi.mocked(AiAcceptService.acceptOutput)).toHaveBeenCalledWith('output-abc', {});
   });
 
   it('returns 404 when output not found', async () => {
@@ -190,6 +190,54 @@ describe('POST /api/ai/outputs/:id/accept — single_workout', () => {
     const body = res.json<typeof mockWorkoutDto>();
     expect(body.id).toBe('workout-1');
     expect(body.source).toBe('ai_generated');
+  });
+
+  it('passes single workout override body to the accept service', async () => {
+    vi.mocked(AiAcceptService.acceptOutput).mockResolvedValue(mockWorkoutDto as never);
+    const app = buildTestApp();
+    const singleWorkoutOverride = {
+      workout: {
+        title: 'Edited Interval Session',
+        sport: 'running',
+        workoutType: 'vo2max',
+        intensity: 'vo2max',
+        objective: 'Edited workout objective',
+        steps: [
+          {
+            stepIndex: 0,
+            stepType: 'warmup',
+            instruction: 'Edited warmup instruction',
+            durationSeconds: 900,
+          },
+        ],
+      },
+    };
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/ai/outputs/output-2/accept',
+      payload: { singleWorkoutOverride },
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(vi.mocked(AiAcceptService.acceptOutput)).toHaveBeenCalledWith(
+      'output-2',
+      { singleWorkoutOverride },
+    );
+  });
+
+  it('returns 400 when accept override body is invalid', async () => {
+    vi.mocked(AiAcceptService.acceptOutput).mockResolvedValue(mockWorkoutDto as never);
+    const app = buildTestApp();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/ai/outputs/output-2/accept',
+      payload: { singleWorkoutOverride: { workout: { title: '' } } },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(vi.mocked(AiAcceptService.acceptOutput)).not.toHaveBeenCalled();
   });
 });
 

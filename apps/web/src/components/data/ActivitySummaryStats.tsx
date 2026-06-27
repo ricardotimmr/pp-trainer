@@ -1,4 +1,4 @@
-import type { Activity } from '../../mock/prototypeData.types';
+import type { Activity } from '../../types/domain';
 import { formatDistance, formatDuration } from '../prototypeFormatters';
 
 type ActivitySummaryStatsProps = {

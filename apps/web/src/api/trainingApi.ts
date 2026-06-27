@@ -87,10 +87,31 @@ export async function updateWorkoutStatus(
   });
 }
 
-export async function deleteWorkout(id: string): Promise<void> {
-  await apiFetch<void>(`/api/workouts/${encodeURIComponent(id)}`, {
+export async function deleteWorkout(id: string, options?: { force?: boolean }): Promise<void> {
+  const params = new URLSearchParams();
+  if (options?.force) params.set('force', 'true');
+  const query = params.size > 0 ? `?${params.toString()}` : '';
+
+  await apiFetch<void>(`/api/workouts/${encodeURIComponent(id)}${query}`, {
     method: 'DELETE',
     acceptedStatuses: [204],
+  });
+}
+
+export async function linkWorkoutActivity(
+  workoutId: string,
+  activityId: string,
+): Promise<PlannedWorkoutDto> {
+  return apiFetch<PlannedWorkoutDto>(`/api/workouts/${encodeURIComponent(workoutId)}/link-activity`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ activityId }),
+  });
+}
+
+export async function unlinkWorkoutActivity(workoutId: string): Promise<PlannedWorkoutDto> {
+  return apiFetch<PlannedWorkoutDto>(`/api/workouts/${encodeURIComponent(workoutId)}/link-activity`, {
+    method: 'DELETE',
   });
 }
 

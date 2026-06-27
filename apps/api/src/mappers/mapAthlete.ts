@@ -27,8 +27,10 @@ export function mapAthleteProfile(profile: AthleteProfile): AthleteProfileDto {
     primarySports: profile.primarySports.map((s) => SPORT_TYPE_MAP[s]),
     thresholds: {
       ...(profile.currentFtpWatts != null && { currentFtpWatts: profile.currentFtpWatts }),
+      ...(profile.cyclingThresholdHrBpm != null && { cyclingThresholdHrBpm: profile.cyclingThresholdHrBpm }),
       ...(profile.maxHeartRateBpm != null && { maxHeartRateBpm: profile.maxHeartRateBpm }),
       ...(profile.restingHeartRateBpm != null && { restingHeartRateBpm: profile.restingHeartRateBpm }),
+      ...(profile.runningThresholdHrBpm != null && { runningThresholdHrBpm: profile.runningThresholdHrBpm }),
       ...(profile.runningThresholdPaceSecPerKm != null && {
         runningThresholdPaceSecPerKm: profile.runningThresholdPaceSecPerKm,
       }),
@@ -72,7 +74,7 @@ export function mapTrainingAvailability(avail: TrainingAvailability): TrainingAv
   };
 }
 
-function mapTrainingZone(zone: TrainingZone): TrainingZoneDto {
+export function mapTrainingZone(zone: TrainingZone): TrainingZoneDto {
   return {
     id: zone.id,
     zoneNumber: zone.zoneNumber,

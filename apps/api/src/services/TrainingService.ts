@@ -3,6 +3,7 @@ import type {
   CreateTrainingPlanRequest,
   CreateWorkoutStepRequest,
   CurrentTrainingPlanResponseDto,
+  LinkActivityInput,
   PlannedWorkoutDto,
   TrainingPlanDto,
   TrainingPlanSummaryDto,
@@ -26,6 +27,7 @@ import {
   mapTrainingPlan,
   mapTrainingPlanSummary,
 } from '../mappers/mapTraining.js';
+import * as ActivityRepository from '../repositories/ActivityRepository.js';
 import * as AthleteRepository from '../repositories/AthleteRepository.js';
 import * as TrainingRepository from '../repositories/TrainingRepository.js';
 import type { CreateWorkoutStepData } from '../repositories/TrainingRepository.js';
@@ -156,6 +158,10 @@ function fmtDate(d: Date): string {
   return d.toISOString().split('T')[0];
 }
 
+function toDateOnly(value: string): Date {
+  return new Date(value.split('T')[0]);
+}
+
 async function assertDateWithinPlanRange(scheduledDate: Date, planId: string): Promise<void> {
   const plan = await TrainingRepository.findTrainingPlanById(planId);
   if (!plan) throw ApiError.notFound('Training plan not found');
@@ -232,7 +238,7 @@ export async function createWorkout(
 
   if (data.trainingPlanId != null) {
     if (data.scheduledDate != null) {
-      await assertDateWithinPlanRange(new Date(data.scheduledDate), data.trainingPlanId);
+      await assertDateWithinPlanRange(toDateOnly(data.scheduledDate), data.trainingPlanId);
     } else {
       const plan = await TrainingRepository.findTrainingPlanById(data.trainingPlanId);
       if (!plan) throw ApiError.notFound('Training plan not found');
@@ -245,7 +251,7 @@ export async function createWorkout(
     title: data.title,
     sport: DTO_TO_PRISMA_SPORT_MAP[data.sport],
     workoutType: DTO_TO_PRISMA_WORKOUT_TYPE_MAP[data.workoutType],
-    scheduledDate: new Date(data.scheduledDate),
+    scheduledDate: toDateOnly(data.scheduledDate),
     ...(data.scheduledStartTime != null && { scheduledStartTime: new Date(data.scheduledStartTime) }),
     ...(data.plannedDurationSeconds != null && { plannedDurationSeconds: data.plannedDurationSeconds }),
     ...(data.plannedDistanceMeters != null && { plannedDistanceMeters: data.plannedDistanceMeters }),
@@ -278,7 +284,7 @@ export async function updateWorkout(
   if (planChanging || dateChanging) {
     const effectivePlanId =
       data.trainingPlanId !== undefined ? data.trainingPlanId : existing.trainingPlanId;
-    const effectiveDate = data.scheduledDate ? new Date(data.scheduledDate) : existing.scheduledDate;
+    const effectiveDate = data.scheduledDate ? toDateOnly(data.scheduledDate) : existing.scheduledDate;
     if (effectivePlanId != null && effectiveDate != null) {
       await assertDateWithinPlanRange(effectiveDate, effectivePlanId);
     }
@@ -290,7 +296,7 @@ export async function updateWorkout(
     ...(data.title != null && { title: data.title }),
     ...(data.sport != null && { sport: DTO_TO_PRISMA_SPORT_MAP[data.sport] }),
     ...(data.workoutType != null && { workoutType: DTO_TO_PRISMA_WORKOUT_TYPE_MAP[data.workoutType] }),
-    ...(data.scheduledDate != null && { scheduledDate: new Date(data.scheduledDate) }),
+    ...(data.scheduledDate != null && { scheduledDate: toDateOnly(data.scheduledDate) }),
     ...(data.scheduledStartTime != null && { scheduledStartTime: new Date(data.scheduledStartTime) }),
     ...(data.plannedDurationSeconds !== undefined && { plannedDurationSeconds: data.plannedDurationSeconds }),
     ...(data.plannedDistanceMeters !== undefined && { plannedDistanceMeters: data.plannedDistanceMeters }),
@@ -306,10 +312,47 @@ export async function updateWorkout(
   return mapPlannedWorkout(workout);
 }
 
-export async function deleteWorkout(id: string): Promise<void> {
+export async function deleteWorkout(id: string, force = false): Promise<void> {
   const existing = await TrainingRepository.findWorkoutById(id);
   if (!existing) throw ApiError.notFound('Workout not found');
+  if (!force && existing.completedWorkoutLink != null) {
+    throw ApiError.conflict(
+      'Workout is linked to a completed activity — use force=true to delete anyway',
+      { linkedActivityId: existing.completedWorkoutLink.activityId },
+    );
+  }
   await TrainingRepository.deletePlannedWorkout(id);
+}
+
+export async function linkActivity(
+  workoutId: string,
+  input: LinkActivityInput,
+): Promise<PlannedWorkoutDto> {
+  const workout = await TrainingRepository.findWorkoutById(workoutId);
+  if (!workout) throw ApiError.notFound('Workout not found');
+
+  const activity = await ActivityRepository.findActivityById(input.activityId);
+  if (!activity) throw ApiError.notFound('Activity not found');
+
+  if (workout.athleteProfileId !== activity.athleteProfileId) {
+    throw ApiError.unprocessable('Workout and activity belong to different athletes');
+  }
+
+  await TrainingRepository.linkWorkoutToActivity(workoutId, input.activityId);
+  if (workout.status !== 'Completed') {
+    await TrainingRepository.updatePlannedWorkout(workoutId, { status: 'Completed' });
+  }
+  const updated = await TrainingRepository.findWorkoutById(workoutId);
+  return mapPlannedWorkout(updated!);
+}
+
+export async function unlinkActivity(workoutId: string): Promise<PlannedWorkoutDto> {
+  const workout = await TrainingRepository.findWorkoutById(workoutId);
+  if (!workout) throw ApiError.notFound('Workout not found');
+
+  await TrainingRepository.unlinkWorkout(workoutId);
+  const updated = await TrainingRepository.findWorkoutById(workoutId);
+  return mapPlannedWorkout(updated!);
 }
 
 export async function listWorkouts(from?: Date, to?: Date): Promise<PlannedWorkoutDto[]> {

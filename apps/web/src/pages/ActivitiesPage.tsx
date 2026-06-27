@@ -6,11 +6,9 @@ import {
   ErrorState,
   LoadingState,
 } from '../components';
-import { DATA_MODE } from '../config/dataMode';
 import { useActivitiesApi } from '../hooks/useActivitiesApi';
 import { PageShell } from '../layout/PageShell';
-import type { Activity } from '../mock/prototypeData.types';
-import { getActivities } from '../mock/prototypeData.helpers';
+import type { Activity } from '../types/domain';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 const PAGE_SIZE = 10;
@@ -107,21 +105,6 @@ function ActivitiesApiMode({ navigate }: PageComponentProps) {
   );
 }
 
-function ActivitiesMockMode({ navigate }: PageComponentProps) {
-  const activities = getActivities();
-
-  return (
-    <ActivitiesContent
-      activities={activities}
-      navigate={navigate}
-      description={`Prototype activity log — ${activities.length} activities across all sports.`}
-    />
-  );
-}
-
 export function ActivitiesPage({ navigate, params }: PageComponentProps) {
-  if (DATA_MODE === 'api') {
-    return <ActivitiesApiMode navigate={navigate} params={params} />;
-  }
-  return <ActivitiesMockMode navigate={navigate} params={params} />;
+  return <ActivitiesApiMode navigate={navigate} params={params} />;
 }

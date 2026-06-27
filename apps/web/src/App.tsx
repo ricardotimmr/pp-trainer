@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef } from 'react';
 import { useLenis } from 'lenis/react';
+import { Toaster } from 'sonner';
 import './App.css';
 
 import { PrototypeAthleteProvider } from './context/PrototypeAthleteContext';
@@ -78,6 +79,22 @@ function App() {
           <Page params={displayedMatch.params} navigate={navigate} />
         </div>
       </AppShell>
+      <Toaster
+        position="bottom-right"
+        closeButton
+        toastOptions={{
+          style: {
+            background: '#eb0f7a',
+            color: '#fff',
+            border: '1.5px solid rgba(255, 255, 255, 0.22)',
+            borderRadius: '2px',
+            fontSize: '0.82rem',
+            fontWeight: '600',
+            letterSpacing: '0.01em',
+            boxShadow: '0 2px 12px rgba(235, 15, 122, 0.35)',
+          },
+        }}
+      />
     </PrototypeAthleteProvider>
   );
 }

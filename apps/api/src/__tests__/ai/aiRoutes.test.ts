@@ -338,3 +338,92 @@ describe('GET /api/ai/history', () => {
     expect(AiService.getHistory).toHaveBeenCalledWith(50);
   });
 });
+
+// ── POST /api/ai/generate-week-analysis ──────────────────────────────────────
+
+const mockWeekAnalysisOutput = {
+  id: 'output-3',
+  outputType: 'week_analysis' as const,
+  status: 'draft' as const,
+  validationStatus: 'valid' as const,
+  summary: 'Good aerobic volume this week.',
+  structuredOutput: { weekStartDate: '2026-06-15', keyObservations: [] },
+  createdAt: '2026-06-23T10:00:00.000Z',
+};
+
+describe('POST /api/ai/generate-week-analysis', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('returns 201 with AiCoachOutputDto on success', async () => {
+    vi.mocked(AiService.generateWeekAnalysis).mockResolvedValue(mockWeekAnalysisOutput as never);
+    const app = buildTestApp();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/ai/generate-week-analysis',
+      payload: { weekStartDate: '2026-06-15' },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const body = res.json<typeof mockWeekAnalysisOutput>();
+    expect(body.outputType).toBe('week_analysis');
+    expect(body.status).toBe('draft');
+    expect(body.validationStatus).toBe('valid');
+  });
+
+  it('returns 201 with empty body (defaults to last completed week)', async () => {
+    vi.mocked(AiService.generateWeekAnalysis).mockResolvedValue(mockWeekAnalysisOutput as never);
+    const app = buildTestApp();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/ai/generate-week-analysis',
+      payload: {},
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(vi.mocked(AiService.generateWeekAnalysis)).toHaveBeenCalledWith({});
+  });
+
+  it('returns 400 when weekStartDate is not a string', async () => {
+    const app = buildTestApp();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/ai/generate-week-analysis',
+      payload: { weekStartDate: 20260615 },
+    });
+
+    expect(res.statusCode).toBe(400);
+    const body = res.json<{ error: { code: string } }>();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('returns 404 when no athlete profile exists', async () => {
+    vi.mocked(AiService.generateWeekAnalysis).mockRejectedValue(ApiError.notFound('Athlete profile not found'));
+    const app = buildTestApp();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/ai/generate-week-analysis',
+      payload: { weekStartDate: '2026-06-15' },
+    });
+
+    expect(res.statusCode).toBe(404);
+    const body = res.json<{ error: { code: string } }>();
+    expect(body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns 502 when AI provider fails', async () => {
+    vi.mocked(AiService.generateWeekAnalysis).mockRejectedValue(ApiError.badGateway());
+    const app = buildTestApp();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/ai/generate-week-analysis',
+      payload: { weekStartDate: '2026-06-15' },
+    });
+
+    expect(res.statusCode).toBe(502);
+  });
+});

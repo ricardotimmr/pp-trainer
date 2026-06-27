@@ -1,4 +1,4 @@
-import type { SportType } from '../../mock/prototypeData.types';
+import type { SportType } from '../../types/domain';
 import { sportLabels } from '../prototypeFormatters';
 
 type SportBadgeProps = {

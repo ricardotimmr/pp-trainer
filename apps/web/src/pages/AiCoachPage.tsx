@@ -1,24 +1,39 @@
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 
 import type {
   AiCoachOutputDto,
+  GenerateWeekAnalysisRequest,
   GenerateWeekPlanRequest,
   GenerateWorkoutRequest,
 } from '@pp-trainer/shared';
 
 import { SelectMenu, SportBadge } from '../components';
 import type { SelectMenuOption } from '../components';
-import { fetchAiHistory, generateWeekPlan, generateWorkout } from '../api/aiApi';
+import { fetchAiHistory, generateWeekAnalysis, generateWeekPlan, generateWorkout } from '../api/aiApi';
 import { ApiClientError } from '../api/apiClient';
 import { useAiCoachSidebar } from '../hooks/useAiCoachSidebar';
 import { PageShell } from '../layout/PageShell';
-import { formatDate, formatDuration } from '../components/prototypeFormatters';
+import { formatDate, formatDuration, sportLabels } from '../components/prototypeFormatters';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 type HistoryState =
   | { status: 'loading' }
   | { status: 'ready'; proposals: AiCoachOutputDto[] }
   | { status: 'error' };
+
+type GenerationMode = 'week_plan' | 'single_workout' | 'week_analysis';
+type ProposalOutputType = Extract<AiCoachOutputDto['outputType'], GenerationMode>;
+type ProposalFilter = 'all' | ProposalOutputType;
+
+const HISTORY_LIMIT = 10;
+const PROPOSAL_OUTPUT_TYPES: ProposalOutputType[] = ['week_plan', 'single_workout', 'week_analysis'];
+
+const PROPOSAL_FILTER_LABELS: Record<ProposalFilter, string> = {
+  all: 'All',
+  week_plan: 'Week plans',
+  single_workout: 'Workouts',
+  week_analysis: 'Analyses',
+};
 
 const OUTPUT_TYPE_LABELS: Record<AiCoachOutputDto['outputType'], string> = {
   week_plan: 'Week Plan',
@@ -29,10 +44,14 @@ const OUTPUT_TYPE_LABELS: Record<AiCoachOutputDto['outputType'], string> = {
   text_answer: 'Answer',
 };
 
+function isProposalOutputType(outputType: AiCoachOutputDto['outputType']): outputType is ProposalOutputType {
+  return PROPOSAL_OUTPUT_TYPES.includes(outputType as ProposalOutputType);
+}
+
 function proposalPreviewUrl(proposal: AiCoachOutputDto): string {
-  return proposal.outputType === 'week_plan'
-    ? `/ai-coach/preview/week-plan/${proposal.id}`
-    : `/ai-coach/preview/workout/${proposal.id}`;
+  if (proposal.outputType === 'week_plan') return `/ai-coach/preview/week-plan/${proposal.id}`;
+  if (proposal.outputType === 'week_analysis') return `/ai-coach/preview/week-analysis/${proposal.id}`;
+  return `/ai-coach/preview/workout/${proposal.id}`;
 }
 
 function proposalTitle(proposal: AiCoachOutputDto): string {
@@ -96,8 +115,22 @@ function nextMondayIso(): string {
   return toLocalDate(d);
 }
 
+function currentMondayIso(): string {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return toLocalDate(d);
+}
+
+const GENERATION_MODE_INDEX: Record<GenerationMode, number> = {
+  week_plan: 0,
+  single_workout: 1,
+  week_analysis: 2,
+};
+
 export function AiCoachPage({ navigate }: PageComponentProps) {
-  const [mode, setMode] = useState<'week_plan' | 'single_workout'>('week_plan');
+  const [mode, setMode] = useState<GenerationMode>('week_plan');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [invalidOutput, setInvalidOutput] = useState(false);
@@ -115,22 +148,38 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
   const sidebarState = useAiCoachSidebar();
 
   const [historyState, setHistoryState] = useState<HistoryState>({ status: 'loading' });
+  const [proposalFilter, setProposalFilter] = useState<ProposalFilter>('all');
+  const proposalListRef = useRef<HTMLOListElement | null>(null);
 
   function refreshHistory() {
-    fetchAiHistory(5)
+    fetchAiHistory(HISTORY_LIMIT)
       .then((proposals) => setHistoryState({ status: 'ready', proposals }))
       .catch(() => setHistoryState({ status: 'error' }));
   }
 
   useEffect(() => {
     let cancelled = false;
-    fetchAiHistory(5)
+    fetchAiHistory(HISTORY_LIMIT)
       .then((proposals) => { if (!cancelled) setHistoryState({ status: 'ready', proposals }); })
       .catch(() => { if (!cancelled) setHistoryState({ status: 'error' }); });
     return () => { cancelled = true; };
   }, []);
 
-  function switchMode(next: 'week_plan' | 'single_workout') {
+  const proposals = historyState.status === 'ready'
+    ? historyState.proposals.filter((proposal) => isProposalOutputType(proposal.outputType))
+    : [];
+  const filteredProposals = proposalFilter === 'all'
+    ? proposals
+    : proposals.filter((proposal) => proposal.outputType === proposalFilter);
+
+  function scrollProposalGallery(direction: 'left' | 'right') {
+    const list = proposalListRef.current;
+    if (!list) return;
+    const distance = list.clientWidth;
+    list.scrollBy({ left: direction === 'left' ? -distance : distance, behavior: 'smooth' });
+  }
+
+  function switchMode(next: GenerationMode) {
     setMode(next);
     setError(null);
     setInvalidOutput(false);
@@ -197,6 +246,31 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
     }
   }
 
+  async function handleWeekAnalysisSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setInvalidOutput(false);
+    setLoading(true);
+
+    try {
+      const request: GenerateWeekAnalysisRequest = { weekStartDate: currentMondayIso() };
+      const output = await generateWeekAnalysis(request);
+
+      if (output.validationStatus === 'invalid') {
+        setInvalidOutput(true);
+        refreshHistory();
+        return;
+      }
+      refreshHistory();
+      navigate(`/ai-coach/preview/week-analysis/${output.id}`);
+    } catch (err) {
+      const msg = err instanceof ApiClientError ? err.message : 'Network error. Please try again.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <PageShell
       title="AI Coach"
@@ -211,9 +285,10 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
           const { athleteProfile } = settings;
           const { thresholds } = athleteProfile;
           const hasThresholds = Boolean(
-            thresholds.currentFtpWatts || thresholds.maxHeartRateBpm
-            || thresholds.restingHeartRateBpm || thresholds.runningThresholdPaceSecPerKm
-            || thresholds.swimmingThresholdPaceSecPer100m,
+            thresholds.currentFtpWatts || thresholds.cyclingThresholdHrBpm
+            || thresholds.maxHeartRateBpm || thresholds.restingHeartRateBpm
+            || thresholds.runningThresholdHrBpm
+            || thresholds.runningThresholdPaceSecPerKm || thresholds.swimmingThresholdPaceSecPer100m,
           );
 
           return (
@@ -243,11 +318,17 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
                     {thresholds.currentFtpWatts && (
                       <div><dt>Bike FTP</dt><dd>{thresholds.currentFtpWatts} W</dd></div>
                     )}
+                    {thresholds.cyclingThresholdHrBpm && (
+                      <div><dt>Bike HR threshold</dt><dd>{thresholds.cyclingThresholdHrBpm} bpm</dd></div>
+                    )}
                     {thresholds.maxHeartRateBpm && (
                       <div><dt>HR max</dt><dd>{thresholds.maxHeartRateBpm} bpm</dd></div>
                     )}
                     {thresholds.restingHeartRateBpm && (
                       <div><dt>HR rest</dt><dd>{thresholds.restingHeartRateBpm} bpm</dd></div>
+                    )}
+                    {thresholds.runningThresholdHrBpm && (
+                      <div><dt>Run HR threshold</dt><dd>{thresholds.runningThresholdHrBpm} bpm</dd></div>
                     )}
                     {thresholds.runningThresholdPaceSecPerKm && (
                       <div>
@@ -310,6 +391,15 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
                       <li key={day.weekday} className="ai-context-availability__day">
                         <span className="ai-context-availability__weekday">{WEEKDAY_SHORT[day.weekday]}</span>
                         <span className="ai-context-availability__duration">{day.maxDurationMinutes} min</span>
+                        {day.preferredSports && day.preferredSports.length > 0 && (
+                          <span className="ai-context-availability__sports">
+                            {day.preferredSports.map((s) => (
+                              <span key={s} className={`ai-context-sport-tag ai-context-sport-tag--${s}`}>
+                                {sportLabels[s]}
+                              </span>
+                            ))}
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -347,9 +437,9 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
           <div className="ai-coach-tips__group">
             <p className="ai-coach-tips__heading">Precision over brevity</p>
             <ul className="ai-coach-tips__list">
-              <li>Name specific targets: "threshold at 285 W" beats "hard effort"</li>
-              <li>Mention upcoming races or blocks: "taper week before 70.3"</li>
-              <li>Call out constraints: "only 45 min available Tuesday"</li>
+              <li>Name specific targets: threshold at 285 W beats hard effort.</li>
+              <li>Mention upcoming races or blocks: taper week before 70.3.</li>
+              <li>Call out constraints: only 45 min available Tuesday.</li>
             </ul>
           </div>
           <div className="ai-coach-tips__group">
@@ -366,6 +456,7 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
             <ul className="ai-coach-tips__list">
               <li>Use week plan at the start of a new training week</li>
               <li>Use single workout to fill a gap or replace a session</li>
+              <li>Use week analysis to review what actually happened this week</li>
             </ul>
           </div>
         </div>
@@ -373,11 +464,11 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
         {/* Form */}
         <div className="ai-coach__output">
 
-          <div className="segmented-control" role="tablist" aria-label="Generation mode">
+          <div className="segmented-control segmented-control--three" role="tablist" aria-label="Generation mode">
             <span
               className="segmented-control__indicator"
               aria-hidden="true"
-              style={{ left: mode === 'week_plan' ? '0%' : '50%', width: '50%' }}
+              style={{ left: `${GENERATION_MODE_INDEX[mode] * (100 / 3)}%`, width: `${100 / 3}%` }}
             />
             <button
               type="button"
@@ -398,6 +489,16 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
               disabled={loading}
             >
               Single workout
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'week_analysis'}
+              className={`segmented-control__tab${mode === 'week_analysis' ? ' is-active' : ''}`}
+              onClick={() => switchMode('week_analysis')}
+              disabled={loading}
+            >
+              Week analysis
             </button>
           </div>
 
@@ -439,7 +540,9 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
               <p className="ai-loading__label">
                 {mode === 'week_plan'
                   ? 'AI is generating your week plan…'
-                  : 'AI is generating your workout…'}
+                  : mode === 'single_workout'
+                    ? 'AI is generating your workout…'
+                    : 'AI is analyzing your week…'}
               </p>
               <p className="ai-loading__hint">This may take 5–15 seconds</p>
             </div>
@@ -568,6 +671,30 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
                   </div>
                 </form>
               )}
+
+              {mode === 'week_analysis' && (
+                <form className="ai-request-form" onSubmit={handleWeekAnalysisSubmit} noValidate>
+                  <p className="ai-output__label">Analyze current week</p>
+
+                  <div className="ai-request-form__fields">
+                    <div className="ai-analysis-trigger">
+                      <p className="ai-analysis-trigger__title">Review this week with current activity data.</p>
+                      <p className="ai-analysis-trigger__copy">
+                        The coach will summarize total volume, sport distribution, key observations and a focus for the next training decision.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="ai-request-form__actions">
+                    <button
+                      type="submit"
+                      className="button button--primary"
+                    >
+                      Analyze this week
+                    </button>
+                  </div>
+                </form>
+              )}
             </>
           )}
         </div>
@@ -578,8 +705,28 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
       {/* ── Recent proposals ─────────────────────────────────── */}
       <section className="ai-proposals" aria-label="Recent proposals">
         <header className="ai-proposals__header">
-          <p className="ai-proposals__eyebrow">History</p>
-          <h2 className="ai-proposals__title">Recent proposals</h2>
+          <div>
+            <p className="ai-proposals__eyebrow">History</p>
+            <h2 className="ai-proposals__title">Recent proposals</h2>
+          </div>
+          {historyState.status === 'ready' && proposals.length > 0 && (
+            <div className="ai-proposals__toolbar" aria-label="Proposal controls">
+              <div className="ai-proposals__filters" role="tablist" aria-label="Proposal type">
+                {(['all', ...PROPOSAL_OUTPUT_TYPES] as ProposalFilter[]).map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    role="tab"
+                    aria-selected={proposalFilter === filter}
+                    className={`ai-proposals__filter${proposalFilter === filter ? ' is-active' : ''}`}
+                    onClick={() => setProposalFilter(filter)}
+                  >
+                    {PROPOSAL_FILTER_LABELS[filter]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </header>
 
         {historyState.status === 'loading' && (
@@ -590,39 +737,63 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
           <p className="ai-proposals__meta">Could not load proposals.</p>
         )}
 
-        {historyState.status === 'ready' && historyState.proposals.length === 0 && (
+        {historyState.status === 'ready' && proposals.length === 0 && (
           <p className="ai-proposals__meta">No previous proposals yet.</p>
         )}
 
-        {historyState.status === 'ready' && historyState.proposals.length > 0 && (
-          <ol className="ai-proposals__list">
-            {historyState.proposals.map((proposal) => (
-              <li
-                key={proposal.id}
-                className={`ai-proposals__item${proposal.status === 'rejected' ? ' is-rejected' : ''}`}
-              >
-                <button
-                  type="button"
-                  className="workout-card workout-card--button"
-                  onClick={() => navigate(proposalPreviewUrl(proposal))}
+        {historyState.status === 'ready' && proposals.length > 0 && filteredProposals.length === 0 && (
+          <p className="ai-proposals__meta">
+            No {PROPOSAL_FILTER_LABELS[proposalFilter].toLowerCase()} yet.
+          </p>
+        )}
+
+        {historyState.status === 'ready' && filteredProposals.length > 0 && (
+          <div className="ai-proposals__gallery">
+            <button
+              type="button"
+              className="ai-proposals__scroll ai-proposals__scroll--left"
+              aria-label="Scroll proposals left"
+              onClick={() => scrollProposalGallery('left')}
+            >
+              <span className="ai-proposals__scroll-icon" aria-hidden="true" />
+            </button>
+            <ol className="ai-proposals__list" ref={proposalListRef}>
+              {filteredProposals.map((proposal) => (
+                <li
+                  key={proposal.id}
+                  className={`ai-proposals__item${proposal.status === 'rejected' ? ' is-rejected' : ''}`}
                 >
-                  <div className="workout-card__topline">
-                    <span className="badge badge--source">
-                      {OUTPUT_TYPE_LABELS[proposal.outputType]}
-                    </span>
-                    <span className={`badge badge--status badge--status-${proposal.status}`}>
-                      {proposal.status === 'accepted' ? 'Accepted' : proposal.status === 'rejected' ? 'Rejected' : 'Draft'}
-                    </span>
-                  </div>
-                  <h3>{proposalTitle(proposal)}</h3>
-                  {proposal.summary && (
-                    <p className="ai-proposals__rationale">{proposal.summary}</p>
-                  )}
-                  <p className="ai-proposals__date">{formatDate(proposal.createdAt?.split('T')[0] ?? '')}</p>
-                </button>
-              </li>
-            ))}
-          </ol>
+                  <button
+                    type="button"
+                    className="workout-card workout-card--button"
+                    onClick={() => navigate(proposalPreviewUrl(proposal))}
+                  >
+                    <div className="workout-card__topline">
+                      <span className="badge badge--source">
+                        {OUTPUT_TYPE_LABELS[proposal.outputType]}
+                      </span>
+                      <span className={`badge badge--status badge--status-${proposal.status}`}>
+                        {proposal.status === 'accepted' ? 'Accepted' : proposal.status === 'rejected' ? 'Rejected' : 'Draft'}
+                      </span>
+                    </div>
+                    <h3>{proposalTitle(proposal)}</h3>
+                    {proposal.summary && (
+                      <p className="ai-proposals__rationale">{proposal.summary}</p>
+                    )}
+                    <p className="ai-proposals__date">{formatDate(proposal.createdAt?.split('T')[0] ?? '')}</p>
+                  </button>
+                </li>
+              ))}
+            </ol>
+            <button
+              type="button"
+              className="ai-proposals__scroll ai-proposals__scroll--right"
+              aria-label="Scroll proposals right"
+              onClick={() => scrollProposalGallery('right')}
+            >
+              <span className="ai-proposals__scroll-icon" aria-hidden="true" />
+            </button>
+          </div>
         )}
       </section>
     </PageShell>

@@ -12,6 +12,7 @@ export type RouteId =
   | 'aiCoach'
   | 'aiCoachWeekPlanPreview'
   | 'aiWorkoutPreview'
+  | 'aiWeekAnalysisPreview'
   | 'settings'
   | 'import'
   | 'devUiShowcase'

@@ -1,4 +1,4 @@
-import type { AiGeneratedSingleWorkout, AiGeneratedWeekPlan } from '@pp-trainer/shared';
+import type { AiGeneratedSingleWorkout, AiGeneratedWeekAnalysis, AiGeneratedWeekPlan } from '@pp-trainer/shared';
 
 import { getApiConfig } from '../config/env.js';
 import { ApiError } from '../errors/ApiError.js';
@@ -7,7 +7,8 @@ import type { AiProvider, AiProviderResult } from './AiProvider.js';
 import { AnthropicProvider } from './AnthropicProvider.js';
 import { MockProvider } from './MockProvider.js';
 import { OpenAiProvider } from './OpenAiProvider.js';
-import { buildSingleWorkoutPrompt, buildWeekPlanPrompt } from './PromptBuilder.js';
+import { buildSingleWorkoutPrompt, buildWeekAnalysisPrompt, buildWeekPlanPrompt } from './PromptBuilder.js';
+import type { WeekAnalysisInput } from './PromptBuilder.js';
 
 function createProvider(): AiProvider {
   const config = getApiConfig();
@@ -48,6 +49,15 @@ export async function generateMemoryEntry(
   const { buildMemoryEntryPrompt } = await import('./PromptBuilder.js');
   const prompt = buildMemoryEntryPrompt(outputType, summary, structuredOutput);
   return provider.generateMemoryEntry(prompt);
+}
+
+export async function generateWeekAnalysis(
+  context: AthleteContextForAi,
+  weekInput: WeekAnalysisInput,
+): Promise<AiProviderResult<AiGeneratedWeekAnalysis>> {
+  const provider = createProvider();
+  const prompt = buildWeekAnalysisPrompt(context, weekInput);
+  return provider.generateWeekAnalysis(prompt);
 }
 
 export async function generateSingleWorkout(

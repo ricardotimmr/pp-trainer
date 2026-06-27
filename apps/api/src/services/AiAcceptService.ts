@@ -1,6 +1,8 @@
 import {
   AiGeneratedSingleWorkoutSchema,
+  AiGeneratedWeekAnalysisSchema,
   AiGeneratedWeekPlanSchema,
+  type AcceptAiOutputRequest,
   type AiGeneratedWorkout,
   type AiGeneratedWorkoutStep,
   type PlannedWorkoutDto,
@@ -23,6 +25,7 @@ import { mapAiCoachOutput } from '../mappers/mapAi.js';
 import { mapPlannedWorkout, mapTrainingPlan } from '../mappers/mapTraining.js';
 import * as AiRepository from '../repositories/AiRepository.js';
 import * as AthleteRepository from '../repositories/AthleteRepository.js';
+import { enrichSingleWorkoutDistances, enrichWeekPlanDistances } from './AiWorkoutDistanceEstimator.js';
 import * as MemoryEntryService from './MemoryEntryService.js';
 
 // ── Zone FK resolution ───────────────────────────────────────────────────────
@@ -148,7 +151,7 @@ function buildWorkoutPrismaInput(
   };
 }
 
-const WORKOUT_STEPS_INCLUDE = { steps: { orderBy: { stepIndex: 'asc' } } } as const;
+const WORKOUT_STEPS_INCLUDE = { steps: { orderBy: { stepIndex: 'asc' } }, completedWorkoutLink: true } as const;
 const PLAN_WORKOUTS_INCLUDE = {
   plannedWorkouts: {
     include: WORKOUT_STEPS_INCLUDE,
@@ -172,10 +175,33 @@ export async function getOutput(outputId: string): Promise<AiCoachOutputDto> {
   if (output == null) throw ApiError.notFound('AI output not found');
   if (output.athleteProfileId !== profile.id) throw ApiError.forbidden();
 
+  const zoneSets = (await AthleteRepository.findAthleteZoneSets(profile.id)) ?? [];
+  if (output.outputType === 'SingleWorkout') {
+    const parsed = AiGeneratedSingleWorkoutSchema.safeParse(output.structuredOutput);
+    if (parsed.success) {
+      return mapAiCoachOutput({
+        ...output,
+        structuredOutput: enrichSingleWorkoutDistances(parsed.data, zoneSets),
+      });
+    }
+  }
+  if (output.outputType === 'WeekPlan') {
+    const parsed = AiGeneratedWeekPlanSchema.safeParse(output.structuredOutput);
+    if (parsed.success) {
+      return mapAiCoachOutput({
+        ...output,
+        structuredOutput: enrichWeekPlanDistances(parsed.data, zoneSets),
+      });
+    }
+  }
+
   return mapAiCoachOutput(output);
 }
 
-export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | PlannedWorkoutDto> {
+export async function acceptOutput(
+  outputId: string,
+  options: AcceptAiOutputRequest = {},
+): Promise<TrainingPlanDto | PlannedWorkoutDto | AiCoachOutputDto> {
   const profile = await AthleteRepository.findFirstAthleteProfile();
   if (profile == null) throw ApiError.notFound('Athlete profile not found');
 
@@ -185,14 +211,28 @@ export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | 
     throw ApiError.unprocessable('AI output failed validation and cannot be accepted');
   }
 
-  const zoneLookup = buildZoneLookup(await loadZones(profile.id));
+  if (options.singleWorkoutOverride != null && output.outputType !== 'SingleWorkout') {
+    throw ApiError.badRequest('singleWorkoutOverride is only supported for single workout outputs');
+  }
+
+  if (output.outputType === 'WeekAnalysis') {
+    const parsed = AiGeneratedWeekAnalysisSchema.safeParse(output.structuredOutput);
+    if (!parsed.success) {
+      throw ApiError.unprocessable('AI output structure is invalid', parsed.error.issues);
+    }
+
+    const updatedOutput = await AiRepository.updateOutput(outputId, { status: 'Accepted' });
+    return mapAiCoachOutput(updatedOutput);
+  }
 
   if (output.outputType === 'WeekPlan') {
+    const zoneLookup = buildZoneLookup(await loadZones(profile.id));
+    const zoneSets = (await AthleteRepository.findAthleteZoneSets(profile.id)) ?? [];
     const parsed = AiGeneratedWeekPlanSchema.safeParse(output.structuredOutput);
     if (!parsed.success) {
       throw ApiError.unprocessable('AI output structure is invalid', parsed.error.issues);
     }
-    const plan = parsed.data;
+    const plan = enrichWeekPlanDistances(parsed.data, zoneSets);
 
     // Pre-compute all Prisma-mapped inputs outside the transaction (pure mapping, no DB calls)
     const workoutInputs = plan.workouts.map((w) =>
@@ -252,11 +292,14 @@ export async function acceptOutput(outputId: string): Promise<TrainingPlanDto | 
   }
 
   // single_workout
+  const zoneLookup = buildZoneLookup(await loadZones(profile.id));
   const parsed = AiGeneratedSingleWorkoutSchema.safeParse(output.structuredOutput);
   if (!parsed.success) {
     throw ApiError.unprocessable('AI output structure is invalid', parsed.error.issues);
   }
-  const aiWorkout = parsed.data.workout;
+  const zoneSets = (await AthleteRepository.findAthleteZoneSets(profile.id)) ?? [];
+  const singleWorkout = enrichSingleWorkoutDistances(options.singleWorkoutOverride ?? parsed.data, zoneSets);
+  const aiWorkout = singleWorkout.workout;
   const _d = new Date();
   const today = `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, '0')}-${String(_d.getDate()).padStart(2, '0')}`;
 

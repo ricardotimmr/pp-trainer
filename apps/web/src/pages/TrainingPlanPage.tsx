@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import type {
+  ActivitySummaryDto,
   CreateTrainingPlanRequest,
   PlannedWorkoutDto,
   TrainingPlanDto,
@@ -10,29 +11,25 @@ import type {
 } from '@pp-trainer/shared';
 
 import { AiBadge, EmptyState, ErrorState, LoadingState, WorkoutCard } from '../components';
-import type { WorkoutCardData } from '../components';
 import { SportBadge } from '../components';
 import { WorkoutStatusBadge } from '../components/badges/WorkoutStatusBadge';
-import { formatDate, formatDuration } from '../components/prototypeFormatters';
+import { formatDate, formatDuration, sportLabels } from '../components/prototypeFormatters';
+import { fetchActivitiesForWeek } from '../api/activitiesApi';
+import { ApiClientError } from '../api/apiClient';
 import {
   createTrainingPlan,
   deleteTrainingPlan,
   deleteWorkout,
   fetchTrainingPlanById,
+  linkWorkoutActivity,
+  unlinkWorkoutActivity,
   updateTrainingPlan,
   updateWorkout,
 } from '../api/trainingApi';
-import { DATA_MODE } from '../config/dataMode';
 import { useCurrentWeekPlan } from '../hooks/useCurrentWeekPlan';
 import { useTrainingPlans } from '../hooks/useTrainingPlans';
 import { useWorkouts } from '../hooks/useWorkouts';
 import { PageShell } from '../layout/PageShell';
-import {
-  getCurrentTrainingPlan,
-  getPlannedWorkouts,
-  getWeeklySummary,
-} from '../mock/prototypeData.helpers';
-import type { PlannedWorkout } from '../mock/prototypeData.types';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 function toLocalDate(d: Date): string {
@@ -65,6 +62,19 @@ function getCurrentWeekRange(): { weekStart: string; weekEnd: string } {
   };
 }
 
+function getWorkoutWeekRange(dateStr: string): { weekStart: string; weekEnd: string } {
+  const date = new Date(`${dateStr}T12:00:00Z`);
+  const daysFromMonday = (date.getUTCDay() + 6) % 7;
+  const monday = new Date(date);
+  monday.setUTCDate(date.getUTCDate() - daysFromMonday);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return {
+    weekStart: monday.toISOString().split('T')[0],
+    weekEnd: sunday.toISOString().split('T')[0],
+  };
+}
+
 function formatDayHeader(dateStr: string): { weekday: string; date: string } {
   const d = new Date(`${dateStr}T12:00:00Z`);
   return {
@@ -79,6 +89,29 @@ function formatWeekRange(startDate: string, endDate: string): string {
   const s = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(start);
   const e = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(end);
   return `${s} – ${e}`;
+}
+
+function formatActivityMeta(activity: ActivitySummaryDto): string {
+  const parts = [formatDate(activity.startTime)];
+  if (activity.metrics.distanceMeters != null) {
+    parts.push(`${(activity.metrics.distanceMeters / 1000).toFixed(1)} km`);
+  }
+  parts.push(formatDuration(activity.metrics.durationSeconds));
+  return parts.join(' · ');
+}
+
+function getLinkedActivityConflictId(error: unknown): string | null {
+  if (!(error instanceof ApiClientError) || error.status !== 409) return null;
+  const details = error.details;
+  if (
+    details != null &&
+    typeof details === 'object' &&
+    'linkedActivityId' in details &&
+    typeof details.linkedActivityId === 'string'
+  ) {
+    return details.linkedActivityId;
+  }
+  return null;
 }
 
 /* ── Plan status badge ───────────────────────────────────────────────────── */
@@ -326,6 +359,158 @@ function EditPlanModal({ plan, onClose, onSuccess }: EditPlanModalProps) {
   );
 }
 
+/* ── Activity link picker ────────────────────────────────────────────────── */
+
+type ActivityPickerModalProps = {
+  workout: PlannedWorkoutDto;
+  linkedActivityIds: string[];
+  linking: boolean;
+  onClose: () => void;
+  onSelect: (activityId: string) => Promise<void>;
+};
+
+function ActivityPickerModal({
+  workout,
+  linkedActivityIds,
+  linking,
+  onClose,
+  onSelect,
+}: ActivityPickerModalProps) {
+  const { weekStart, weekEnd } = getWorkoutWeekRange(workout.scheduledDate);
+  const linkedActivityIdsKey = linkedActivityIds.join('|');
+  const [state, setState] = useState<
+    | { status: 'loading' }
+    | { status: 'success'; activities: ActivitySummaryDto[] }
+    | { status: 'error'; message: string }
+  >({ status: 'loading' });
+
+  useEffect(() => {
+    let cancelled = false;
+    const linkedIds = new Set(linkedActivityIdsKey ? linkedActivityIdsKey.split('|') : []);
+    fetchActivitiesForWeek(weekStart, weekEnd)
+      .then((activities) => {
+        if (cancelled) return;
+        setState({
+          status: 'success',
+          activities: activities
+            .filter((activity) => !linkedIds.has(activity.id))
+            .sort((a, b) => {
+              if (a.sport === workout.sport && b.sport !== workout.sport) return -1;
+              if (a.sport !== workout.sport && b.sport === workout.sport) return 1;
+              return b.startTime.localeCompare(a.startTime);
+            }),
+        });
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setState({
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Failed to load activities.',
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [linkedActivityIdsKey, weekEnd, weekStart, workout.sport]);
+
+  return createPortal(
+    <div className="cw-modal-overlay" onPointerDown={onClose}>
+      <div className="cw-modal tp-activity-picker" onPointerDown={(e) => e.stopPropagation()}>
+        <div className="cw-modal__header">
+          <div>
+            <h3>Link activity</h3>
+            <p className="tp-activity-picker__subtitle">
+              {workout.title} · {formatWeekRange(weekStart, weekEnd)}
+            </p>
+          </div>
+          <button type="button" className="cw-modal__close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="cw-modal__body">
+          {state.status === 'loading' && (
+            <LoadingState title="Loading activities" description="Finding imported activities from this workout week." variant="inline" />
+          )}
+          {state.status === 'error' && (
+            <ErrorState title="Could not load activities" description={state.message} variant="inline" />
+          )}
+          {state.status === 'success' && state.activities.length === 0 && (
+            <EmptyState
+              title="No linkable activities"
+              description="No unlinked activities were found for this workout week."
+            />
+          )}
+          {state.status === 'success' && state.activities.length > 0 && (
+            <ul className="tp-activity-picker__list">
+              {state.activities.map((activity) => {
+                const isSportMatch = activity.sport === workout.sport;
+                return (
+                  <li key={activity.id} className="tp-activity-picker__item">
+                    <button
+                      type="button"
+                      className="tp-activity-picker__button"
+                      disabled={linking}
+                      onClick={() => onSelect(activity.id)}
+                    >
+                      <SportBadge sport={activity.sport} />
+                      <span className="tp-activity-picker__info">
+                        <span className="tp-activity-picker__title">
+                          {activity.title ?? 'Imported activity'}
+                        </span>
+                        <span className="tp-activity-picker__meta">{formatActivityMeta(activity)}</span>
+                      </span>
+                      {isSportMatch && <span className="tp-activity-picker__match">Sport match</span>}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+type LinkedWorkoutDeleteWarningProps = {
+  linkedActivityId: string;
+  deleting: boolean;
+  onCancel: () => void;
+  onConfirm: () => Promise<void>;
+};
+
+function LinkedWorkoutDeleteWarning({
+  linkedActivityId,
+  deleting,
+  onCancel,
+  onConfirm,
+}: LinkedWorkoutDeleteWarningProps) {
+  return createPortal(
+    <div className="cw-modal-overlay" onPointerDown={onCancel}>
+      <div className="cw-modal tp-delete-warning" onPointerDown={(e) => e.stopPropagation()}>
+        <div className="cw-modal__header">
+          <h3>Delete linked workout?</h3>
+          <button type="button" className="cw-modal__close" onClick={onCancel} aria-label="Close">✕</button>
+        </div>
+        <div className="cw-modal__body">
+          <p className="tp-delete-warning__copy">
+            This workout is linked to an activity. Deleting it will not delete the activity. Continue?
+          </p>
+          <p className="tp-delete-warning__meta">Linked activity: {linkedActivityId}</p>
+          <div className="cw-modal__footer">
+            <button type="button" className="btn btn--secondary btn--sm" onClick={onCancel} disabled={deleting}>
+              Cancel
+            </button>
+            <button type="button" className="btn btn--danger btn--sm" onClick={onConfirm} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete anyway'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 /* ── Plan row with accordion ─────────────────────────────────────────────── */
 
 type PlanRowProps = {
@@ -334,13 +519,31 @@ type PlanRowProps = {
   onDeactivate: (id: string) => Promise<void>;
   onEdit: (plan: TrainingPlanSummaryDto) => void;
   onDelete: (id: string) => Promise<void>;
+  onOpenActivityPicker: (workout: PlannedWorkoutDto) => void;
+  onUnlinkActivity: (workoutId: string) => Promise<void>;
   activating: string | null;
   deactivating: string | null;
   deleting: string | null;
+  linkingWorkoutId: string | null;
+  unlinkingWorkoutId: string | null;
   navigate: PageComponentProps['navigate'];
 };
 
-function PlanRow({ plan, onActivate, onDeactivate, onEdit, onDelete, activating, deactivating, deleting, navigate }: PlanRowProps) {
+function PlanRow({
+  plan,
+  onActivate,
+  onDeactivate,
+  onEdit,
+  onDelete,
+  onOpenActivityPicker,
+  onUnlinkActivity,
+  activating,
+  deactivating,
+  deleting,
+  linkingWorkoutId,
+  unlinkingWorkoutId,
+  navigate,
+}: PlanRowProps) {
   const [expanded, setExpanded] = useState(false);
   const [planDetail, setPlanDetail] = useState<TrainingPlanDto | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -459,17 +662,27 @@ function PlanRow({ plan, onActivate, onDeactivate, onEdit, onDelete, activating,
             <ul className="tp-plan-workouts">
               {planDetail.plannedWorkouts.map((w) => (
                 <li key={w.id} className="tp-plan-workout-row">
-                  <button
-                    type="button"
-                    className="tp-plan-workout-row__btn"
-                    onClick={() => navigate(`/workouts/${w.id}`)}
-                  >
-                    <SportBadge sport={w.sport} />
-                    <span className="tp-plan-workout-row__title">{w.title}</span>
-                    {w.source === 'ai_generated' && <AiBadge />}
-                    <span className="tp-plan-workout-row__date">{formatDate(w.scheduledDate)}</span>
-                    <WorkoutStatusBadge status={w.status as 'planned'} />
-                  </button>
+                  <div className="tp-plan-workout-row__content">
+                    <button
+                      type="button"
+                      className="tp-plan-workout-row__btn"
+                      onClick={() => navigate(`/workouts/${w.id}`)}
+                    >
+                      <SportBadge sport={w.sport} />
+                      <span className="tp-plan-workout-row__title">{w.title}</span>
+                      {w.source === 'ai_generated' && <AiBadge />}
+                      <span className="tp-plan-workout-row__date">{formatDate(w.scheduledDate)}</span>
+                      <WorkoutStatusBadge status={w.status as 'planned'} />
+                    </button>
+                    <WorkoutFulfillmentActions
+                      workout={w}
+                      linkingWorkoutId={linkingWorkoutId}
+                      unlinkingWorkoutId={unlinkingWorkoutId}
+                      onOpenPicker={onOpenActivityPicker}
+                      onUnlink={onUnlinkActivity}
+                      navigate={navigate}
+                    />
+                  </div>
                 </li>
               ))}
             </ul>
@@ -490,13 +703,31 @@ type PlanListSectionProps = {
   onDeactivate: (id: string) => Promise<void>;
   onEdit: (plan: TrainingPlanSummaryDto) => void;
   onDelete: (id: string) => Promise<void>;
+  onOpenActivityPicker: (workout: PlannedWorkoutDto) => void;
+  onUnlinkActivity: (workoutId: string) => Promise<void>;
   activating: string | null;
   deactivating: string | null;
   deleting: string | null;
+  linkingWorkoutId: string | null;
+  unlinkingWorkoutId: string | null;
   navigate: PageComponentProps['navigate'];
 };
 
-function PlanListSection({ plans, onActivate, onDeactivate, onEdit, onDelete, activating, deactivating, deleting, navigate }: PlanListSectionProps) {
+function PlanListSection({
+  plans,
+  onActivate,
+  onDeactivate,
+  onEdit,
+  onDelete,
+  onOpenActivityPicker,
+  onUnlinkActivity,
+  activating,
+  deactivating,
+  deleting,
+  linkingWorkoutId,
+  unlinkingWorkoutId,
+  navigate,
+}: PlanListSectionProps) {
   if (plans.length === 0) return null;
 
   return (
@@ -511,9 +742,13 @@ function PlanListSection({ plans, onActivate, onDeactivate, onEdit, onDelete, ac
             onDeactivate={onDeactivate}
             onEdit={onEdit}
             onDelete={onDelete}
+            onOpenActivityPicker={onOpenActivityPicker}
+            onUnlinkActivity={onUnlinkActivity}
             activating={activating}
             deactivating={deactivating}
             deleting={deleting}
+            linkingWorkoutId={linkingWorkoutId}
+            unlinkingWorkoutId={unlinkingWorkoutId}
             navigate={navigate}
           />
         ))}
@@ -595,9 +830,35 @@ type AllWorkoutsSectionProps = {
   navigate: PageComponentProps['navigate'];
 };
 
+type WorkoutSport = PlannedWorkoutDto['sport'];
+type WorkoutSportFilter = WorkoutSport | 'all';
+
+const WORKOUT_SPORT_ORDER: WorkoutSport[] = ['running', 'cycling', 'swimming', 'strength', 'mobility', 'other'];
+
 function AllWorkoutsSection({ workouts, plans, onAssign, onDelete, assigning, navigate }: AllWorkoutsSectionProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedSport, setSelectedSport] = useState<WorkoutSportFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const availableSportSet = useMemo(
+    () => new Set(workouts.map((workout) => workout.sport)),
+    [workouts],
+  );
+  const availableSports = useMemo(
+    () => WORKOUT_SPORT_ORDER.filter((sport) => availableSportSet.has(sport)),
+    [availableSportSet],
+  );
+  const showFilters = workouts.length > 5;
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredWorkouts = showFilters
+    ? workouts.filter((workout) => {
+        const matchesSport = selectedSport === 'all' || workout.sport === selectedSport;
+        const matchesSearch = !normalizedSearch || workout.title.toLowerCase().includes(normalizedSearch);
+        return matchesSport && matchesSearch;
+      })
+    : workouts;
+  const hasActiveFilters = showFilters && (selectedSport !== 'all' || normalizedSearch.length > 0);
 
   useEffect(() => {
     if (!confirmDeleteId) return;
@@ -610,13 +871,74 @@ function AllWorkoutsSection({ workouts, plans, onAssign, onDelete, assigning, na
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [confirmDeleteId]);
 
+  useEffect(() => {
+    if (selectedSport !== 'all' && !availableSportSet.has(selectedSport)) {
+      setSelectedSport('all');
+    }
+  }, [availableSportSet, selectedSport]);
+
   if (workouts.length === 0) return null;
 
   return (
     <section className="tp-workouts">
       <h2 className="tp-plans__heading">All Workouts</h2>
+      {showFilters && (
+        <div className="tp-workouts__filters" aria-label="Filter all workouts">
+          <div className="tp-workouts__sport-filter" aria-label="Workout sport filter">
+            <button
+              type="button"
+              className={`tp-workouts__filter-pill${selectedSport === 'all' ? ' is-active' : ''}`}
+              aria-pressed={selectedSport === 'all'}
+              onClick={() => setSelectedSport('all')}
+            >
+              All
+            </button>
+            {availableSports.map((sport) => (
+              <button
+                key={sport}
+                type="button"
+                className={`tp-workouts__filter-pill${selectedSport === sport ? ' is-active' : ''}`}
+                aria-pressed={selectedSport === sport}
+                onClick={() => setSelectedSport(sport)}
+              >
+                {sportLabels[sport]}
+              </button>
+            ))}
+          </div>
+          <div className="tp-workouts__search">
+            <label className="sr-only" htmlFor="tp-workouts-search">Search workouts</label>
+            <input
+              id="tp-workouts-search"
+              className="tp-workouts__search-input"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search workouts"
+            />
+          </div>
+        </div>
+      )}
+      {filteredWorkouts.length === 0 ? (
+        <EmptyState
+          title="No workouts match these filters"
+          description="Try another sport or clear the title search."
+          variant="inline"
+          action={hasActiveFilters ? (
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => {
+                setSelectedSport('all');
+                setSearchQuery('');
+              }}
+            >
+              Reset filters
+            </button>
+          ) : undefined}
+        />
+      ) : (
       <ul className="tp-workouts__list">
-        {workouts.map((w) => {
+        {filteredWorkouts.map((w) => {
           const isAssigning = assigning === w.id;
 
           const isDeleting = deletingId === w.id;
@@ -687,7 +1009,70 @@ function AllWorkoutsSection({ workouts, plans, onAssign, onDelete, assigning, na
           );
         })}
       </ul>
+      )}
     </section>
+  );
+}
+
+/* ── Fulfillment controls for week cards ─────────────────────────────────── */
+
+type WorkoutFulfillmentActionsProps = {
+  workout: PlannedWorkoutDto;
+  linkingWorkoutId: string | null;
+  unlinkingWorkoutId: string | null;
+  onOpenPicker: (workout: PlannedWorkoutDto) => void;
+  onUnlink: (workoutId: string) => Promise<void>;
+  navigate: PageComponentProps['navigate'];
+};
+
+function WorkoutFulfillmentActions({
+  workout,
+  linkingWorkoutId,
+  unlinkingWorkoutId,
+  onOpenPicker,
+  onUnlink,
+  navigate,
+}: WorkoutFulfillmentActionsProps) {
+  const canLink = workout.status === 'planned' || workout.status === 'completed';
+  const linkedActivityId = workout.activityId;
+  const isLinked = linkedActivityId != null;
+  const isLinking = linkingWorkoutId === workout.id;
+  const isUnlinking = unlinkingWorkoutId === workout.id;
+
+  if (!canLink && !isLinked) return null;
+
+  return (
+    <div className={`tp-fulfillment${isLinked ? ' is-linked' : ''}`}>
+      {isLinked ? (
+        <>
+          <button
+            type="button"
+            className="tp-fulfillment__indicator"
+            onClick={() => navigate(`/activities/${linkedActivityId}`)}
+          >
+            <span className="tp-fulfillment__dot" aria-hidden="true" />
+            Linked activity
+          </button>
+          <button
+            type="button"
+            className="tp-fulfillment__action"
+            disabled={isUnlinking}
+            onClick={() => onUnlink(workout.id)}
+          >
+            {isUnlinking ? 'Unlinking…' : 'Unlink'}
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          className="tp-fulfillment__action"
+          disabled={isLinking}
+          onClick={() => onOpenPicker(workout)}
+        >
+          {isLinking ? 'Linking…' : 'Link activity'}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -698,9 +1083,13 @@ type WeekPlanContentProps = {
   description?: string;
   weekStart: string;
   weekEnd: string;
-  workouts: WorkoutCardData[];
+  workouts: PlannedWorkoutDto[];
   summaryItems: { label: string; value: string }[];
   navigate: PageComponentProps['navigate'];
+  linkingWorkoutId: string | null;
+  unlinkingWorkoutId: string | null;
+  onOpenActivityPicker: (workout: PlannedWorkoutDto) => void;
+  onUnlinkActivity: (workoutId: string) => Promise<void>;
   actions?: React.ReactNode;
   viewToggle?: React.ReactNode;
   contentKey?: string;
@@ -715,6 +1104,10 @@ function WeekPlanContent({
   workouts,
   summaryItems,
   navigate,
+  linkingWorkoutId,
+  unlinkingWorkoutId,
+  onOpenActivityPicker,
+  onUnlinkActivity,
   actions,
   viewToggle,
   contentKey,
@@ -724,7 +1117,7 @@ function WeekPlanContent({
   const weekDates = getWeekDates(weekStart, weekEnd);
   const TODAY = toLocalDate(new Date());
 
-  const workoutsByDate = workouts.reduce<Record<string, WorkoutCardData[]>>((acc, w) => {
+  const workoutsByDate = workouts.reduce<Record<string, PlannedWorkoutDto[]>>((acc, w) => {
     const key = w.scheduledDate;
     if (!acc[key]) acc[key] = [];
     acc[key].push(w);
@@ -769,12 +1162,21 @@ function WeekPlanContent({
                     <p className="week-day__rest">Rest day</p>
                   ) : (
                     dayWorkouts.map((workout) => (
-                      <WorkoutCard
-                        key={workout.id}
-                        workout={workout}
-                        showDate={false}
-                        onOpen={(id) => navigate(`/workouts/${id}`)}
-                      />
+                      <div key={workout.id} className="tp-week-workout">
+                        <WorkoutCard
+                          workout={workout}
+                          showDate={false}
+                          onOpen={(id) => navigate(`/workouts/${id}`)}
+                        />
+                        <WorkoutFulfillmentActions
+                          workout={workout}
+                          linkingWorkoutId={linkingWorkoutId}
+                          unlinkingWorkoutId={unlinkingWorkoutId}
+                          onOpenPicker={onOpenActivityPicker}
+                          onUnlink={onUnlinkActivity}
+                          navigate={navigate}
+                        />
+                      </div>
                     ))
                   )}
                 </div>
@@ -787,24 +1189,6 @@ function WeekPlanContent({
       {footer}
     </PageShell>
   );
-}
-
-function buildMockSummaryItems(
-  weeklySummary: ReturnType<typeof getWeeklySummary>,
-): { label: string; value: string }[] {
-  const items: { label: string; value: string }[] = [
-    { label: 'Sessions', value: String(weeklySummary.activityCount) },
-    { label: 'Total time', value: formatDuration(weeklySummary.plannedDurationSeconds) },
-  ];
-  if (weeklySummary.cyclingDurationSeconds)
-    items.push({ label: 'Bike', value: formatDuration(weeklySummary.cyclingDurationSeconds) });
-  if (weeklySummary.runningDurationSeconds)
-    items.push({ label: 'Run', value: formatDuration(weeklySummary.runningDurationSeconds) });
-  if (weeklySummary.swimmingDurationSeconds)
-    items.push({ label: 'Swim', value: formatDuration(weeklySummary.swimmingDurationSeconds) });
-  if (weeklySummary.strengthDurationSeconds)
-    items.push({ label: 'Strength', value: formatDuration(weeklySummary.strengthDurationSeconds) });
-  return items;
 }
 
 function buildApiSummaryItems(workouts: PlannedWorkoutDto[]): { label: string; value: string }[] {
@@ -826,28 +1210,6 @@ function buildApiSummaryItems(workouts: PlannedWorkoutDto[]): { label: string; v
   return items;
 }
 
-/* ── Mock mode ───────────────────────────────────────────────────────────── */
-
-function TrainingPlanMockMode({ navigate }: PageComponentProps) {
-  const trainingPlan = getCurrentTrainingPlan();
-  const weeklySummary = getWeeklySummary();
-  const allWorkouts = getPlannedWorkouts();
-
-  return (
-    <WeekPlanContent
-      title={trainingPlan.title}
-      description={trainingPlan.description}
-      weekStart={trainingPlan.startDate}
-      weekEnd={trainingPlan.endDate}
-      workouts={allWorkouts as PlannedWorkout[]}
-      summaryItems={buildMockSummaryItems(weeklySummary)}
-      navigate={navigate}
-    />
-  );
-}
-
-/* ── API mode ────────────────────────────────────────────────────────────── */
-
 function TrainingPlanApiMode({ navigate }: PageComponentProps) {
   const weekPlanState = useCurrentWeekPlan();
   const plansState = useTrainingPlans();
@@ -860,14 +1222,22 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
   const [deactivating, setDeactivating] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
+  const [linkPickerWorkout, setLinkPickerWorkout] = useState<PlannedWorkoutDto | null>(null);
+  const [linkingWorkoutId, setLinkingWorkoutId] = useState<string | null>(null);
+  const [unlinkingWorkoutId, setUnlinkingWorkoutId] = useState<string | null>(null);
+  const [forceDelete, setForceDelete] = useState<{
+    workoutId: string;
+    linkedActivityId: string;
+  } | null>(null);
+  const [forceDeleting, setForceDeleting] = useState(false);
   const [weekView, setWeekView] = useState<'all' | 'plan'>('plan');
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const refreshAll = useCallback(() => {
+  function refreshAll() {
     weekPlanState.refresh();
     plansState.refresh();
     workoutsState.refresh();
-  }, [weekPlanState.refresh, plansState.refresh, workoutsState.refresh]);
+  }
 
   async function handleActivate(id: string) {
     setActivating(id);
@@ -927,7 +1297,54 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
       await deleteWorkout(id);
       refreshAll();
     } catch (err) {
+      const linkedActivityId = getLinkedActivityConflictId(err);
+      if (linkedActivityId != null) {
+        setForceDelete({ workoutId: id, linkedActivityId });
+        return;
+      }
       setActionError(err instanceof Error ? err.message : 'Failed to delete workout.');
+    }
+  }
+
+  async function handleForceDeleteWorkout() {
+    if (!forceDelete) return;
+    setForceDeleting(true);
+    setActionError(null);
+    try {
+      await deleteWorkout(forceDelete.workoutId, { force: true });
+      setForceDelete(null);
+      refreshAll();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to delete workout.');
+    } finally {
+      setForceDeleting(false);
+    }
+  }
+
+  async function handleLinkActivity(workoutId: string, activityId: string) {
+    setLinkingWorkoutId(workoutId);
+    setActionError(null);
+    try {
+      await linkWorkoutActivity(workoutId, activityId);
+      setLinkPickerWorkout(null);
+      refreshAll();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to link activity.');
+    } finally {
+      setLinkingWorkoutId(null);
+    }
+  }
+
+  async function handleUnlinkActivity(workoutId: string) {
+    setUnlinkingWorkoutId(workoutId);
+    setActionError(null);
+    try {
+      await unlinkWorkoutActivity(workoutId);
+      refreshAll();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to unlink activity.');
+    } finally {
+      setUnlinkingWorkoutId(null);
     }
   }
 
@@ -935,6 +1352,16 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
   const allWorkouts = workoutsState.status === 'success' ? workoutsState.workouts : [];
   const plansError = plansState.status === 'error' ? plansState.message : null;
   const workoutsError = workoutsState.status === 'error' ? workoutsState.message : null;
+  const linkedActivityIds = Array.from(new Set([
+    ...allWorkouts
+      .map((workout) => workout.activityId)
+      .filter((activityId): activityId is string => activityId != null),
+    ...(weekPlanState.status === 'success'
+      ? (weekPlanState.plan?.plannedWorkouts ?? [])
+        .map((workout) => workout.activityId)
+        .filter((activityId): activityId is string => activityId != null)
+      : []),
+  ]));
 
   const activePlanId = weekPlanState.status === 'success' ? weekPlanState.plan?.id : undefined;
 
@@ -977,9 +1404,13 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
           onDeactivate={handleDeactivate}
           onEdit={setEditingPlan}
           onDelete={handleDelete}
+          onOpenActivityPicker={setLinkPickerWorkout}
+          onUnlinkActivity={handleUnlinkActivity}
           activating={activating}
           deactivating={deactivating}
           deleting={deleting}
+          linkingWorkoutId={linkingWorkoutId}
+          unlinkingWorkoutId={unlinkingWorkoutId}
           navigate={navigate}
         />
       )}
@@ -1038,9 +1469,13 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
         description={weekPlanState.plan.description}
         weekStart={weekStart}
         weekEnd={weekEnd}
-        workouts={displayedWorkouts as WorkoutCardData[]}
+        workouts={displayedWorkouts}
         summaryItems={buildApiSummaryItems(displayedWorkouts)}
         navigate={navigate}
+        linkingWorkoutId={linkingWorkoutId}
+        unlinkingWorkoutId={unlinkingWorkoutId}
+        onOpenActivityPicker={setLinkPickerWorkout}
+        onUnlinkActivity={handleUnlinkActivity}
         actions={headerActions}
         viewToggle={viewToggle}
         contentKey={weekView}
@@ -1083,13 +1518,27 @@ function TrainingPlanApiMode({ navigate }: PageComponentProps) {
           onSuccess={() => { setEditingPlan(null); refreshAll(); }}
         />
       )}
+      {linkPickerWorkout && (
+        <ActivityPickerModal
+          workout={linkPickerWorkout}
+          linkedActivityIds={linkedActivityIds}
+          linking={linkingWorkoutId === linkPickerWorkout.id}
+          onClose={() => setLinkPickerWorkout(null)}
+          onSelect={(activityId) => handleLinkActivity(linkPickerWorkout.id, activityId)}
+        />
+      )}
+      {forceDelete && (
+        <LinkedWorkoutDeleteWarning
+          linkedActivityId={forceDelete.linkedActivityId}
+          deleting={forceDeleting}
+          onCancel={() => setForceDelete(null)}
+          onConfirm={handleForceDeleteWorkout}
+        />
+      )}
     </>
   );
 }
 
 export function TrainingPlanPage({ navigate, params }: PageComponentProps) {
-  if (DATA_MODE === 'api') {
-    return <TrainingPlanApiMode navigate={navigate} params={params} />;
-  }
-  return <TrainingPlanMockMode navigate={navigate} params={params} />;
+  return <TrainingPlanApiMode navigate={navigate} params={params} />;
 }

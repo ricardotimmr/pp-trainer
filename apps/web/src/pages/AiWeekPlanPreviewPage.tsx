@@ -4,6 +4,8 @@ import type { AiCoachOutputDto, AiGeneratedWeekPlan, AiGeneratedWorkout, AiGener
 import { AiGeneratedWeekPlanSchema } from '@pp-trainer/shared';
 
 import { ErrorState, IntensityBadge, LoadingState, SportBadge } from '../components';
+import { toast } from 'sonner';
+
 import { acceptOutput, rejectOutput } from '../api/aiApi';
 import { ApiClientError } from '../api/apiClient';
 import { useAiOutput } from '../hooks/useAiOutput';
@@ -210,6 +212,7 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
     setActionLoading('accept');
     try {
       await acceptOutput(outputId);
+      toast.success('Plan activated');
       navigate('/training-plan');
     } catch (err) {
       const msg = err instanceof ApiClientError ? err.message : 'Could not save plan. Please try again.';
@@ -223,6 +226,7 @@ export function AiWeekPlanPreviewPage({ params, navigate }: PageComponentProps) 
     setActionLoading('reject');
     try {
       await rejectOutput(outputId);
+      toast('Proposal discarded');
       navigate('/ai-coach');
     } catch (err) {
       const msg = err instanceof ApiClientError ? err.message : 'Could not discard proposal. Please try again.';
