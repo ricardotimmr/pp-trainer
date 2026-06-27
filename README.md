@@ -4,9 +4,24 @@
 
 ## Current Status
 
-**Phase 7: MVP Integration and Stabilization — complete. MVP reached.**
+**Phase 8: First Stable Prototype — complete. 2026-06-27.**
 
-All five MVP flows work end-to-end on real data. The app no longer requires mock mode for any core path. All phases 0–7 are complete.
+Every page runs on live API data. The app can be used regularly for real personal training planning. All phases 0–8 are complete.
+
+**What Phase 8 delivered:**
+
+- Settings write API — athlete profile PATCH, goals CRUD, training zones CRUD (create/update/delete sets and individual zones)
+- SettingsPage live data migration — last page off mock data; fully on real API; `usePrototypeAthleteContext` removed
+- DATA_MODE dead code cleanup — dead `mock` branches removed from 5 pages; `config/dataMode.ts` deleted; 3 Phase 2 Playwright spec files deleted
+- Analytics service — `GET /api/analytics/weekly-summary` and `GET /api/analytics/sport-distribution`
+- Dashboard charts — weekly volume stacked bar chart + sport distribution chart (recharts, empty states handled)
+- Plan fulfillment v1 — `activityId` FK on `PlannedWorkout`; link/unlink endpoints; cascade delete guard (409 conflict); Training Plan UI with activity picker modal and force-delete warning
+- AI week analysis — `POST /api/ai/generate-week-analysis`; `AiWeekAnalysisPage`; history panel integration; "Analyze this week" trigger on AI Coach page
+- AI workout step inline editing — per-step edit form (instruction, duration, distance, reps, zone pickers) on `AiWorkoutPreviewPage` before accepting; modified steps sent as override on accept
+- Import history UI — "Past Imports" section on Import page; `GET /api/imports/history`
+- Zone picker UI — `ZonePicker` in Create Workout, `AiZonePicker` in AI Workout Preview; sport-filtered HR zones; `useTrainingZones` hook; zone name stored via `step.notes`
+- Toast notifications — `sonner` Toaster wired for all key actions (AI accept/reject, status change, delete, import)
+- All Workouts filter and search — sport pill filter + title search on Training Plan page (closes #85)
 
 **What Phase 7 delivered:**
 
@@ -151,9 +166,14 @@ All endpoints return `{ error: { code, message } }` on failure.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/athlete/profile` | Athlete profile with thresholds and availability |
+| `GET` | `/api/athlete/profile` | Athlete profile with goals, thresholds, availability, and training zones |
+| `PATCH` | `/api/athlete/profile` | Partial update of athlete profile fields |
 | `GET` | `/api/athlete/context` | Full structured context object (v1) for AI Coach |
 | `POST` | `/api/athlete/context/snapshot` | Persist current context snapshot — returns 201 |
+| `POST` | `/api/athlete/goals` | Create a training goal |
+| `PUT` | `/api/athlete/goals/:id` | Update a training goal |
+| `DELETE` | `/api/athlete/goals/:id` | Delete a training goal |
+| `PUT` | `/api/athlete/goals/priority` | Reorder goals by priority (body: ordered array of IDs) |
 
 ### Activities
 
@@ -176,13 +196,46 @@ All endpoints return `{ error: { code, message } }` on failure.
 | `POST` | `/api/workouts` | Create a planned workout (with optional steps) |
 | `GET` | `/api/workouts/:id` | Planned workout by ID with steps |
 | `PUT` | `/api/workouts/:id` | Update a planned workout or its status |
-| `DELETE` | `/api/workouts/:id` | Delete a planned workout |
+| `DELETE` | `/api/workouts/:id` | Delete a planned workout. Returns 409 if linked to an activity; add `?force=true` to force delete |
+| `POST` | `/api/workouts/:id/link-activity` | Link an activity to a planned workout — body: `{ activityId }` |
+| `DELETE` | `/api/workouts/:id/link-activity` | Unlink the activity from a planned workout |
+
+### Training Zones
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/training-zones` | All training zone sets with their zones |
+| `POST` | `/api/training-zones/sets` | Create a new zone set |
+| `PUT` | `/api/training-zones/sets/:id` | Update a zone set |
+| `DELETE` | `/api/training-zones/sets/:id` | Delete a zone set (cascades its zones) |
+| `POST` | `/api/training-zones/sets/:id/zones` | Add a zone to a set |
+| `PUT` | `/api/training-zones/zones/:id` | Update a zone |
+| `DELETE` | `/api/training-zones/zones/:id` | Delete a zone |
+
+### Analytics
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/analytics/weekly-summary` | Weekly volume by sport. Query: `weeks` (1–26, default 8) |
+| `GET` | `/api/analytics/sport-distribution` | Activity count + duration per sport. Query: `from`, `to` (YYYY-MM-DD) |
 
 ### Performance
 
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/api/performance` | Sport metrics and race predictions |
+
+### AI Coach
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/ai/generate-week-plan` | Generate an AI week training plan |
+| `POST` | `/api/ai/generate-workout` | Generate an AI single workout |
+| `POST` | `/api/ai/generate-week-analysis` | Generate an AI week analysis for the specified week (body: `{ weekStartDate? }`) |
+| `GET` | `/api/ai/outputs/:id` | AI output by ID |
+| `GET` | `/api/ai/history` | Recent AI outputs for the athlete |
+| `POST` | `/api/ai/outputs/:id/accept` | Accept an AI output — creates plan/workout or marks analysis as accepted |
+| `POST` | `/api/ai/outputs/:id/reject` | Reject an AI output |
 
 ### Import
 
@@ -192,17 +245,13 @@ All endpoints return `{ error: { code, message } }` on failure.
 | `POST` | `/api/imports/activity-file` | File upload — `.fit`, `.gpx`, `.tcx` (multipart/form-data, field name `file`) |
 | `GET` | `/api/imports` | Import job list. Query params: `status` (`success`\|`failed`\|`duplicate`), `limit` (max 100, default 20), `offset` |
 | `GET` | `/api/imports/:id` | Import job detail with file metadata and warning messages |
-| `GET` | `/api/import/history` | Phase 3 legacy endpoint — returns seeded import history |
+| `GET` | `/api/imports/history` | Recent import history (last 20) with file metadata and linked activity |
 
-## Mock Mode vs API Mode
+## API Mode
 
-The frontend has two data modes controlled by `VITE_DATA_MODE`:
+All pages run on live backend data. `VITE_DATA_MODE=api` must be set in `apps/web/.env`. With no backend running the app shows clear error states rather than silently degrading.
 
-**`mock` (default)** — all pages read from `apps/web/src/mock/prototypeData.helpers.ts`. No backend or database needed. This is the safe default during development.
-
-**`api`** — All core MVP pages (Dashboard, Activities, Training Plan, Workout Detail, AI Coach, Import) fetch from the backend API. Loading and error states are handled throughout. The Settings page still reads from prototype mock data — API migration is planned for Phase 8.
-
-The switch is intentionally explicit — setting `VITE_DATA_MODE=api` with no backend running shows a clear error state rather than silently falling back to mock data.
+The legacy `mock` mode (`VITE_DATA_MODE=mock`) is no longer supported for core flows — DATA_MODE branches were removed in Phase 8 (P8-003).
 
 ## Database
 

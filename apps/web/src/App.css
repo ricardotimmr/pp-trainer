@@ -3559,6 +3559,73 @@ button:focus-visible {
   border-top: 1.5px solid var(--color-line);
 }
 
+.tp-workouts__filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 14px;
+}
+
+.tp-workouts__sport-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tp-workouts__filter-pill {
+  appearance: none;
+  border: 1.5px solid var(--color-line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1;
+  padding: 7px 10px;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.tp-workouts__filter-pill:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.tp-workouts__filter-pill.is-active {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: white;
+}
+
+.tp-workouts__search {
+  flex: 0 1 260px;
+  min-width: 180px;
+}
+
+.tp-workouts__search-input {
+  width: 100%;
+  border: 1.5px solid var(--color-line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 8px 10px;
+  transition: border-color 0.15s ease;
+}
+
+.tp-workouts__search-input:focus-visible {
+  border-color: var(--color-accent);
+  outline: none;
+}
+
+.tp-workouts__search-input::placeholder {
+  color: var(--color-muted);
+}
+
 /* List is a 5-column grid; each row subgrids into the same tracks so
    sport-badge, title, status, plan and delete align across all cards. */
 .tp-workouts__list {
@@ -3809,6 +3876,20 @@ button:focus-visible {
 .tp-workout-row__delete-tooltip-no:hover {
   border-color: var(--color-muted);
   color: var(--color-ink);
+}
+
+@media (max-width: 760px) {
+  .tp-workouts__filters {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .tp-workouts__search {
+    flex-basis: auto;
+    min-width: 0;
+    width: 100%;
+  }
 }
 
 /* ── Plan creation modal — status radio ───────────────────────────────────── */

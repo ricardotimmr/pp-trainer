@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import type {
@@ -13,7 +13,7 @@ import type {
 import { AiBadge, EmptyState, ErrorState, LoadingState, WorkoutCard } from '../components';
 import { SportBadge } from '../components';
 import { WorkoutStatusBadge } from '../components/badges/WorkoutStatusBadge';
-import { formatDate, formatDuration } from '../components/prototypeFormatters';
+import { formatDate, formatDuration, sportLabels } from '../components/prototypeFormatters';
 import { fetchActivitiesForWeek } from '../api/activitiesApi';
 import { ApiClientError } from '../api/apiClient';
 import {
@@ -830,9 +830,35 @@ type AllWorkoutsSectionProps = {
   navigate: PageComponentProps['navigate'];
 };
 
+type WorkoutSport = PlannedWorkoutDto['sport'];
+type WorkoutSportFilter = WorkoutSport | 'all';
+
+const WORKOUT_SPORT_ORDER: WorkoutSport[] = ['running', 'cycling', 'swimming', 'strength', 'mobility', 'other'];
+
 function AllWorkoutsSection({ workouts, plans, onAssign, onDelete, assigning, navigate }: AllWorkoutsSectionProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedSport, setSelectedSport] = useState<WorkoutSportFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const availableSportSet = useMemo(
+    () => new Set(workouts.map((workout) => workout.sport)),
+    [workouts],
+  );
+  const availableSports = useMemo(
+    () => WORKOUT_SPORT_ORDER.filter((sport) => availableSportSet.has(sport)),
+    [availableSportSet],
+  );
+  const showFilters = workouts.length > 5;
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredWorkouts = showFilters
+    ? workouts.filter((workout) => {
+        const matchesSport = selectedSport === 'all' || workout.sport === selectedSport;
+        const matchesSearch = !normalizedSearch || workout.title.toLowerCase().includes(normalizedSearch);
+        return matchesSport && matchesSearch;
+      })
+    : workouts;
+  const hasActiveFilters = showFilters && (selectedSport !== 'all' || normalizedSearch.length > 0);
 
   useEffect(() => {
     if (!confirmDeleteId) return;
@@ -845,13 +871,74 @@ function AllWorkoutsSection({ workouts, plans, onAssign, onDelete, assigning, na
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [confirmDeleteId]);
 
+  useEffect(() => {
+    if (selectedSport !== 'all' && !availableSportSet.has(selectedSport)) {
+      setSelectedSport('all');
+    }
+  }, [availableSportSet, selectedSport]);
+
   if (workouts.length === 0) return null;
 
   return (
     <section className="tp-workouts">
       <h2 className="tp-plans__heading">All Workouts</h2>
+      {showFilters && (
+        <div className="tp-workouts__filters" aria-label="Filter all workouts">
+          <div className="tp-workouts__sport-filter" aria-label="Workout sport filter">
+            <button
+              type="button"
+              className={`tp-workouts__filter-pill${selectedSport === 'all' ? ' is-active' : ''}`}
+              aria-pressed={selectedSport === 'all'}
+              onClick={() => setSelectedSport('all')}
+            >
+              All
+            </button>
+            {availableSports.map((sport) => (
+              <button
+                key={sport}
+                type="button"
+                className={`tp-workouts__filter-pill${selectedSport === sport ? ' is-active' : ''}`}
+                aria-pressed={selectedSport === sport}
+                onClick={() => setSelectedSport(sport)}
+              >
+                {sportLabels[sport]}
+              </button>
+            ))}
+          </div>
+          <div className="tp-workouts__search">
+            <label className="sr-only" htmlFor="tp-workouts-search">Search workouts</label>
+            <input
+              id="tp-workouts-search"
+              className="tp-workouts__search-input"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search workouts"
+            />
+          </div>
+        </div>
+      )}
+      {filteredWorkouts.length === 0 ? (
+        <EmptyState
+          title="No workouts match these filters"
+          description="Try another sport or clear the title search."
+          variant="inline"
+          action={hasActiveFilters ? (
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => {
+                setSelectedSport('all');
+                setSearchQuery('');
+              }}
+            >
+              Reset filters
+            </button>
+          ) : undefined}
+        />
+      ) : (
       <ul className="tp-workouts__list">
-        {workouts.map((w) => {
+        {filteredWorkouts.map((w) => {
           const isAssigning = assigning === w.id;
 
           const isDeleting = deletingId === w.id;
@@ -922,6 +1009,7 @@ function AllWorkoutsSection({ workouts, plans, onAssign, onDelete, assigning, na
           );
         })}
       </ul>
+      )}
     </section>
   );
 }
