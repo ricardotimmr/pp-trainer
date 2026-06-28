@@ -88,32 +88,27 @@ const MANIFEST_EMPTY: Manifest = {
 };
 
 function makeFakeProcess(manifestJson: string, exitCode = 0): ChildProcess {
-  const proc = new EventEmitter() as unknown as ChildProcess & {
-    stdout: EventEmitter;
-    stderr: EventEmitter;
-    kill: () => void;
-  };
-  proc.stdout = new EventEmitter();
-  proc.stderr = new EventEmitter();
-  proc.kill   = vi.fn();
+  const stdout = new EventEmitter();
+  const emitter = new EventEmitter();
+  const fake = emitter as unknown as Record<string, unknown>;
+  fake.stdout = stdout;
+  fake.stderr = new EventEmitter();
+  fake.kill   = vi.fn();
   setTimeout(() => {
-    proc.stdout.emit('data', Buffer.from(manifestJson));
-    (proc as unknown as EventEmitter).emit('close', exitCode);
+    stdout.emit('data', Buffer.from(manifestJson));
+    emitter.emit('close', exitCode);
   }, 0);
-  return proc;
+  return emitter as unknown as ChildProcess;
 }
 
 function makeErrorProcess(error: Error): ChildProcess {
-  const proc = new EventEmitter() as unknown as ChildProcess & {
-    stdout: EventEmitter;
-    stderr: EventEmitter;
-    kill: () => void;
-  };
-  proc.stdout = new EventEmitter();
-  proc.stderr = new EventEmitter();
-  proc.kill   = vi.fn();
-  setTimeout(() => (proc as unknown as EventEmitter).emit('error', error), 0);
-  return proc;
+  const emitter = new EventEmitter();
+  const fake = emitter as unknown as Record<string, unknown>;
+  fake.stdout = new EventEmitter();
+  fake.stderr = new EventEmitter();
+  fake.kill   = vi.fn();
+  setTimeout(() => emitter.emit('error', error), 0);
+  return emitter as unknown as ChildProcess;
 }
 
 function mockSpawn(manifest: Manifest, exitCode = 0) {
