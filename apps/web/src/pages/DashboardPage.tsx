@@ -7,7 +7,10 @@ import {
   DashboardWidget,
   EmptyState,
   ErrorState,
+  HealthSummaryCard,
+  HrvCard,
   LoadingState,
+  SleepCard,
   SportBadge,
   WorkoutCard,
 } from '../components';
@@ -461,6 +464,20 @@ export function DashboardPage({ navigate }: PageComponentProps) {
             </div>
           </div>
         </div>
+        <section className="dashboard-health" aria-label="Health and recovery">
+          <div className="dashboard-health__head">
+            <div>
+              <p className="dashboard-health__eyebrow">Garmin Health</p>
+              <h2>Recovery signals</h2>
+            </div>
+            <p>Daily summaries, sleep and HRV from the latest Garmin sync.</p>
+          </div>
+          <div className="dashboard-health-grid">
+            <HealthSummaryCard />
+            <SleepCard />
+            <HrvCard />
+          </div>
+        </section>
         <DashboardChartsSection state={analyticsState} />
       </div>
     </PageShell>

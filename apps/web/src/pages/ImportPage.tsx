@@ -1,15 +1,26 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { toast } from 'sonner';
 
-import type { ImportDetailDto, ImportSummaryDto } from '@pp-trainer/shared';
+import type {
+  ImportDetailDto,
+  ImportSummaryDto,
+  SyncImportBatchDto,
+  SyncJobDto,
+} from '@pp-trainer/shared';
 
 import { EmptyState, ErrorState, LoadingState, SourceBadge } from '../components';
 import { formatDate } from '../components/prototypeFormatters';
+import { disconnectStrava, startStravaAuthorize } from '../api/connectionApi';
 import { getImportDetail } from '../api/importApi';
+import { ApiClientError } from '../api/apiClient';
+import { startGarminSync, startStravaSync } from '../api/syncApi';
+import { useGarminSyncStatus } from '../hooks/useGarminSyncStatus';
 import { useImport } from '../hooks/useImport';
 import type { FileResult } from '../hooks/useImport';
 import { useImportHistory } from '../hooks/useImportHistory';
+import { useStravaConnection } from '../hooks/useStravaConnection';
+import { useSyncHistory } from '../hooks/useSyncHistory';
 import { PageShell } from '../layout/PageShell';
 import type { PageComponentProps } from '../routes/routeTypes';
 import type { DataSourceType } from '../types/domain';
@@ -93,6 +104,8 @@ const STATUS_LABELS: Record<string, string> = {
   processing: 'Processing',
   pending: 'Pending',
   partially_imported: 'Partial',
+  running: 'Running',
+  completed: 'Completed',
 };
 
 type FilterTab = { label: string; value: string | undefined };
@@ -188,6 +201,84 @@ function ImportHistoryRow({
   );
 }
 
+type SyncImportBatchRowProps = {
+  batch: SyncImportBatchDto;
+  expanded: boolean;
+  onToggle: (id: string) => void;
+  navigate: (path: string) => void;
+};
+
+function formatBatchCounts(batch: SyncImportBatchDto): string {
+  const imported = `${batch.activitiesImported} imported`;
+  const skipped = `${batch.activitiesSkipped} skipped`;
+  const health =
+    batch.healthDaysImported > 0
+      ? ` · ${batch.healthDaysImported} health day${batch.healthDaysImported === 1 ? '' : 's'}`
+      : '';
+  return `${imported} · ${skipped}${health}`;
+}
+
+function SyncImportBatchRow({ batch, expanded, onToggle, navigate }: SyncImportBatchRowProps) {
+  return (
+    <div className="import-history-row import-history-row--batch">
+      <div className="import-history-row__main">
+        <div className="import-history-row__meta">
+          <span className="import-history-row__date">{formatDate(batch.startedAt)}</span>
+          <span className="import-history-row__source">
+            {batch.sourceLabel} sync package
+          </span>
+          <span className="import-history-row__summary">{formatBatchCounts(batch)}</span>
+        </div>
+        <ImportStatusBadge status={batch.status} />
+        <div className="import-history-row__action">
+          {batch.imports.length > 0 ? (
+            <button
+              type="button"
+              className="import-history-link"
+              aria-expanded={expanded}
+              onClick={() => onToggle(batch.id)}
+            >
+              {expanded ? 'Hide activities' : `Show ${batch.imports.length} activities`}
+            </button>
+          ) : (
+            <span className="import-history-row__summary">No activity imports</span>
+          )}
+        </div>
+      </div>
+      {expanded && (
+        <div className="import-history-row__detail">
+          {batch.errorMessage != null && (
+            <p className="import-history-row__error">{batch.errorMessage}</p>
+          )}
+          <div className="import-history-batch-list">
+            {batch.imports.map((child) => (
+              <div className="import-history-batch-item" key={child.id}>
+                <div>
+                  <span className="import-history-row__date">{formatDate(child.createdAt)}</span>
+                  <span className="import-history-row__source">{child.sourceLabel}</span>
+                  {child.errorMessage != null && (
+                    <span className="import-history-row__error">{child.errorMessage}</span>
+                  )}
+                </div>
+                <ImportStatusBadge status={child.status} />
+                {child.activityId != null && (
+                  <button
+                    type="button"
+                    className="import-history-link"
+                    onClick={() => navigate(`/activities/${child.activityId}`)}
+                  >
+                    {child.status === 'duplicate' ? 'View existing' : 'View Activity'}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ImportHistorySection({ navigate }: { navigate: (path: string) => void }) {
   const [filterStatus, setFilterStatus] = useState<string | undefined>(undefined);
   const { phase, items, hasMore, loadingMore, errorMessage, loadMore } =
@@ -217,6 +308,10 @@ function ImportHistorySection({ navigate }: { navigate: (path: string) => void }
       .finally(() => {
         setLoadingDetailId(null);
       });
+  }
+
+  function handleToggleBatch(id: string): void {
+    setExpandedId((current) => (current === id ? null : id));
   }
 
   return (
@@ -270,17 +365,27 @@ function ImportHistorySection({ navigate }: { navigate: (path: string) => void }
       {phase === 'success' && items.length > 0 && (
         <>
           <div className="import-history-list">
-            {items.map((item) => (
-              <ImportHistoryRow
-                key={item.id}
-                item={item}
-                expanded={expandedId === item.id}
-                detail={detailCache[item.id]}
-                loadingDetail={loadingDetailId === item.id}
-                onShowError={handleShowError}
-                navigate={navigate}
-              />
-            ))}
+            {items.map((item) =>
+              item.entryType === 'sync_batch' ? (
+                <SyncImportBatchRow
+                  key={item.id}
+                  batch={item}
+                  expanded={expandedId === item.id}
+                  onToggle={handleToggleBatch}
+                  navigate={navigate}
+                />
+              ) : (
+                <ImportHistoryRow
+                  key={item.id}
+                  item={item}
+                  expanded={expandedId === item.id}
+                  detail={detailCache[item.id]}
+                  loadingDetail={loadingDetailId === item.id}
+                  onShowError={handleShowError}
+                  navigate={navigate}
+                />
+              ),
+            )}
           </div>
           {hasMore && (
             <button
@@ -348,6 +453,474 @@ function FileResultRow({
         )}
       </div>
     </div>
+  );
+}
+
+function SyncStatusBadge({ status }: { status: SyncJobDto['status'] }) {
+  return (
+    <span className={`sync-status-badge sync-status-badge--${status}`}>
+      {STATUS_LABELS[status] ?? status}
+    </span>
+  );
+}
+
+function formatRelativeSyncTime(dateValue: string): string {
+  const date = new Date(dateValue);
+  const diffMs = date.getTime() - Date.now();
+  const absMs = Math.abs(diffMs);
+  const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+
+  if (absMs < 60_000) return 'just now';
+  if (absMs < 3_600_000) return formatter.format(Math.round(diffMs / 60_000), 'minute');
+  if (absMs < 86_400_000) return formatter.format(Math.round(diffMs / 3_600_000), 'hour');
+  return formatter.format(Math.round(diffMs / 86_400_000), 'day');
+}
+
+function formatSyncImportSummary(job: SyncJobDto): string {
+  const activityText =
+    job.activitiesImported === 1
+      ? '1 activity imported'
+      : `${job.activitiesImported} activities imported`;
+  const healthText =
+    job.healthDaysImported === 1
+      ? '1 health day'
+      : `${job.healthDaysImported} health days`;
+
+  if (job.healthDaysImported > 0) return `${activityText} · ${healthText}`;
+  return activityText;
+}
+
+function getSyncJobTime(job: SyncJobDto): string {
+  return job.completedAt ?? job.startedAt;
+}
+
+function GarminSyncCard() {
+  const statusState = useGarminSyncStatus();
+  const historyState = useSyncHistory('garmin_unofficial');
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const statusData = statusState.data;
+  const isConfigured = statusData?.configured === true;
+  const jobs = historyState.jobs.slice(0, 5);
+  const lastSync = statusData?.lastSync ?? jobs[0] ?? null;
+  const lastFailed = lastSync?.status === 'failed' ? lastSync : null;
+
+  async function handleSyncNow(): Promise<void> {
+    setIsSyncing(true);
+    try {
+      const job = await startGarminSync();
+      if (job.status === 'failed') {
+        toast.error(`Garmin sync failed: ${job.errorMessage ?? 'Unknown error'}`);
+      } else if (job.activitiesImported > 0) {
+        toast.success(`${job.activitiesImported} activities imported from Garmin`);
+      } else {
+        toast.success('Garmin sync complete — no new activities');
+      }
+      statusState.refresh();
+      historyState.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Garmin sync failed: ${message}`);
+      statusState.refresh();
+      historyState.refresh();
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
+  return (
+    <article className="sync-card sync-card--garmin">
+      <header className="sync-card__header">
+        <div>
+          <SourceBadge source="garmin_unofficial" />
+          <h3>Garmin</h3>
+        </div>
+        {statusState.status === 'loading' && statusData == null && (
+          <span className="sync-card__meta">Checking setup</span>
+        )}
+        {isConfigured && <span className="sync-card__meta">Configured</span>}
+      </header>
+
+      {statusState.status === 'loading' && statusData == null && (
+        <LoadingState title="Checking Garmin sync" variant="inline" />
+      )}
+
+      {statusState.status === 'error' && statusData == null && (
+        <ErrorState
+          title="Could not load Garmin status"
+          description={statusState.message}
+          variant="inline"
+        />
+      )}
+
+      {statusData != null && !isConfigured && (
+        <div className="sync-card__setup">
+          <h4>Garmin sync not configured</h4>
+          <p>
+            Add <code>GARMIN_EMAIL</code> and <code>GARMIN_PASSWORD</code> to
+            <code> apps/api/.env</code>, then restart the API server.
+          </p>
+        </div>
+      )}
+
+      {isConfigured && (
+        <>
+          <div className="sync-card__summary">
+            <div>
+              <span>Last sync</span>
+              <strong>
+                {lastSync == null
+                  ? 'Never synced'
+                  : `Last synced ${formatRelativeSyncTime(getSyncJobTime(lastSync))}`}
+              </strong>
+              {lastSync != null && <p>{formatSyncImportSummary(lastSync)}</p>}
+            </div>
+            {lastSync != null && <SyncStatusBadge status={lastSync.status} />}
+          </div>
+
+          {lastFailed != null && lastFailed.errorMessage != null && (
+            <p className="sync-card__error">Last sync failed: {lastFailed.errorMessage}</p>
+          )}
+
+          <button
+            type="button"
+            className="sync-card__button"
+            onClick={() => void handleSyncNow()}
+            disabled={isSyncing}
+          >
+            {isSyncing && <span className="import-spinner import-spinner--sm" />}
+            {isSyncing ? 'Syncing…' : 'Sync now'}
+          </button>
+
+          <div className="sync-card__history">
+            <div className="sync-card__history-head">
+              <span>Recent sync history</span>
+              {historyState.status === 'loading' && jobs.length > 0 && <em>Refreshing</em>}
+            </div>
+
+            {historyState.status === 'loading' && jobs.length === 0 && (
+              <LoadingState title="Loading sync history" variant="inline" />
+            )}
+            {historyState.status === 'error' && jobs.length === 0 && (
+              <ErrorState
+                title="Could not load sync history"
+                description={historyState.message}
+                variant="inline"
+              />
+            )}
+            {historyState.status !== 'loading' && jobs.length === 0 && (
+              <EmptyState
+                title="No sync runs yet"
+                description="Run your first Garmin sync to populate this history."
+                variant="inline"
+              />
+            )}
+            {jobs.length > 0 && (
+              <ul>
+                {jobs.map((job) => (
+                  <li key={job.id}>
+                    <div>
+                      <strong>{formatDate(getSyncJobTime(job))}</strong>
+                      <span>{formatSyncImportSummary(job)}</span>
+                    </div>
+                    <SyncStatusBadge status={job.status} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
+    </article>
+  );
+}
+
+function StravaSyncCard({
+  onConnectedToastHandled,
+}: {
+  onConnectedToastHandled: (refresh: () => void) => void;
+}) {
+  const connectionState = useStravaConnection();
+  const historyState = useSyncHistory('strava');
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [requiresReconnect, setRequiresReconnect] = useState(false);
+
+  useEffect(() => {
+    onConnectedToastHandled(connectionState.refresh);
+  }, [connectionState.refresh, onConnectedToastHandled]);
+
+  const connection = connectionState.data;
+  const isConfigured = connection?.configured === true;
+  const isConnected = connection?.connected === true;
+  const jobs = historyState.jobs.slice(0, 5);
+  const lastSync = jobs[0] ?? null;
+  const lastFailed = lastSync?.status === 'failed' ? lastSync : null;
+  const athleteLabel =
+    connection?.athleteName ??
+    (connection?.externalAthleteId != null ? `Athlete ${connection.externalAthleteId}` : 'Connected athlete');
+
+  async function handleConnect(): Promise<void> {
+    setIsConnecting(true);
+    try {
+      const authUrl = await startStravaAuthorize();
+      window.location.href = authUrl;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Could not start Strava connection: ${message}`);
+      setIsConnecting(false);
+    }
+  }
+
+  async function handleSyncNow(): Promise<void> {
+    setIsSyncing(true);
+    setRequiresReconnect(false);
+    try {
+      const job = await startStravaSync();
+      if (job.status === 'failed') {
+        const message = job.errorMessage ?? 'Unknown error';
+        if (/token|unauthorized|401|revoked/i.test(message)) {
+          setRequiresReconnect(true);
+        }
+        toast.error(`Strava sync failed: ${message}`);
+      } else if (job.activitiesImported > 0) {
+        toast.success(`${job.activitiesImported} activities imported from Strava`);
+      } else {
+        toast.success('Strava sync complete — no new activities');
+      }
+      connectionState.refresh();
+      historyState.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      if (error instanceof ApiClientError && error.status === 401) {
+        setRequiresReconnect(true);
+      }
+      toast.error(`Strava sync failed: ${message}`);
+      connectionState.refresh();
+      historyState.refresh();
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
+  async function handleDisconnect(): Promise<void> {
+    setIsDisconnecting(true);
+    try {
+      await disconnectStrava();
+      toast.success('Strava disconnected');
+      setConfirmDisconnect(false);
+      setRequiresReconnect(false);
+      connectionState.refresh();
+      historyState.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Could not disconnect Strava: ${message}`);
+    } finally {
+      setIsDisconnecting(false);
+    }
+  }
+
+  return (
+    <article className="sync-card sync-card--strava">
+      <header className="sync-card__header">
+        <div>
+          <SourceBadge source="strava" />
+          <h3>Strava</h3>
+        </div>
+        {connectionState.status === 'loading' && connection == null && (
+          <span className="sync-card__meta">Checking setup</span>
+        )}
+        {isConfigured && isConnected && <span className="sync-card__meta">Connected</span>}
+      </header>
+
+      {connectionState.status === 'loading' && connection == null && (
+        <LoadingState title="Checking Strava connection" variant="inline" />
+      )}
+
+      {connectionState.status === 'error' && connection == null && (
+        <ErrorState
+          title="Could not load Strava connection"
+          description={connectionState.message}
+          variant="inline"
+        />
+      )}
+
+      {connection != null && !isConfigured && (
+        <div className="sync-card__setup">
+          <h4>Strava not configured</h4>
+          <p>
+            Add <code>STRAVA_CLIENT_ID</code> and <code>STRAVA_CLIENT_SECRET</code> to the
+            server config, then restart the API server.
+          </p>
+        </div>
+      )}
+
+      {connection != null && isConfigured && !isConnected && (
+        <div className="sync-card__setup">
+          <h4>Connect Strava</h4>
+          <p>Authorize Strava to import recent activities into your training model.</p>
+          <button
+            type="button"
+            className="sync-card__button sync-card__button--strava"
+            onClick={() => void handleConnect()}
+            disabled={isConnecting}
+          >
+            {isConnecting && <span className="import-spinner import-spinner--sm" />}
+            {isConnecting ? 'Redirecting…' : 'Connect Strava'}
+          </button>
+        </div>
+      )}
+
+      {isConfigured && isConnected && (
+        <>
+          <div className="sync-card__summary">
+            <div>
+              <span>Connected athlete</span>
+              <strong>{athleteLabel}</strong>
+              <p>
+                {lastSync == null
+                  ? 'No Strava sync runs yet'
+                  : `Last synced ${formatRelativeSyncTime(getSyncJobTime(lastSync))} · ${formatSyncImportSummary(lastSync)}`}
+              </p>
+            </div>
+            {lastSync != null && <SyncStatusBadge status={lastSync.status} />}
+          </div>
+
+          {(requiresReconnect || lastFailed?.errorMessage != null) && (
+            <p className="sync-card__error">
+              {requiresReconnect
+                ? 'Strava token expired or was revoked — reconnect Strava.'
+                : `Last sync failed: ${lastFailed?.errorMessage}`}
+            </p>
+          )}
+
+          <div className="sync-card__actions">
+            <button
+              type="button"
+              className="sync-card__button sync-card__button--strava"
+              onClick={() => void (requiresReconnect ? handleConnect() : handleSyncNow())}
+              disabled={isSyncing || isConnecting}
+            >
+              {(isSyncing || isConnecting) && <span className="import-spinner import-spinner--sm" />}
+              {requiresReconnect
+                ? isConnecting ? 'Redirecting…' : 'Reconnect'
+                : isSyncing ? 'Syncing…' : 'Sync now'}
+            </button>
+            {!confirmDisconnect && (
+              <button
+                type="button"
+                className="sync-card__button sync-card__button--secondary"
+                onClick={() => setConfirmDisconnect(true)}
+              >
+                Disconnect
+              </button>
+            )}
+          </div>
+
+          {confirmDisconnect && (
+            <div className="sync-card__confirm">
+              <p>Disconnect Strava from this athlete?</p>
+              <div>
+                <button
+                  type="button"
+                  className="sync-card__button sync-card__button--danger"
+                  onClick={() => void handleDisconnect()}
+                  disabled={isDisconnecting}
+                >
+                  {isDisconnecting ? 'Disconnecting…' : 'Disconnect'}
+                </button>
+                <button
+                  type="button"
+                  className="sync-card__button sync-card__button--secondary"
+                  onClick={() => setConfirmDisconnect(false)}
+                  disabled={isDisconnecting}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="sync-card__history">
+            <div className="sync-card__history-head">
+              <span>Recent sync history</span>
+              {historyState.status === 'loading' && jobs.length > 0 && <em>Refreshing</em>}
+            </div>
+
+            {historyState.status === 'loading' && jobs.length === 0 && (
+              <LoadingState title="Loading sync history" variant="inline" />
+            )}
+            {historyState.status === 'error' && jobs.length === 0 && (
+              <ErrorState
+                title="Could not load sync history"
+                description={historyState.message}
+                variant="inline"
+              />
+            )}
+            {historyState.status !== 'loading' && jobs.length === 0 && (
+              <EmptyState
+                title="No Strava sync runs yet"
+                description="Run your first Strava sync to populate this history."
+                variant="inline"
+              />
+            )}
+            {jobs.length > 0 && (
+              <ul>
+                {jobs.map((job) => (
+                  <li key={job.id}>
+                    <div>
+                      <strong>{formatDate(getSyncJobTime(job))}</strong>
+                      <span>{formatSyncImportSummary(job)}</span>
+                    </div>
+                    <SyncStatusBadge status={job.status} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
+    </article>
+  );
+}
+
+function SyncSourcesSection() {
+  const handleStravaCallback = useRef(false);
+
+  const handleConnectedToast = useCallback((refresh: () => void): void => {
+    if (handleStravaCallback.current) return;
+    const url = new URL(window.location.href);
+    const stravaStatus = url.searchParams.get('strava');
+    if (stravaStatus == null) return;
+
+    handleStravaCallback.current = true;
+    url.searchParams.delete('strava');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+
+    if (stravaStatus === 'connected') {
+      toast.success('Strava connected');
+      refresh();
+    } else if (stravaStatus === 'denied') {
+      toast.error('Strava connection was cancelled');
+    }
+  }, []);
+
+  return (
+    <section className="sync-sources">
+      <header className="import-section__head">
+        <div>
+          <p>Sync sources</p>
+          <h2>Connect training data sources</h2>
+        </div>
+        <span>Prototype sync</span>
+      </header>
+      <div className="sync-source-grid">
+        <GarminSyncCard />
+        <StravaSyncCard onConnectedToastHandled={handleConnectedToast} />
+      </div>
+    </section>
   );
 }
 
@@ -624,6 +1197,8 @@ function ImportApiMode({ navigate }: PageComponentProps) {
             </div>
           </aside>
         </section>
+
+        <SyncSourcesSection />
 
         <ImportHistorySection navigate={navigate} />
 

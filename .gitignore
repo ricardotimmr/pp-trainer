@@ -21,6 +21,12 @@ docs/pp-brand/
 docs/zones/
 docs/precision-pacers-mockup_4.html
 
+# Python
+scripts/.venv/
+scripts/.garmin_tokens/
+scripts/__pycache__/
+*.pyc
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -1,5 +1,6 @@
 export type ApiErrorCode =
   | 'NOT_FOUND'
+  | 'UNAUTHORIZED'
   | 'FORBIDDEN'
   | 'VALIDATION_ERROR'
   | 'BAD_REQUEST'
@@ -12,6 +13,7 @@ export type ApiErrorCode =
 
 const HTTP_STATUS_MAP: Record<ApiErrorCode, number> = {
   NOT_FOUND: 404,
+  UNAUTHORIZED: 401,
   FORBIDDEN: 403,
   VALIDATION_ERROR: 400,
   BAD_REQUEST: 400,
@@ -34,6 +36,10 @@ export class ApiError extends Error {
     this.code = code;
     this.statusCode = HTTP_STATUS_MAP[code];
     this.details = details;
+  }
+
+  static unauthorized(message = 'Unauthorized'): ApiError {
+    return new ApiError('UNAUTHORIZED', message);
   }
 
   static notFound(message = 'Resource not found'): ApiError {

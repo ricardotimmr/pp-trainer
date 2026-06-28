@@ -6,4 +6,7 @@ export * from './schemas/common.js';
 export * from './schemas/enums.js';
 export * from './schemas/import.js';
 export * from './schemas/performance.js';
+export * from './schemas/connections.js';
+export * from './schemas/health.js';
+export * from './schemas/sync.js';
 export * from './schemas/training.js';

@@ -158,6 +158,11 @@ export class FitParser implements ActivityImporter {
         ? swimLaps.reduce((sum, l) => sum + (l.strokeCount ?? 0), 0) || undefined
         : undefined;
 
+    // Note (P9-007 stretch goal): The Garmin Connect activity ID is NOT stored in FIT files.
+    // It is assigned server-side when the file is uploaded to Garmin Connect.
+    // fit-file-parser exposes device serial_number but not the Connect activity ID.
+    // Cross-source dedup (FIT upload vs Garmin sync) relies on the similarity check
+    // (same sport + startTime ±30s + duration ±5%) rather than externalId matching.
     return {
       source: 'ManualFitUpload',
       sport,

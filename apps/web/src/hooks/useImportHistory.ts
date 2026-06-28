@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { ImportSummaryDto } from '@pp-trainer/shared';
+import type { ImportListEntryDto } from '@pp-trainer/shared';
 
 import { getImportHistory } from '../api/importApi';
 
@@ -8,7 +8,7 @@ const PAGE_SIZE = 20;
 
 type State = {
   phase: 'loading' | 'success' | 'error';
-  items: ImportSummaryDto[];
+  items: ImportListEntryDto[];
   hasMore: boolean;
   loadingMore: boolean;
   errorMessage: string;
@@ -16,7 +16,7 @@ type State = {
 
 export type UseImportHistoryResult = {
   phase: State['phase'];
-  items: ImportSummaryDto[];
+  items: ImportListEntryDto[];
   hasMore: boolean;
   loadingMore: boolean;
   errorMessage: string;

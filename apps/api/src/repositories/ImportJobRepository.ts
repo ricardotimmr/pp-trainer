@@ -1,14 +1,16 @@
-import type { DataSourceType, ImportedFile, ImportJob, ImportStatus } from '@prisma/client';
+import type { DataSourceType, ImportedFile, ImportJob, ImportStatus, SyncJob } from '@prisma/client';
 
 import { prisma } from '../lib/prisma.js';
 
 export type ImportJobWithFile = ImportJob & { importedFile: ImportedFile | null };
+export type SyncJobWithImportJobs = SyncJob & { importJobs: ImportJob[] };
 
 export type CreateImportJobInput = {
   athleteProfileId: string;
   sourceType: DataSourceType;
   rawPayloadHash?: string;
   importedFileId?: string;
+  syncJobId?: string;
 };
 
 export type UpdateImportJobInput = {
@@ -26,6 +28,7 @@ export async function createImportJob(data: CreateImportJobInput): Promise<Impor
       status: 'Pending',
       ...(data.rawPayloadHash != null && { rawPayloadHash: data.rawPayloadHash }),
       ...(data.importedFileId != null && { importedFileId: data.importedFileId }),
+      ...(data.syncJobId != null && { syncJobId: data.syncJobId }),
     },
   });
 }
@@ -59,6 +62,46 @@ export async function findImportJobs(
     orderBy: { createdAt: 'desc' },
     take: filter.limit ?? 20,
     skip: filter.offset ?? 0,
+  });
+}
+
+export async function findImportJobsWithoutSync(
+  athleteProfileId: string,
+  filter: FindImportJobsFilter = {},
+): Promise<ImportJob[]> {
+  return prisma.importJob.findMany({
+    where: {
+      athleteProfileId,
+      syncJobId: null,
+      ...(filter.status != null && { status: filter.status }),
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+  });
+}
+
+export async function findSyncJobsWithImportJobs(
+  athleteProfileId: string,
+  filter: Pick<FindImportJobsFilter, 'status'> = {},
+): Promise<SyncJobWithImportJobs[]> {
+  return prisma.syncJob.findMany({
+    where: {
+      athleteProfileId,
+      importJobs:
+        filter.status != null
+          ? { some: { status: filter.status } }
+          : { some: {} },
+    },
+    include: {
+      importJobs: {
+        where: {
+          ...(filter.status != null && { status: filter.status }),
+        },
+        orderBy: { createdAt: 'desc' },
+      },
+    },
+    orderBy: { startedAt: 'desc' },
+    take: 200,
   });
 }
 

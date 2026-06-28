@@ -2,6 +2,7 @@ import type { ActivityImporter } from '../../ActivityImporter.js';
 import { FitParser } from '../../parsers/FitParser.js';
 import { GpxParser } from '../../parsers/GpxParser.js';
 import { JsonActivityParser } from '../../parsers/JsonActivityParser.js';
+import { StravaParsedActivityImporter } from '../../parsers/StravaParsedActivityImporter.js';
 import { TcxParser } from '../../parsers/TcxParser.js';
 import type { ImportSourceType, ParsedActivity } from '../../types.js';
 
@@ -12,6 +13,9 @@ registerParser('ManualJsonImport', new JsonActivityParser());
 registerParser('ManualFitUpload', new FitParser());
 registerParser('ManualGpxUpload', new GpxParser());
 registerParser('ManualTcxUpload', new TcxParser());
+// External sync sources that use the same FIT pipeline
+registerParser('GarminUnofficial', new FitParser());
+registerParser('Strava', new StravaParsedActivityImporter());
 
 export function registerParser(source: ImportSourceType, parser: ActivityImporter): void {
   registry.set(source, parser);

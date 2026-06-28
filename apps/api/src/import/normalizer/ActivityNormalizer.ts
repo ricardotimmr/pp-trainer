@@ -34,6 +34,7 @@ export function normalizeActivity(
   return {
     athleteProfileId,
     sourceType: parsed.source,
+    ...(parsed.externalId != null && { externalId: parsed.externalId }),
     sport,
     startTime: parsed.startTime,
     durationSeconds: parsed.durationSeconds,

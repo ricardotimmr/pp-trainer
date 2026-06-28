@@ -7,6 +7,8 @@ export type ImportSourceType = Extract<
   | 'ManualGpxUpload'
   | 'ManualTcxUpload'
   | 'ManualCsvImport'
+  | 'GarminUnofficial'
+  | 'Strava'
 >;
 
 export type ParsedLap = {
@@ -67,6 +69,7 @@ export type ParsedTimeInZone = {
 
 export type ParsedActivity = {
   source: ImportSourceType;
+  externalId?: string;
   sport: string;
   startTime: Date;
   durationSeconds: number;

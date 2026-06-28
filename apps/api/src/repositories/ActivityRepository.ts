@@ -100,7 +100,7 @@ export async function findSimilarActivity(
   params: SimilarActivityParams,
 ): Promise<Pick<Activity, 'id'> | null> {
   const { athleteProfileId, sport, startTime, durationSeconds } = params;
-  const windowMs = 60 * 1000;
+  const windowMs = 30 * 1000;
   const durationLower = Math.floor(durationSeconds * 0.95);
   const durationUpper = Math.ceil(durationSeconds * 1.05);
 
@@ -114,6 +114,17 @@ export async function findSimilarActivity(
       },
       durationSeconds: { gte: durationLower, lte: durationUpper },
     },
+    select: { id: true },
+  });
+}
+
+export async function findActivityByExternalId(
+  athleteProfileId: string,
+  sourceType: import('@prisma/client').DataSourceType,
+  externalId: string,
+): Promise<Pick<Activity, 'id'> | null> {
+  return prisma.activity.findFirst({
+    where: { athleteProfileId, sourceType, externalId },
     select: { id: true },
   });
 }
