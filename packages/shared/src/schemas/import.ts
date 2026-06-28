@@ -13,6 +13,7 @@ import {
   SportTypeSchema,
   SwimStrokeTypeSchema,
 } from './enums.js';
+import { SyncJobStatusSchema } from './sync.js';
 
 // ── ADR-006 sub-schemas ────────────────────────────────────────────────────────
 
@@ -155,6 +156,7 @@ export const ImportedFileRefDtoSchema = z.object({
 });
 
 export const ImportSummaryDtoSchema = z.object({
+  entryType: z.literal('import').default('import'),
   id: IdSchema,
   status: ImportStatusSchema,
   sourceType: DataSourceTypeSchema,
@@ -171,8 +173,31 @@ export const ImportDetailDtoSchema = ImportSummaryDtoSchema.extend({
   importedFile: ImportedFileRefDtoSchema.nullable(),
 });
 
-export const ImportListResponseDtoSchema = z.object({
+export const SyncImportBatchDtoSchema = z.object({
+  entryType: z.literal('sync_batch'),
+  id: IdSchema,
+  syncJobId: IdSchema,
+  sourceType: DataSourceTypeSchema,
+  sourceLabel: z.string(),
+  status: SyncJobStatusSchema,
+  startedAt: IsoDateTimeStringSchema,
+  completedAt: IsoDateTimeStringSchema.optional(),
+  activitiesFound: NonNegativeIntegerSchema,
+  activitiesImported: NonNegativeIntegerSchema,
+  activitiesSkipped: NonNegativeIntegerSchema,
+  healthDaysFound: NonNegativeIntegerSchema,
+  healthDaysImported: NonNegativeIntegerSchema,
+  errorMessage: z.string().nullable(),
   imports: z.array(ImportSummaryDtoSchema),
+});
+
+export const ImportListEntryDtoSchema = z.discriminatedUnion('entryType', [
+  ImportSummaryDtoSchema,
+  SyncImportBatchDtoSchema,
+]);
+
+export const ImportListResponseDtoSchema = z.object({
+  imports: z.array(ImportListEntryDtoSchema),
 });
 
 export type ImportHistoryItemDto = z.infer<typeof ImportHistoryItemDtoSchema>;
@@ -186,4 +211,6 @@ export type ImportResultDto = z.infer<typeof ImportResultDtoSchema>;
 export type ImportedFileRefDto = z.infer<typeof ImportedFileRefDtoSchema>;
 export type ImportSummaryDto = z.infer<typeof ImportSummaryDtoSchema>;
 export type ImportDetailDto = z.infer<typeof ImportDetailDtoSchema>;
+export type SyncImportBatchDto = z.infer<typeof SyncImportBatchDtoSchema>;
+export type ImportListEntryDto = z.infer<typeof ImportListEntryDtoSchema>;
 export type ImportListResponseDto = z.infer<typeof ImportListResponseDtoSchema>;

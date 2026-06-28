@@ -223,6 +223,9 @@ model ImportJob {
   importedFileId String?
   importedFile   ImportedFile? @relation(fields: [importedFileId], references: [id], onDelete: SetNull)
 
+  syncJobId String?
+  syncJob   SyncJob? @relation(fields: [syncJobId], references: [id], onDelete: SetNull)
+
   status         ImportStatus
   sourceType     DataSourceType
   rawPayloadHash String?
@@ -238,6 +241,7 @@ model ImportJob {
   @@index([rawPayloadHash])
   @@index([activityId])
   @@index([importedFileId])
+  @@index([syncJobId])
 }
 
 model AthleteProfile {
@@ -276,6 +280,11 @@ model AthleteProfile {
   athleteContextSnapshots AthleteContextSnapshot[]
   aiCoachOutputs          AiCoachOutput[]
   coachingMemoryEntries   CoachingMemoryEntry[]
+  syncJobs                SyncJob[]
+  dataSourceConnections   DataSourceConnection[]
+  dailyHealthSummaries    DailyHealthSummary[]
+  sleepSessions           SleepSession[]
+  hrvStatuses             HrvStatus[]
 }
 
 model TrainingGoal {
@@ -842,4 +851,137 @@ model CoachingMemoryEntry {
   weekStartDate String?
 
   @@index([athleteProfileId, createdAt])
+}
+
+enum SyncJobStatus {
+  Running   @map("running")
+  Completed @map("completed")
+  Failed    @map("failed")
+}
+
+model SyncJob {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  source     DataSourceType
+  status     SyncJobStatus
+  startedAt  DateTime
+  completedAt DateTime?
+
+  activitiesFound    Int @default(0)
+  activitiesImported Int @default(0)
+  activitiesSkipped  Int @default(0)
+
+  healthDaysFound    Int @default(0)
+  healthDaysImported Int @default(0)
+
+  errorMessage String?
+
+  importJobs ImportJob[]
+
+  @@index([athleteProfileId, createdAt])
+  @@index([athleteProfileId, source])
+}
+
+model DataSourceConnection {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  source   DataSourceType
+  isActive Boolean        @default(true)
+
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+
+  lastSyncedAt     DateTime?
+  lastSyncedItemAt DateTime?
+
+  externalUserId String?
+  username       String?
+  password       String?
+  metadata       Json?
+
+  @@unique([athleteProfileId, source])
+  @@index([athleteProfileId])
+}
+
+model DailyHealthSummary {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  date   DateTime
+  source DataSourceType
+
+  restingHeartRate Int?
+  steps            Int?
+  floors           Int?
+  activeCalories   Int?
+  totalCalories    Int?
+  avgStressLevel   Int?
+  bodyBatteryLow   Int?
+  bodyBatteryHigh  Int?
+  avgRespiration   Float?
+  avgSpo2          Float?
+
+  @@unique([athleteProfileId, date, source])
+  @@index([athleteProfileId, date])
+}
+
+model SleepSession {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  date   DateTime
+  source DataSourceType
+
+  startTime         DateTime?
+  endTime           DateTime?
+  totalSleepSeconds Int?
+  deepSleepSeconds  Int?
+  lightSleepSeconds Int?
+  remSleepSeconds   Int?
+  awakeSeconds      Int?
+  sleepScore        Int?
+  avgStress         Float?
+  avgSpo2           Float?
+
+  @@unique([athleteProfileId, date, source])
+  @@index([athleteProfileId, date])
+}
+
+model HrvStatus {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+
+  date   DateTime
+  source DataSourceType
+
+  weeklyAvgHrv         Float?
+  lastNightAvgHrv      Float?
+  lastNightFiveMinHigh Float?
+  status               String?
+
+  @@unique([athleteProfileId, date, source])
+  @@index([athleteProfileId, date])
 }

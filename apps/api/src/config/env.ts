@@ -14,6 +14,12 @@ export type ApiConfig = {
     openaiApiKey?: string;
     model?: string;
   };
+  garminEmail?: string;
+  garminPassword?: string;
+  garminTokenStore?: string;
+  stravaClientId?: string;
+  stravaClientSecret?: string;
+  stravaRedirectUri: string;
 };
 
 const validNodeEnvs = ['development', 'test', 'production'] as const;
@@ -64,5 +70,11 @@ export function getApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
       openaiApiKey: env.OPENAI_API_KEY,
       model: env.AI_MODEL,
     },
+    garminEmail: env.GARMIN_EMAIL,
+    garminPassword: env.GARMIN_PASSWORD,
+    garminTokenStore: env.GARMIN_TOKEN_STORE,
+    stravaClientId: env.STRAVA_CLIENT_ID,
+    stravaClientSecret: env.STRAVA_CLIENT_SECRET,
+    stravaRedirectUri: env.STRAVA_REDIRECT_URI ?? 'http://127.0.0.1:3000/api/connections/strava/callback',
   };
 }

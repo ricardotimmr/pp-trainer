@@ -1,7 +1,7 @@
 import type { DataSourceType, ImportJob, ImportStatus } from '@prisma/client';
-import type { ImportDetailDto, ImportListResponseDto } from '@pp-trainer/shared';
+import type { ImportDetailDto, ImportListEntryDto, ImportListResponseDto } from '@pp-trainer/shared';
 
-import { mapImportDetail, mapImportSummary } from '../mappers/mapImportJob.js';
+import { mapImportDetail, mapImportSummary, mapSyncImportBatch } from '../mappers/mapImportJob.js';
 import { ApiError } from '../errors/ApiError.js';
 import * as AthleteRepository from '../repositories/AthleteRepository.js';
 import * as ImportJobRepository from '../repositories/ImportJobRepository.js';
@@ -11,6 +11,7 @@ export type StartJobParams = {
   sourceType: DataSourceType;
   rawPayloadHash?: string;
   importedFileId?: string;
+  syncJobId?: string;
 };
 
 export async function startJob(params: StartJobParams): Promise<ImportJob> {
@@ -78,8 +79,26 @@ export async function getImports(filter: GetImportsFilter = {}): Promise<ImportL
     return { imports: [] };
   }
 
-  const jobs = await ImportJobRepository.findImportJobs(profile.id, filter);
-  return { imports: jobs.map(mapImportSummary) };
+  const [manualJobs, syncJobs] = await Promise.all([
+    ImportJobRepository.findImportJobsWithoutSync(profile.id, filter),
+    ImportJobRepository.findSyncJobsWithImportJobs(profile.id, { status: filter.status }),
+  ]);
+
+  const entries: ImportListEntryDto[] = [
+    ...manualJobs.map(mapImportSummary),
+    ...syncJobs.map(mapSyncImportBatch),
+  ];
+
+  entries.sort((a, b) => {
+    const aTime = a.entryType === 'sync_batch' ? a.startedAt : a.createdAt;
+    const bTime = b.entryType === 'sync_batch' ? b.startedAt : b.createdAt;
+    return new Date(bTime).getTime() - new Date(aTime).getTime();
+  });
+
+  const offset = filter.offset ?? 0;
+  const limit = filter.limit ?? 20;
+
+  return { imports: entries.slice(offset, offset + limit) };
 }
 
 export async function getImportById(id: string): Promise<ImportDetailDto> {

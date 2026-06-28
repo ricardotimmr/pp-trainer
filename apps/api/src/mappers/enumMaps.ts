@@ -90,6 +90,20 @@ export const DATA_SOURCE_TYPE_MAP: Record<DataSourceType, DataSourceTypeDto> = {
   Aggregator: 'aggregator',
 };
 
+export const DTO_TO_PRISMA_DATA_SOURCE_TYPE_MAP: Record<DataSourceTypeDto, DataSourceType> = {
+  mock: 'Mock',
+  manual_fit_upload: 'ManualFitUpload',
+  manual_gpx_upload: 'ManualGpxUpload',
+  manual_tcx_upload: 'ManualTcxUpload',
+  manual_json_import: 'ManualJsonImport',
+  manual_csv_import: 'ManualCsvImport',
+  garmin_official: 'GarminOfficial',
+  garmin_unofficial: 'GarminUnofficial',
+  garmin_export: 'GarminExport',
+  strava: 'Strava',
+  aggregator: 'Aggregator',
+};
+
 export const SWIM_STROKE_TYPE_MAP: Record<SwimStrokeType, SwimStrokeTypeDto> = {
   Freestyle: 'freestyle',
   Backstroke: 'backstroke',

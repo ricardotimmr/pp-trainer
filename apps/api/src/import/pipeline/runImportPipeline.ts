@@ -18,19 +18,31 @@ export type RunImportPipelineParams = {
   input: unknown;
   rawPayloadHash?: string;
   importedFileId?: string;
+  syncJobId?: string;
   forceImport?: boolean;
+  externalId?: string;
 };
 
 export async function runImportPipeline(
   params: RunImportPipelineParams,
 ): Promise<ImportPipelineResult> {
-  const { athleteProfileId, source, input, rawPayloadHash, importedFileId, forceImport } = params;
+  const {
+    athleteProfileId,
+    source,
+    input,
+    rawPayloadHash,
+    importedFileId,
+    syncJobId,
+    forceImport,
+    externalId,
+  } = params;
 
   const job = await ImportJobService.startJob({
     athleteProfileId,
     sourceType: source as DataSourceType,
     rawPayloadHash,
     importedFileId,
+    syncJobId,
   });
 
   const context: ImportPipelineContext = {
@@ -45,7 +57,15 @@ export async function runImportPipeline(
     validateStage({ source, input });
 
     // 2. parse
-    const parsed = await parseStage(source, input);
+    const rawParsed = await parseStage(source, input);
+    // Override source and externalId — parsers hardcode their own source type
+    // (e.g. FitParser always returns 'ManualFitUpload'), so we enforce the
+    // requested source here. externalId is unknown to the parser.
+    const parsed = {
+      ...rawParsed,
+      source,
+      ...(externalId != null && { externalId }),
+    };
 
     // 3. store raw
     await storeRawStage({ context, source, rawInput: input });

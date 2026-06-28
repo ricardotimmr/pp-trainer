@@ -4,9 +4,17 @@
 
 ## Current Status
 
-**Phase 8: First Stable Prototype — complete. 2026-06-27.**
+**Phase 9: Data Source Expansion — complete. 2026-06-28.**
 
-Every page runs on live API data. The app can be used regularly for real personal training planning. All phases 0–8 are complete.
+Activities and health data now flow in automatically from Garmin Connect and Strava. All phases 0–9 are complete.
+
+**What Phase 9 delivered:**
+
+- Garmin Connect sync via `python-garminconnect` — FIT-based activity import + health data (daily summary, sleep, HRV body battery) via Python subprocess bridge
+- Strava OAuth2 connect/disconnect + activity sync — OAuth code flow, token refresh, paginated activity fetch with 30-day default window
+- Cross-source deduplication hardening — similarity window tightened to ±30s, Strava `sport_type` preferred over deprecated `type`, 8 new cross-source dedup tests
+- Sync UI on Import page — Garmin and Strava cards with "Sync now", status, history, toast feedback
+- 114 new tests (96 files, 1789 total)
 
 **What Phase 8 delivered:**
 
@@ -131,6 +139,30 @@ npm run dev:web
 
 Open `http://127.0.0.1:5173`. The Activities page now reads from the local backend. All other pages remain in mock mode.
 
+### Garmin sync (optional — Python required)
+
+Garmin sync requires Python 3.10+. Set up the venv once:
+
+```bash
+cd scripts
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Then add `GARMIN_EMAIL` and `GARMIN_PASSWORD` to `apps/api/.env`. If your Garmin account has 2FA, run this once interactively to cache the session token:
+
+```bash
+python3 scripts/garmin_sync.py --email your@email.com --password yourpassword \
+  --interactive --token-store scripts/.garmin_tokens --mode all
+```
+
+Subsequent syncs from the UI or API reuse the cached token automatically.
+
+### Strava sync (optional)
+
+Register a Strava developer app at `https://www.strava.com/settings/api`. Set `Authorization Callback Domain` to `localhost`. Add `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` to `apps/api/.env`. Then use the "Connect Strava" button on the Import page to complete the OAuth flow.
+
 ## Environment Variables
 
 ### `apps/api/.env`
@@ -141,6 +173,12 @@ Open `http://127.0.0.1:5173`. The Activities page now reads from the local backe
 | `API_HOST` | no | `127.0.0.1` | Host the API binds to |
 | `API_PORT` | no | `3000` | Port the API listens on |
 | `WEB_ORIGIN` | no | `http://127.0.0.1:5173` | Allowed CORS origin |
+| `GARMIN_EMAIL` | no | — | Garmin Connect account email (for Garmin sync) |
+| `GARMIN_PASSWORD` | no | — | Garmin Connect account password |
+| `GARMIN_TOKEN_STORE` | no | `scripts/.garmin_tokens` | Directory for cached Garmin session tokens |
+| `STRAVA_CLIENT_ID` | no | — | Strava OAuth app client ID |
+| `STRAVA_CLIENT_SECRET` | no | — | Strava OAuth app client secret |
+| `STRAVA_REDIRECT_URI` | no | `http://127.0.0.1:3000/api/connections/strava/callback` | Strava OAuth redirect URI |
 
 ### `apps/web/.env`
 
@@ -246,6 +284,34 @@ All endpoints return `{ error: { code, message } }` on failure.
 | `GET` | `/api/imports` | Import job list. Query params: `status` (`success`\|`failed`\|`duplicate`), `limit` (max 100, default 20), `offset` |
 | `GET` | `/api/imports/:id` | Import job detail with file metadata and warning messages |
 | `GET` | `/api/imports/history` | Recent import history (last 20) with file metadata and linked activity |
+
+### Sync (Phase 9)
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/sync/history` | Sync job history. Query: `source=garmin_unofficial\|strava` |
+| `POST` | `/api/sync/garmin` | Trigger Garmin sync. Body: `{ since?, days?, mode?, forceImport?, mfaCode? }` |
+| `GET` | `/api/sync/status/garmin` | Garmin configured state + last sync job |
+| `POST` | `/api/sync/strava` | Trigger Strava activity sync. Body: `{ forceImport? }` |
+
+### Connections (Phase 9)
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/connections/strava` | Strava connection status + athlete name |
+| `POST` | `/api/connections/strava/authorize` | Start Strava OAuth — returns `{ authUrl }`. Requires `STRAVA_CLIENT_ID` + `STRAVA_CLIENT_SECRET`. |
+| `GET` | `/api/connections/strava/callback` | Strava OAuth callback (browser redirect target) |
+| `DELETE` | `/api/connections/strava` | Revoke and delete Strava connection |
+
+### Health data (Phase 9)
+
+Populated by Garmin sync. UI deferred to Phase 10.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/health/daily` | Daily health summaries. Query: `from`, `to` (YYYY-MM-DD) |
+| `GET` | `/api/health/sleep` | Sleep sessions. Query: `from`, `to` |
+| `GET` | `/api/health/hrv` | HRV status history. Query: `from`, `to` |
 
 ## API Mode
 

@@ -1,3 +1,4 @@
+import type { DataSourceType } from '@prisma/client';
 import type { SportTypeDto } from '@pp-trainer/shared';
 
 import { DTO_TO_PRISMA_SPORT_MAP } from '../../mappers/enumMaps.js';
@@ -14,7 +15,23 @@ export async function deduplicateActivity(
   parsed: ParsedActivity,
   rawPayloadHash?: string,
 ): Promise<DeduplicateResult> {
-  // 1. Exact hash check
+  // 1. External ID check — fastest path for recurring syncs of the same external activity
+  if (parsed.externalId != null) {
+    const existing = await ActivityRepository.findActivityByExternalId(
+      athleteProfileId,
+      parsed.source as DataSourceType,
+      parsed.externalId,
+    );
+    if (existing != null) {
+      return {
+        isDuplicate: true,
+        existingActivityId: existing.id,
+        reason: `Exact duplicate: externalId '${parsed.externalId}' already imported from ${parsed.source}`,
+      };
+    }
+  }
+
+  // 2. Exact hash check
   if (rawPayloadHash != null) {
     const existing = await ImportJobRepository.findImportJobByHash(rawPayloadHash, athleteProfileId);
     if (existing?.activityId != null) {
@@ -26,7 +43,7 @@ export async function deduplicateActivity(
     }
   }
 
-  // 2. Similarity check — same sport, startTime ±60s, duration ±5%
+  // 3. Similarity check — same sport, startTime ±30s, duration ±5%
   const sport = DTO_TO_PRISMA_SPORT_MAP[parsed.sport as SportTypeDto];
   if (sport == null) {
     return { isDuplicate: false };

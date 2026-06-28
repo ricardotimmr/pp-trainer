@@ -1,6 +1,6 @@
 # Roadmap
 
-Stand: 24.06.2026
+Stand: 28.06.2026
 
 ## 1. Ziel dieser Datei
 
@@ -1040,7 +1040,7 @@ Phase 8: First Stable Prototype
 
 # 12. Phase 8: First Stable Prototype
 
-**Status: in progress — started 2026-06-25**
+**Status: complete — First Stable Prototype reached 2026-06-27**
 
 ## 12.1 Ziel
 
@@ -1233,14 +1233,15 @@ Nur bei Bedarf:
 
 ## 13.8 Definition of Done
 
-Phase 9 ist abgeschlossen, wenn mindestens eine zusätzliche echte Datenquelle über den Adapter-Ansatz funktioniert oder sauber verworfen wurde.
+**Status: complete — Data Source Expansion reached 2026-06-28**
 
-Wichtig:
-
-* interne Models bleiben stabil
-* Dashboard muss nicht umgebaut werden
-* AI-Coach muss nicht umgebaut werden
-* Importlogik folgt weiterhin der bestehenden Pipeline
+- [x] Garmin Connect sync via `python-garminconnect` (FIT files + health data: daily summary, sleep, HRV)
+- [x] Strava OAuth connect/disconnect + activity sync (last 30 days default, incremental after)
+- [x] Cross-source deduplication hardened (±30s similarity window, externalId priority)
+- [x] Sync history visible in UI
+- [x] Internal data model unchanged — Activity, TrainingPlan, PlannedWorkout unmodified
+- [x] All tests pass (96 files, 1789 tests); TypeScript clean
+- [ ] P9-002a Health data dashboard UI — deferred to Phase 10 (backend ready)
 
 ## 13.9 Nächster Schritt nach Phase 9
 

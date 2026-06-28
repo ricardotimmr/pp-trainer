@@ -30,6 +30,7 @@ const baseJob: ImportJob = {
   updatedAt: new Date('2026-06-22T10:00:00Z'),
   athleteProfileId: 'profile-1',
   importedFileId: null,
+  syncJobId: null,
   status: 'Pending',
   sourceType: 'ManualJsonImport',
   rawPayloadHash: null,
