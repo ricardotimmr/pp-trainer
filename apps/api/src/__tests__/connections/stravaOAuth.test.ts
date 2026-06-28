@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DataSourceConnection } from '@prisma/client';
+import type { AthleteProfile, DataSourceConnection } from '@prisma/client';
+import type { ApiConfig } from '../../config/env.js';
 
 vi.mock('../../lib/prisma.js', () => ({ prisma: {}, disconnectPrisma: vi.fn() }));
 vi.mock('../../config/env.js', () => ({ getApiConfig: vi.fn() }));
@@ -68,8 +69,8 @@ const STRAVA_TOKEN_RESPONSE = {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(getApiConfig).mockReturnValue(makeConfig() as any);
-  vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue({ id: PROFILE_ID } as any);
+  vi.mocked(getApiConfig).mockReturnValue(makeConfig() as unknown as ApiConfig);
+  vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue({ id: PROFILE_ID } as unknown as AthleteProfile);
   vi.mocked(DataSourceConnectionRepository.upsertConnection).mockResolvedValue(makeConnection());
   vi.mocked(DataSourceConnectionRepository.findConnection).mockResolvedValue(null);
   vi.mocked(DataSourceConnectionRepository.deleteConnection).mockResolvedValue();
@@ -89,7 +90,7 @@ describe('getAuthUrl', () => {
   });
 
   it('throws 503 when stravaClientId is not configured', () => {
-    vi.mocked(getApiConfig).mockReturnValue(makeConfig({ stravaClientId: undefined }) as any);
+    vi.mocked(getApiConfig).mockReturnValue(makeConfig({ stravaClientId: undefined }) as unknown as ApiConfig);
     expect(() => StravaOAuthService.getAuthUrl()).toThrow('not configured');
   });
 });
@@ -148,7 +149,7 @@ describe('exchangeCode', () => {
   });
 
   it('throws 503 when stravaClientId is not configured', async () => {
-    vi.mocked(getApiConfig).mockReturnValue(makeConfig({ stravaClientId: undefined }) as any);
+    vi.mocked(getApiConfig).mockReturnValue(makeConfig({ stravaClientId: undefined }) as unknown as ApiConfig);
 
     await expect(StravaOAuthService.exchangeCode('code')).rejects.toMatchObject({
       statusCode: 503,

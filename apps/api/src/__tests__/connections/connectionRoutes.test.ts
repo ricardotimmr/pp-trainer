@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DataSourceConnection } from '@prisma/client';
+import type { ApiConfig } from '../../config/env.js';
 
 vi.mock('../../lib/prisma.js', () => ({ prisma: {}, disconnectPrisma: vi.fn() }));
 vi.mock('../../config/env.js', () => ({ getApiConfig: vi.fn() }));
@@ -61,10 +62,10 @@ function makeConnection(overrides: Partial<DataSourceConnection> = {}): DataSour
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(getApiConfig).mockReturnValue(makeConfig() as any);
+  vi.mocked(getApiConfig).mockReturnValue(makeConfig() as unknown as ApiConfig);
   vi.mocked(StravaOAuthService.getConnection).mockResolvedValue(null);
   vi.mocked(StravaOAuthService.getAuthUrl).mockReturnValue('https://www.strava.com/oauth/authorize?client_id=client-123');
-  vi.mocked(StravaOAuthService.exchangeCode).mockResolvedValue(makeConnection() as any);
+  vi.mocked(StravaOAuthService.exchangeCode).mockResolvedValue(makeConnection());
   vi.mocked(StravaOAuthService.disconnect).mockResolvedValue(undefined);
 });
 
@@ -93,7 +94,7 @@ describe('GET /api/connections/strava', () => {
 
   it('returns configured: false when client credentials not set', async () => {
     vi.mocked(getApiConfig).mockReturnValue(
-      makeConfig({ stravaClientId: undefined, stravaClientSecret: undefined }) as any,
+      makeConfig({ stravaClientId: undefined, stravaClientSecret: undefined }) as unknown as ApiConfig,
     );
     const app = buildApp();
     const res = await app.inject({ method: 'GET', url: '/api/connections/strava' });
@@ -137,7 +138,7 @@ describe('POST /api/connections/strava/authorize', () => {
 
   it('returns 503 when Strava client credentials not configured', async () => {
     vi.mocked(getApiConfig).mockReturnValue(
-      makeConfig({ stravaClientId: undefined, stravaClientSecret: undefined }) as any,
+      makeConfig({ stravaClientId: undefined, stravaClientSecret: undefined }) as unknown as ApiConfig,
     );
     const app = buildApp();
     const res = await app.inject({ method: 'POST', url: '/api/connections/strava/authorize' });
@@ -180,7 +181,7 @@ describe('GET /api/connections/strava/callback', () => {
 
   it('returns 503 when Strava credentials not configured', async () => {
     vi.mocked(getApiConfig).mockReturnValue(
-      makeConfig({ stravaClientId: undefined, stravaClientSecret: undefined }) as any,
+      makeConfig({ stravaClientId: undefined, stravaClientSecret: undefined }) as unknown as ApiConfig,
     );
     const app = buildApp();
     const res = await app.inject({

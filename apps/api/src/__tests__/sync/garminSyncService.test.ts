@@ -1,7 +1,9 @@
 import { EventEmitter } from 'node:events';
+import type { ChildProcess } from 'node:child_process';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { SyncJob } from '@prisma/client';
+import type { AthleteProfile, DataSourceConnection, DailyHealthSummary, HrvStatus, SleepSession, SyncJob } from '@prisma/client';
+import type { ApiConfig } from '../../config/env.js';
 
 vi.mock('../../lib/prisma.js', () => ({ prisma: {}, disconnectPrisma: vi.fn() }));
 
@@ -85,30 +87,38 @@ const MANIFEST_EMPTY: Manifest = {
   tmpDir: TMP_DIR, activities: [], healthDays: [], error: null,
 };
 
-function makeFakeProcess(manifestJson: string, exitCode = 0) {
-  const proc = new EventEmitter() as any;
+function makeFakeProcess(manifestJson: string, exitCode = 0): ChildProcess {
+  const proc = new EventEmitter() as unknown as ChildProcess & {
+    stdout: EventEmitter;
+    stderr: EventEmitter;
+    kill: () => void;
+  };
   proc.stdout = new EventEmitter();
   proc.stderr = new EventEmitter();
   proc.kill   = vi.fn();
   setTimeout(() => {
     proc.stdout.emit('data', Buffer.from(manifestJson));
-    proc.emit('close', exitCode);
+    (proc as unknown as EventEmitter).emit('close', exitCode);
   }, 0);
   return proc;
 }
 
-function makeErrorProcess(error: Error) {
-  const proc = new EventEmitter() as any;
+function makeErrorProcess(error: Error): ChildProcess {
+  const proc = new EventEmitter() as unknown as ChildProcess & {
+    stdout: EventEmitter;
+    stderr: EventEmitter;
+    kill: () => void;
+  };
   proc.stdout = new EventEmitter();
   proc.stderr = new EventEmitter();
   proc.kill   = vi.fn();
-  setTimeout(() => proc.emit('error', error), 0);
+  setTimeout(() => (proc as unknown as EventEmitter).emit('error', error), 0);
   return proc;
 }
 
 function mockSpawn(manifest: Manifest, exitCode = 0) {
   vi.mocked(spawn).mockReturnValue(
-    makeFakeProcess(JSON.stringify(manifest), exitCode) as any,
+    makeFakeProcess(JSON.stringify(manifest), exitCode),
   );
 }
 
@@ -123,13 +133,13 @@ beforeEach(() => {
   vi.mocked(rm).mockResolvedValue(undefined);
 
   vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue(
-    { id: PROFILE_ID } as any,
+    { id: PROFILE_ID } as unknown as AthleteProfile,
   );
   vi.mocked(DataSourceConnectionRepository.findConnection).mockResolvedValue(null);
   vi.mocked(getApiConfig).mockReturnValue({
     garminEmail: 'env@test.com',
     garminPassword: 'envpass',
-  } as any);
+  } as unknown as ApiConfig);
 
   vi.mocked(SyncJobService.startSyncJob).mockResolvedValue(makeSyncJob('Running'));
   vi.mocked(SyncJobService.completeSyncJob).mockResolvedValue(makeSyncJob('Completed'));
@@ -138,9 +148,9 @@ beforeEach(() => {
   vi.mocked(runImportPipeline).mockResolvedValue({
     status: 'success', importJobId: 'job-1', activityId: 'act-1',
   });
-  vi.mocked(DailyHealthRepository.upsertDailyHealth).mockResolvedValue({} as any);
-  vi.mocked(SleepSessionRepository.upsertSleepSession).mockResolvedValue({} as any);
-  vi.mocked(HrvStatusRepository.upsertHrvStatus).mockResolvedValue({} as any);
+  vi.mocked(DailyHealthRepository.upsertDailyHealth).mockResolvedValue({} as unknown as DailyHealthSummary);
+  vi.mocked(SleepSessionRepository.upsertSleepSession).mockResolvedValue({} as unknown as SleepSession);
+  vi.mocked(HrvStatusRepository.upsertHrvStatus).mockResolvedValue({} as unknown as HrvStatus);
 });
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -192,7 +202,7 @@ describe('GarminSyncService.sync', () => {
     });
 
     it('marks SyncJob Failed when Python produces no output', async () => {
-      vi.mocked(spawn).mockReturnValue(makeFakeProcess('', 1) as any);
+      vi.mocked(spawn).mockReturnValue(makeFakeProcess('', 1));
       await GarminSyncService.sync();
       expect(SyncJobService.failSyncJob).toHaveBeenCalledWith(
         'sync-job-1',
@@ -202,7 +212,7 @@ describe('GarminSyncService.sync', () => {
 
     it('marks SyncJob Failed when Python cannot be spawned', async () => {
       vi.mocked(spawn).mockReturnValue(
-        makeErrorProcess(new Error('ENOENT: python3 not found')) as any,
+        makeErrorProcess(new Error('ENOENT: python3 not found')),
       );
       await GarminSyncService.sync();
       expect(SyncJobService.failSyncJob).toHaveBeenCalledWith(
@@ -341,7 +351,7 @@ describe('GarminSyncService.sync', () => {
 
     it('does not call rm when Python spawn fails (no tmpDir available)', async () => {
       vi.mocked(spawn).mockReturnValue(
-        makeErrorProcess(new Error('ENOENT')) as any,
+        makeErrorProcess(new Error('ENOENT')),
       );
       await GarminSyncService.sync();
       expect(rm).not.toHaveBeenCalled();
@@ -353,7 +363,7 @@ describe('GarminSyncService.sync', () => {
       vi.mocked(DataSourceConnectionRepository.findConnection).mockResolvedValue({
         username: 'db@test.com',
         password: 'dbpass',
-      } as any);
+      } as unknown as DataSourceConnection);
       mockSpawn(MANIFEST_EMPTY);
       await GarminSyncService.sync();
 
@@ -367,7 +377,7 @@ describe('GarminSyncService.sync', () => {
       vi.mocked(getApiConfig).mockReturnValue({
         garminEmail: 'env@test.com',
         garminPassword: 'envpass',
-      } as any);
+      } as unknown as ApiConfig);
       mockSpawn(MANIFEST_EMPTY);
       await GarminSyncService.sync();
 
@@ -380,7 +390,7 @@ describe('GarminSyncService.sync', () => {
       vi.mocked(DataSourceConnectionRepository.findConnection).mockResolvedValue({
         username: 'db@test.com',
         password: 'dbpass',
-      } as any);
+      } as unknown as DataSourceConnection);
       mockSpawn(MANIFEST_EMPTY);
       await GarminSyncService.sync();
 
@@ -394,7 +404,7 @@ describe('GarminSyncService.sync', () => {
       vi.mocked(getApiConfig).mockReturnValue({
         garminEmail: undefined,
         garminPassword: undefined,
-      } as any);
+      } as unknown as ApiConfig);
 
       await expect(GarminSyncService.sync()).rejects.toThrow('credentials');
       expect(SyncJobService.startSyncJob).not.toHaveBeenCalled();

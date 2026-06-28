@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DataSourceConnection, SyncJob } from '@prisma/client';
+import type { AthleteProfile, DataSourceConnection, SyncJob } from '@prisma/client';
 
 vi.mock('../../lib/prisma.js', () => ({ prisma: {}, disconnectPrisma: vi.fn() }));
 vi.mock('../../config/env.js', () => ({ getApiConfig: vi.fn() }));
@@ -96,9 +96,9 @@ beforeEach(() => {
 
   vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue({
     id: PROFILE_ID,
-  } as any);
+  } as unknown as AthleteProfile);
 
-  vi.mocked(DataSourceConnectionRepository.upsertConnection).mockResolvedValue(makeConnection() as any);
+  vi.mocked(DataSourceConnectionRepository.upsertConnection).mockResolvedValue(makeConnection());
 
   vi.mocked(SyncJobService.startSyncJob).mockResolvedValue(makeSyncJob('Running'));
   vi.mocked(SyncJobService.completeSyncJob).mockResolvedValue(makeSyncJob('Completed'));
@@ -245,7 +245,7 @@ describe('StravaSyncService.sync', () => {
         json: vi.fn().mockResolvedValue([makeRawActivity()]),
         text: vi.fn(),
       }));
-      vi.mocked(runImportPipeline).mockResolvedValue({ status: 'skipped', reason: 'duplicate' } as any);
+      vi.mocked(runImportPipeline).mockResolvedValue({ status: 'duplicate', importJobId: 'job-1', activityId: 'act-1', reason: 'hash_match' });
       await StravaSyncService.sync();
       expect(SyncJobService.completeSyncJob).toHaveBeenCalledWith(
         'sync-job-1',

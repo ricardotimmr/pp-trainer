@@ -1,6 +1,9 @@
 import Fastify from 'fastify';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SyncJob } from '@prisma/client';
+import type { AthleteProfile, SyncJob } from '@prisma/client';
+import type { ApiConfig } from '../../config/env.js';
+import type { GarminSyncResult } from '../../services/GarminSyncService.js';
+import type { SyncHistoryResponseDto } from '@pp-trainer/shared';
 
 vi.mock('../../lib/prisma.js', () => ({ prisma: {}, disconnectPrisma: vi.fn() }));
 vi.mock('../../config/env.js', () => ({ getApiConfig: vi.fn() }));
@@ -66,15 +69,15 @@ beforeEach(() => {
     port: 3001,
     nodeEnv: 'test',
     databaseUrl: 'postgresql://test',
-  } as any);
+  } as unknown as ApiConfig);
 
   vi.mocked(AthleteRepository.findFirstAthleteProfile).mockResolvedValue({
     id: PROFILE_ID,
-  } as any);
+  } as unknown as AthleteProfile);
 
-  vi.mocked(GarminSyncService.sync).mockResolvedValue({ syncJob: makeSyncJob() } as any);
-  vi.mocked(StravaSyncService.sync).mockResolvedValue(makeSyncJob({ source: 'Strava' }) as any);
-  vi.mocked(SyncJobService.getSyncHistory).mockResolvedValue(mockHistory as any);
+  vi.mocked(GarminSyncService.sync).mockResolvedValue({ syncJob: makeSyncJob() } as GarminSyncResult);
+  vi.mocked(StravaSyncService.sync).mockResolvedValue(makeSyncJob({ source: 'Strava' }));
+  vi.mocked(SyncJobService.getSyncHistory).mockResolvedValue(mockHistory as unknown as SyncHistoryResponseDto);
 });
 
 // ── GET /api/sync/history ─────────────────────────────────────────────────────
@@ -206,8 +209,8 @@ describe('GET /api/sync/status/garmin', () => {
       garminEmail: undefined,
       garminPassword: undefined,
       webOrigin: 'http://localhost:5173',
-    } as any);
-    vi.mocked(SyncJobService.getSyncHistory).mockResolvedValue({ jobs: [], total: 0 } as any);
+    } as unknown as ApiConfig);
+    vi.mocked(SyncJobService.getSyncHistory).mockResolvedValue({ jobs: [], total: 0 } as unknown as SyncHistoryResponseDto);
     const app = buildApp();
     const res = await app.inject({ method: 'GET', url: '/api/sync/status/garmin' });
     expect(res.statusCode).toBe(200);
@@ -225,7 +228,7 @@ describe('GET /api/sync/status/garmin', () => {
   });
 
   it('returns lastSync: null when no sync history exists', async () => {
-    vi.mocked(SyncJobService.getSyncHistory).mockResolvedValue({ jobs: [], total: 0 } as any);
+    vi.mocked(SyncJobService.getSyncHistory).mockResolvedValue({ jobs: [], total: 0 } as unknown as SyncHistoryResponseDto);
     const app = buildApp();
     const res = await app.inject({ method: 'GET', url: '/api/sync/status/garmin' });
     expect(res.statusCode).toBe(200);
