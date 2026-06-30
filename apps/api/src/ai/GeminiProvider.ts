@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, GoogleGenerativeAIFetchError } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import {
   AiGeneratedSingleWorkoutSchema,
   AiGeneratedWeekAnalysisSchema,
@@ -12,15 +12,15 @@ import { ApiError } from '../errors/ApiError.js';
 import type { AiProvider, AiProviderResult } from './AiProvider.js';
 import type { BuiltPrompt } from './PromptBuilder.js';
 
-const DEFAULT_MODEL = 'gemini-1.5-flash';
+const DEFAULT_MODEL = 'gemini-2.0-flash';
 const MAX_OUTPUT_TOKENS = 8192;
 
 export class GeminiProvider implements AiProvider {
-  private readonly client: GoogleGenerativeAI;
+  private readonly client: GoogleGenAI;
   private readonly model: string;
 
   constructor(apiKey: string, model?: string) {
-    this.client = new GoogleGenerativeAI(apiKey);
+    this.client = new GoogleGenAI({ apiKey });
     this.model = model ?? DEFAULT_MODEL;
   }
 
@@ -52,45 +52,43 @@ export class GeminiProvider implements AiProvider {
   }
 
   async generateMemoryEntry(prompt: BuiltPrompt): Promise<string> {
-    const model = this.client.getGenerativeModel({
-      model: this.model,
-      systemInstruction: prompt.systemRole,
-      generationConfig: { maxOutputTokens: 256 },
-    });
-
-    let result: Awaited<ReturnType<typeof model.generateContent>>;
+    let text: string;
     try {
-      result = await model.generateContent(prompt.userContent);
+      const response = await this.client.models.generateContent({
+        model: this.model,
+        config: {
+          systemInstruction: prompt.systemRole,
+          maxOutputTokens: 256,
+        },
+        contents: prompt.userContent,
+      });
+      text = response.text ?? '';
     } catch (err: unknown) {
-      if (err instanceof GoogleGenerativeAIFetchError && err.status === 429) throw ApiError.rateLimited();
+      if (isRateLimit(err)) throw ApiError.rateLimited();
       throw ApiError.badGateway('Gemini API error');
     }
-
-    return result.response.text().trim();
+    return text.trim();
   }
 
   private async callWithJsonFormat(prompt: BuiltPrompt): Promise<unknown> {
-    const model = this.client.getGenerativeModel({
-      model: this.model,
-      systemInstruction: prompt.systemRole,
-      generationConfig: {
-        responseMimeType: 'application/json',
-        maxOutputTokens: MAX_OUTPUT_TOKENS,
-      },
-    });
-
-    let result: Awaited<ReturnType<typeof model.generateContent>>;
+    let text: string;
     try {
-      result = await model.generateContent(prompt.userContent);
+      const response = await this.client.models.generateContent({
+        model: this.model,
+        config: {
+          systemInstruction: prompt.systemRole,
+          responseMimeType: 'application/json',
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
+        },
+        contents: prompt.userContent,
+      });
+      text = response.text ?? '';
     } catch (err: unknown) {
-      if (err instanceof GoogleGenerativeAIFetchError) {
-        if (err.status === 429) throw ApiError.rateLimited();
-        throw ApiError.badGateway(`Gemini API error: ${err.message}`);
-      }
-      throw ApiError.badGateway('Gemini API error');
+      if (isRateLimit(err)) throw ApiError.rateLimited();
+      const msg = err instanceof Error ? err.message : 'unknown error';
+      throw ApiError.badGateway(`Gemini API error: ${msg}`);
     }
 
-    const text = result.response.text();
     if (!text) throw ApiError.badGateway('Gemini returned an empty response');
 
     try {
@@ -99,4 +97,9 @@ export class GeminiProvider implements AiProvider {
       throw ApiError.badGateway('Gemini returned invalid JSON');
     }
   }
+}
+
+function isRateLimit(err: unknown): boolean {
+  if (err instanceof Error && err.message.includes('429')) return true;
+  return false;
 }
