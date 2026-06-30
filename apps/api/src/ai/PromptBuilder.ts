@@ -5,100 +5,195 @@ export type BuiltPrompt = {
   userContent: string;
 };
 
-const COACH_SYSTEM_ROLE = `You are an expert endurance sports coach and training planner. Create personalised, periodised training plans based on the athlete's context, goals, and availability.
+// ── System roles ──────────────────────────────────────────────────────────────
 
-Always respond with valid JSON matching the schema exactly. Do not include commentary outside the JSON.
+const COACH_SYSTEM_ROLE = `You are an expert endurance sports coach and training planner specialising in running, cycling, swimming, and triathlon. Your role is to create personalised, science-based training plans tailored precisely to each athlete's physiology, goals, and availability.
 
-Principles:
-- Respect available training days and maximum session durations
-- Build training load progressively with adequate recovery
-- Align workouts with the athlete's primary goals
-- Use zone names from the athlete's zone sets for intensity targets
-- Each workout step must have a unique stepIndex (0-based)`;
+## Output rules
+- Respond with valid JSON only. No text, markdown, or commentary outside the JSON.
+- Every field marked REQUIRED must be present. Omit only fields explicitly marked as optional.
+- sport values must be exactly one of: "running", "cycling", "swimming", "strength", "mobility", "other"
+
+## Periodisation
+Read the athlete context carefully before choosing the week type:
+- Build week: recent load is below the athlete's capacity → moderate volume increase (up to +10–15%)
+- Recovery week: 3+ consecutive high-load weeks, or athlete shows fatigue signals → reduce volume ~30%, keep some intensity
+- Taper: a race goal is within 2–3 weeks → reduce volume 20–30%, maintain race-pace sharpness
+- Do not increase total weekly duration by more than 10–15% compared to last week's completed duration.
+
+## Intensity distribution
+- 80% of weekly training duration in low aerobic intensity (Zone 1–2): easy runs, base rides, technique swims.
+- 20% in high intensity (Zone 4+ or threshold and above): intervals, threshold sets, race-pace work.
+- Avoid excessive Zone 3 "grey zone" training — it accumulates fatigue without clear aerobic or neuromuscular benefit.
+- Never schedule two hard sessions on consecutive days. Always follow a hard session with an easy or rest day.
+
+## Sport-specific intensity guidelines
+
+Running:
+- Easy / long run: Zone 1–2 heart rate, fully conversational pace
+- Tempo / threshold: 20–40 min continuous at lactate threshold pace, maximum once per week
+- Intervals (VO2max): 3–8 min efforts at ~100–105% vVO2max, total hard volume 15–25 min, once per week
+- Long run: Zone 1–2, longest session of the week, on the day with the most available time
+
+Cycling:
+- Easy ride: 55–70% FTP (Zone 2)
+- Sweet spot: 85–90% FTP, 2 × 15–20 min blocks
+- Threshold: 93–97% FTP, 8–15 min efforts
+- VO2max: 105–120% FTP, 3–6 min efforts with equal rest
+
+Swimming:
+- Include a drill / technique block (10–20 min) in most sessions
+- Pace work at CSS (critical swim speed) or slightly above
+- Include kick and pull sets in easier sessions
+
+Strength & Mobility:
+- Short sessions 30–60 min, placed on easy aerobic days or as a secondary session
+- Never schedule strength the day before a key run or ride
+
+## Multi-sport balancing
+- Distribute sports to match the athlete's primarySports and goal sport
+- Running causes more mechanical fatigue than cycling or swimming — avoid hard running the day after a hard ride
+- Swimming is low-impact and can follow any other session
+
+## Workout step structure — MANDATORY
+Every workout must contain at least 3 steps:
+  1. Warm-up (stepType: "warmup") — Zone 1–2, 10–20 min
+  2. One or more main set steps (stepType: "main", "interval", or "technique")
+  3. Cool-down (stepType: "cooldown") — Zone 1, 5–15 min
+
+Rules for steps:
+- stepIndex is 0-based and must be unique per workout
+- Interval steps with repetitions must include restSeconds
+- targetHeartRateZoneName / targetPowerZoneName / targetPaceZoneName must exactly match zone names from the athlete's zone sets. If no matching zone set exists for a sport, describe intensity in the instruction field instead (e.g. "at easy conversational pace")
+- durationSeconds or distanceMeters should be set on every main step — both are allowed together
+
+## Goal alignment
+- Prioritise workouts that directly serve the athlete's main_goal sport and type
+- If a race is within 6 weeks, include race-pace or race-specific sessions
+- Respect availability strictly: no workout on unavailable days, session duration ≤ maxDurationMinutes`;
+
+const ANALYSIS_SYSTEM_ROLE = `You are an expert endurance sports coach analysing a completed training week. Your role is to identify patterns, assess training quality relative to the athlete's goals and load targets, and deliver specific, actionable coaching insight.
+
+## Output rules
+- Respond with valid JSON only. No text, markdown, or commentary outside the JSON.
+- All fields in the schema are REQUIRED unless explicitly marked optional.
+- Base analysis on the actual completed activity data — do not invent sessions that are not listed.
+
+## Analysis principles
+- Compare completed volume and sport distribution to what the athlete's weekly availability would allow
+- Identify intensity distribution from heart rate and power data where available
+- Note imbalances: too much of one sport, missing recovery, sessions too short or too long
+- keyObservations must be specific and actionable — avoid generic phrases like "good week" or "keep it up"
+- suggestedFocus must be a concrete directive for next week (e.g. "Add one 40-min threshold run" — not "run more")
+- coachComment must reference the athlete's active goals to contextualise the week's training`;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatContext(context: AthleteContextForAi): string {
   return JSON.stringify(context, null, 2);
 }
 
-const WEEK_PLAN_SCHEMA_HINT = `Return a JSON object:
+// ── Schema hints ──────────────────────────────────────────────────────────────
+
+const WEEK_PLAN_SCHEMA_HINT = `Return a JSON object with this exact structure:
 {
-  "title": string,
-  "weekStartDate": "YYYY-MM-DD",
-  "weekEndDate": "YYYY-MM-DD",
-  "focus": string (optional),
-  "summary": string (optional),
-  "workouts": [
+  "title": string,                          // REQUIRED — short descriptive title for the week
+  "weekStartDate": "YYYY-MM-DD",            // REQUIRED — must match the requested week start
+  "weekEndDate": "YYYY-MM-DD",              // REQUIRED — 6 days after weekStartDate
+  "focus": string,                          // REQUIRED — one-sentence theme (e.g. "Aerobic base + one threshold run")
+  "summary": string,                        // REQUIRED — 2–3 sentences coaching rationale for this week
+  "workouts": [                             // REQUIRED — array of 3–7 workouts
     {
-      "title": string,
-      "sport": string (e.g. "running", "cycling", "swimming", "strength", "mobility", "other"),
-      "workoutType": string (e.g. "endurance", "interval", "recovery"),
-      "scheduledDate": "YYYY-MM-DD" (optional),
-      "plannedDurationSeconds": number (optional),
-      "plannedDistanceMeters": number (optional),
-      "intensity": string (e.g. "easy", "moderate", "hard"),
-      "objective": string (optional, but required if no description),
-      "description": string (optional),
-      "steps": [
+      "title": string,                      // REQUIRED — descriptive workout name
+      "sport": string,                      // REQUIRED — exactly one of: "running", "cycling", "swimming", "strength", "mobility", "other"
+      "workoutType": string,                // REQUIRED — e.g. "endurance", "interval", "recovery", "technique"
+      "scheduledDate": "YYYY-MM-DD",        // REQUIRED — must fall within the requested week, on an available day
+      "plannedDurationSeconds": number,     // REQUIRED — total session duration in seconds
+      "plannedDistanceMeters": number,      // optional
+      "intensity": string,                  // REQUIRED — "easy", "moderate", "hard", or "very_hard"
+      "objective": string,                  // REQUIRED — one sentence training objective
+      "steps": [                            // REQUIRED — minimum 3 steps (warmup, main, cooldown)
         {
-          "stepIndex": number (0-based, unique per workout),
-          "stepType": string (e.g. "warmup", "main", "interval", "recovery", "cooldown", "technique", "rest", "other"),
-          "instruction": string,
-          "title": string (optional),
-          "durationSeconds": number (optional),
-          "distanceMeters": number (optional),
-          "repetitions": number (optional),
-          "targetHeartRateZoneName": string (optional),
-          "targetPowerZoneName": string (optional),
-          "targetPaceZoneName": string (optional),
-          "targetPowerLowerWatts": number (optional),
-          "targetPowerUpperWatts": number (optional),
-          "targetPaceLowerSecPerKm": number (optional),
-          "targetPaceUpperSecPerKm": number (optional),
-          "targetSwimPaceLowerSecPer100m": number (optional),
-          "targetSwimPaceUpperSecPer100m": number (optional),
-          "restSeconds": number (optional),
-          "notes": string (optional)
+          "stepIndex": number,              // REQUIRED — 0-based, unique per workout
+          "stepType": string,               // REQUIRED — "warmup", "main", "interval", "technique", "recovery", "cooldown", "rest", "other"
+          "instruction": string,            // REQUIRED — clear athlete-facing instruction
+          "title": string,                  // optional
+          "durationSeconds": number,        // REQUIRED on warmup and cooldown; REQUIRED or distanceMeters on main steps
+          "distanceMeters": number,         // optional
+          "repetitions": number,            // optional — set when stepType is "interval"
+          "targetHeartRateZoneName": string, // optional — use exact zone name from athlete's zone sets
+          "targetPowerZoneName": string,    // optional — use exact zone name from athlete's zone sets
+          "targetPaceZoneName": string,     // optional — use exact zone name from athlete's zone sets
+          "targetPowerLowerWatts": number,  // optional
+          "targetPowerUpperWatts": number,  // optional
+          "targetPaceLowerSecPerKm": number, // optional
+          "targetPaceUpperSecPerKm": number, // optional
+          "targetSwimPaceLowerSecPer100m": number, // optional
+          "targetSwimPaceUpperSecPer100m": number, // optional
+          "restSeconds": number,            // REQUIRED when repetitions is set
+          "notes": string                   // optional
         }
       ],
-      "coachNotes": string (optional)
+      "coachNotes": string                  // optional — internal coaching note visible to the athlete
     }
   ]
 }`;
 
-const SINGLE_WORKOUT_SCHEMA_HINT = `Return a JSON object:
+const SINGLE_WORKOUT_SCHEMA_HINT = `Return a JSON object with this exact structure:
 {
   "workout": {
-    "title": string,
-    "sport": string (e.g. "running", "cycling", "swimming", "strength", "mobility", "other"),
-    "workoutType": string (e.g. "endurance", "interval", "recovery"),
-    "plannedDurationSeconds": number (optional),
-    "intensity": string (e.g. "easy", "moderate", "tempo", "threshold", "vo2max"),
-    "objective": string (optional, but required if no description),
-    "description": string (optional),
-    "steps": [
+    "title": string,                        // REQUIRED — descriptive workout name
+    "sport": string,                        // REQUIRED — exactly one of: "running", "cycling", "swimming", "strength", "mobility", "other"
+    "workoutType": string,                  // REQUIRED — e.g. "endurance", "interval", "recovery", "technique"
+    "plannedDurationSeconds": number,       // REQUIRED — total session duration in seconds
+    "intensity": string,                    // REQUIRED — "easy", "moderate", "hard", or "very_hard"
+    "objective": string,                    // REQUIRED — one sentence training objective
+    "steps": [                              // REQUIRED — minimum 3 steps (warmup, main, cooldown)
       {
-        "stepIndex": number (0-based, unique),
-        "stepType": string (e.g. "warmup", "main", "interval", "recovery", "cooldown", "technique", "rest", "other"),
-        "instruction": string,
-        "durationSeconds": number (optional),
-        "distanceMeters": number (optional),
-        "repetitions": number (optional),
-        "targetHeartRateZoneName": string (optional),
-        "targetPowerZoneName": string (optional),
-        "targetPaceZoneName": string (optional),
-        "targetPowerLowerWatts": number (optional),
-        "targetPowerUpperWatts": number (optional),
-        "targetPaceLowerSecPerKm": number (optional),
-        "targetPaceUpperSecPerKm": number (optional),
-        "targetSwimPaceLowerSecPer100m": number (optional),
-        "targetSwimPaceUpperSecPer100m": number (optional),
-        "restSeconds": number (optional),
-        "notes": string (optional)
+        "stepIndex": number,                // REQUIRED — 0-based, unique
+        "stepType": string,                 // REQUIRED — "warmup", "main", "interval", "technique", "recovery", "cooldown", "rest", "other"
+        "instruction": string,              // REQUIRED — clear athlete-facing instruction
+        "title": string,                    // optional
+        "durationSeconds": number,          // REQUIRED on warmup and cooldown; REQUIRED or distanceMeters on main steps
+        "distanceMeters": number,           // optional
+        "repetitions": number,              // optional — set when stepType is "interval"
+        "targetHeartRateZoneName": string,  // optional — use exact zone name from athlete's zone sets
+        "targetPowerZoneName": string,      // optional — use exact zone name from athlete's zone sets
+        "targetPaceZoneName": string,       // optional — use exact zone name from athlete's zone sets
+        "targetPowerLowerWatts": number,    // optional
+        "targetPowerUpperWatts": number,    // optional
+        "targetPaceLowerSecPerKm": number,  // optional
+        "targetPaceUpperSecPerKm": number,  // optional
+        "targetSwimPaceLowerSecPer100m": number, // optional
+        "targetSwimPaceUpperSecPer100m": number, // optional
+        "restSeconds": number,              // REQUIRED when repetitions is set
+        "notes": string                     // optional
       }
     ],
-    "coachNotes": string (optional)
+    "coachNotes": string                    // optional
   }
 }`;
+
+const WEEK_ANALYSIS_SCHEMA_HINT = `Return a JSON object with this exact structure:
+{
+  "weekStartDate": "YYYY-MM-DD",            // REQUIRED
+  "weekEndDate": "YYYY-MM-DD",              // REQUIRED
+  "totalDurationSeconds": number,           // REQUIRED — sum of all activity durations
+  "totalDistanceMeters": number,            // optional — omit if no distance data available
+  "sportBreakdown": [                       // REQUIRED — one entry per sport completed
+    {
+      "sport": string,                      // REQUIRED
+      "durationSeconds": number,            // REQUIRED
+      "distanceMeters": number,             // optional
+      "activityCount": number               // REQUIRED
+    }
+  ],
+  "keyObservations": [string, string],      // REQUIRED — 2–4 specific, actionable observations (not generic praise)
+  "suggestedFocus": string,                 // REQUIRED — one concrete directive for next week
+  "coachComment": string                    // REQUIRED — 2–3 sentences referencing the athlete's active goals
+}`;
+
+// ── Prompt builders ───────────────────────────────────────────────────────────
 
 export function buildWeekPlanPrompt(
   context: AthleteContextForAi,
@@ -107,6 +202,8 @@ export function buildWeekPlanPrompt(
 ): BuiltPrompt {
   const lines = [
     `Generate a training week plan for the week starting ${weekStartDate}.`,
+    `Schedule workouts only on days marked as available in the athlete context.`,
+    `Align the week type (build / recovery / taper) with the athlete's recent training history and upcoming goals.`,
     '',
     '## Athlete Context',
     '```json',
@@ -126,31 +223,41 @@ export function buildWeekPlanPrompt(
   };
 }
 
-export function buildMemoryEntryPrompt(
-  outputType: 'week_plan' | 'single_workout',
-  summary: string | null,
-  structuredOutput: unknown,
+export function buildSingleWorkoutPrompt(
+  context: AthleteContextForAi,
+  sport: string,
+  objective: string,
+  plannedDurationSeconds?: number,
+  additionalInstructions?: string,
 ): BuiltPrompt {
-  const typeLabel = outputType === 'week_plan' ? 'training week plan' : 'single workout';
-  const summaryLine = summary != null ? `Summary: ${summary}` : '';
+  const durationHint =
+    plannedDurationSeconds != null
+      ? `Target duration: ${Math.round(plannedDurationSeconds / 60)} minutes.`
+      : '';
+
+  const lines = [
+    `Generate a single ${sport} workout.`,
+    `Objective: ${objective}`,
+  ];
+  if (durationHint) lines.push(durationHint);
+  lines.push(
+    `The workout must include at least 3 steps: a warm-up, one or more main set steps, and a cool-down.`,
+    '',
+    '## Athlete Context',
+    '```json',
+    formatContext(context),
+    '```',
+  );
+
+  if (additionalInstructions) {
+    lines.push('', '## Additional Instructions', additionalInstructions);
+  }
+
+  lines.push('', '## Output Schema', SINGLE_WORKOUT_SCHEMA_HINT);
 
   return {
-    systemRole: 'You are an expert endurance sports coach writing brief coaching diary entries. Be factual, concise, and coach-voice. Write in present perfect tense.',
-    userContent: [
-      `Write a 2–3 sentence coaching diary entry summarising this ${typeLabel} recommendation.`,
-      `Focus on the key training objective, estimated load, and any notable context.`,
-      `Write it as if you are the coach reflecting on what was recommended.`,
-      summaryLine,
-      '',
-      '## Structured Output',
-      '```json',
-      JSON.stringify(structuredOutput, null, 2),
-      '```',
-      '',
-      'Return only the diary entry text — no preamble, no JSON, no bullet points.',
-    ]
-      .filter(Boolean)
-      .join('\n'),
+    systemRole: COACH_SYSTEM_ROLE,
+    userContent: lines.join('\n'),
   };
 }
 
@@ -167,25 +274,6 @@ export type WeekAnalysisInput = {
     averagePaceSecPerKm?: number;
   }[];
 };
-
-const WEEK_ANALYSIS_SCHEMA_HINT = `Return a JSON object:
-{
-  "weekStartDate": "YYYY-MM-DD",
-  "weekEndDate": "YYYY-MM-DD",
-  "totalDurationSeconds": number,
-  "totalDistanceMeters": number (optional),
-  "sportBreakdown": [
-    {
-      "sport": string,
-      "durationSeconds": number,
-      "distanceMeters": number (optional),
-      "activityCount": number
-    }
-  ],
-  "keyObservations": [string, string, ...] (2–4 bullet-point strings),
-  "suggestedFocus": string (one sentence for the athlete's next training focus),
-  "coachComment": string (1–3 sentences of coaching commentary)
-}`;
 
 export function buildWeekAnalysisPrompt(
   context: AthleteContextForAi,
@@ -211,35 +299,36 @@ export function buildWeekAnalysisPrompt(
   ];
 
   return {
-    systemRole: COACH_SYSTEM_ROLE,
+    systemRole: ANALYSIS_SYSTEM_ROLE,
     userContent: lines.join('\n'),
   };
 }
 
-export function buildSingleWorkoutPrompt(
-  context: AthleteContextForAi,
-  sport: string,
-  objective: string,
-  plannedDurationSeconds?: number,
-  additionalInstructions?: string,
+export function buildMemoryEntryPrompt(
+  outputType: 'week_plan' | 'single_workout',
+  summary: string | null,
+  structuredOutput: unknown,
 ): BuiltPrompt {
-  const durationHint =
-    plannedDurationSeconds != null
-      ? `Target duration: ${Math.round(plannedDurationSeconds / 60)} minutes.`
-      : '';
-
-  const lines = [`Generate a single ${sport} workout.`, `Objective: ${objective}`];
-  if (durationHint) lines.push(durationHint);
-  lines.push('', '## Athlete Context', '```json', formatContext(context), '```');
-
-  if (additionalInstructions) {
-    lines.push('', '## Additional Instructions', additionalInstructions);
-  }
-
-  lines.push('', '## Output Schema', SINGLE_WORKOUT_SCHEMA_HINT);
+  const typeLabel = outputType === 'week_plan' ? 'training week plan' : 'single workout';
+  const summaryLine = summary != null ? `Summary: ${summary}` : '';
 
   return {
-    systemRole: COACH_SYSTEM_ROLE,
-    userContent: lines.join('\n'),
+    systemRole:
+      'You are an expert endurance sports coach writing brief coaching diary entries. Be factual, concise, and coach-voice. Write in present perfect tense.',
+    userContent: [
+      `Write a 2–3 sentence coaching diary entry summarising this ${typeLabel} recommendation.`,
+      `Focus on the key training objective, estimated load, and any notable context.`,
+      `Write it as if you are the coach reflecting on what was recommended.`,
+      summaryLine,
+      '',
+      '## Structured Output',
+      '```json',
+      JSON.stringify(structuredOutput, null, 2),
+      '```',
+      '',
+      'Return only the diary entry text — no preamble, no JSON, no bullet points.',
+    ]
+      .filter(Boolean)
+      .join('\n'),
   };
 }
