@@ -444,19 +444,6 @@ export type WeeklySummary = {
   updatedAt: string;
 };
 
-export type AiCoachPreview = {
-  id: string;
-  athleteProfileId: string;
-  outputType: AiCoachOutputType;
-  status: AiCoachOutputStatus;
-  summary: string;
-  rawText: string;
-  validationStatus: AiOutputValidationStatus;
-  createdTrainingPlanId?: string;
-  createdPlannedWorkoutId?: string;
-  createdAt: string;
-};
-
 export type DashboardSummary = {
   athleteProfile: AthleteProfile;
   activeGoal?: TrainingGoal;
@@ -464,5 +451,4 @@ export type DashboardSummary = {
   currentTrainingPlan: TrainingPlan;
   recentActivities: Activity[];
   upcomingWorkouts: PlannedWorkout[];
-  aiCoachPreview: AiCoachPreview;
 };

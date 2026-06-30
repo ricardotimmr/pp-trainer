@@ -106,16 +106,16 @@ const WEEK_PLAN_SCHEMA_HINT = `Return a JSON object with this exact structure:
     {
       "title": string,                      // REQUIRED — descriptive workout name
       "sport": string,                      // REQUIRED — exactly one of: "running", "cycling", "swimming", "strength", "mobility", "other"
-      "workoutType": string,                // REQUIRED — e.g. "endurance", "interval", "recovery", "technique"
+      "workoutType": string,                // REQUIRED — exactly one of: "endurance"|"recovery"|"tempo"|"threshold"|"vo2max"|"long"|"race_specific"|"technique"|"strength"|"mobility"|"rest"|"other"
       "scheduledDate": "YYYY-MM-DD",        // REQUIRED — must fall within the requested week, on an available day
       "plannedDurationSeconds": number,     // REQUIRED — total session duration in seconds
       "plannedDistanceMeters": number,      // optional
-      "intensity": string,                  // REQUIRED — "easy", "moderate", "hard", or "very_hard"
+      "intensity": string,                  // REQUIRED — exactly one of: "rest"|"recovery"|"easy"|"moderate"|"tempo"|"threshold"|"vo2max"|"race"|"strength"
       "objective": string,                  // REQUIRED — one sentence training objective
       "steps": [                            // REQUIRED — minimum 3 steps (warmup, main, cooldown)
         {
           "stepIndex": number,              // REQUIRED — 0-based, unique per workout
-          "stepType": string,               // REQUIRED — "warmup", "main", "interval", "technique", "recovery", "cooldown", "rest", "other"
+          "stepType": string,               // REQUIRED — exactly one of: "warmup"|"main"|"interval"|"technique"|"recovery"|"cooldown"|"strength_exercise"|"rest"|"other"
           "instruction": string,            // REQUIRED — clear athlete-facing instruction
           "title": string,                  // optional
           "durationSeconds": number,        // REQUIRED on warmup and cooldown; REQUIRED or distanceMeters on main steps
@@ -144,14 +144,14 @@ const SINGLE_WORKOUT_SCHEMA_HINT = `Return a JSON object with this exact structu
   "workout": {
     "title": string,                        // REQUIRED — descriptive workout name
     "sport": string,                        // REQUIRED — exactly one of: "running", "cycling", "swimming", "strength", "mobility", "other"
-    "workoutType": string,                  // REQUIRED — e.g. "endurance", "interval", "recovery", "technique"
+    "workoutType": string,                  // REQUIRED — exactly one of: "endurance"|"recovery"|"tempo"|"threshold"|"vo2max"|"long"|"race_specific"|"technique"|"strength"|"mobility"|"rest"|"other"
     "plannedDurationSeconds": number,       // REQUIRED — total session duration in seconds
-    "intensity": string,                    // REQUIRED — "easy", "moderate", "hard", or "very_hard"
+    "intensity": string,                    // REQUIRED — exactly one of: "rest"|"recovery"|"easy"|"moderate"|"tempo"|"threshold"|"vo2max"|"race"|"strength"
     "objective": string,                    // REQUIRED — one sentence training objective
     "steps": [                              // REQUIRED — minimum 3 steps (warmup, main, cooldown)
       {
         "stepIndex": number,                // REQUIRED — 0-based, unique
-        "stepType": string,                 // REQUIRED — "warmup", "main", "interval", "technique", "recovery", "cooldown", "rest", "other"
+        "stepType": string,                 // REQUIRED — exactly one of: "warmup"|"main"|"interval"|"technique"|"recovery"|"cooldown"|"strength_exercise"|"rest"|"other"
         "instruction": string,              // REQUIRED — clear athlete-facing instruction
         "title": string,                    // optional
         "durationSeconds": number,          // REQUIRED on warmup and cooldown; REQUIRED or distanceMeters on main steps
@@ -188,7 +188,7 @@ const WEEK_ANALYSIS_SCHEMA_HINT = `Return a JSON object with this exact structur
       "activityCount": number               // REQUIRED
     }
   ],
-  "keyObservations": [string, string],      // REQUIRED — 2–4 specific, actionable observations (not generic praise)
+  "keyObservations": string[],              // REQUIRED — 2 to 4 specific, actionable observations (not generic praise)
   "suggestedFocus": string,                 // REQUIRED — one concrete directive for next week
   "coachComment": string                    // REQUIRED — 2–3 sentences referencing the athlete's active goals
 }`;

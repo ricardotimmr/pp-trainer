@@ -1,6 +1,5 @@
 import {
   prototypeActivities,
-  prototypeAiCoachPreview,
   prototypeAthleteProfile,
   prototypePerformanceStats,
   prototypePlannedWorkouts,
@@ -13,7 +12,6 @@ import {
 } from './prototypeData';
 import type {
   Activity,
-  AiCoachPreview,
   AthleteProfile,
   PerformanceStats,
   PlannedWorkout,
@@ -43,7 +41,6 @@ export type PrototypeDataSet = {
   plannedWorkouts: PlannedWorkout[];
   workoutSteps: WorkoutStep[];
   weeklySummary: WeeklySummary;
-  aiCoachPreview: AiCoachPreview;
   performanceStats: PerformanceStats;
 };
 
@@ -66,7 +63,6 @@ const defaultPrototypeDataSet: PrototypeDataSet = {
   plannedWorkouts: prototypePlannedWorkouts,
   workoutSteps: prototypeWorkoutSteps,
   weeklySummary: prototypeWeeklySummary,
-  aiCoachPreview: prototypeAiCoachPreview,
   performanceStats: prototypePerformanceStats,
 };
 

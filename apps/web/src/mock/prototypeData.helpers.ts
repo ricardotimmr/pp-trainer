@@ -1,7 +1,6 @@
 import { getActivePrototypeDataSet } from './prototypeData.fixtures';
 import type {
   Activity,
-  AiCoachPreview,
   AthleteProfile,
   DashboardSummary,
   PerformanceStats,
@@ -111,9 +110,6 @@ export const getPerformanceRacePredictionsBySport = (
     (prediction) => prediction.sport === sport,
   );
 
-export const getAiCoachPreview = (): AiCoachPreview =>
-  getActivePrototypeDataSet().aiCoachPreview;
-
 export const getTrainingGoals = (): TrainingGoal[] => [
   ...getActivePrototypeDataSet().trainingGoals,
 ];
@@ -143,5 +139,4 @@ export const getDashboardSummary = (): DashboardSummary => ({
   currentTrainingPlan: getCurrentTrainingPlan(),
   recentActivities: getRecentActivities(4),
   upcomingWorkouts: getUpcomingWorkouts(3),
-  aiCoachPreview: getAiCoachPreview(),
 });

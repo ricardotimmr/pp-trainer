@@ -5,7 +5,6 @@ import type {
   ActivityStrengthSet,
   ActivitySwimLap,
   ActivityTimeSeriesSample,
-  AiCoachPreview,
   AthleteProfile,
   PerformanceStats,
   PlannedWorkout,
@@ -1326,22 +1325,6 @@ export const prototypeWeeklySummary: WeeklySummary = {
   hardDurationSeconds: 3660,
   createdAt: now,
   updatedAt: now,
-};
-
-// ---------------------------------------------------------------------------
-// AI coach preview
-// ---------------------------------------------------------------------------
-
-export const prototypeAiCoachPreview: AiCoachPreview = {
-  id: 'ai-output-week-plan-2026-06-15',
-  athleteProfileId: prototypeAthleteProfile.id,
-  outputType: 'week_plan',
-  status: 'draft',
-  summary: 'This week keeps volume steady while placing quality on the bike and run. Swim work is technical and aerobic to support consistency without excess fatigue.',
-  rawText: 'Prioritize bike threshold quality on Tuesday, keep Wednesday easy, and cap Friday tempo below threshold. If fatigue rises, replace Thursday strength with mobility.',
-  validationStatus: 'valid',
-  createdTrainingPlanId: prototypeTrainingPlan.id,
-  createdAt: '2026-06-15T07:50:00.000Z',
 };
 
 // ---------------------------------------------------------------------------

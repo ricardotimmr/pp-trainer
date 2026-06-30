@@ -12,7 +12,7 @@ import { ApiError } from '../errors/ApiError.js';
 import type { AiProvider, AiProviderResult } from './AiProvider.js';
 import type { BuiltPrompt } from './PromptBuilder.js';
 
-const DEFAULT_MODEL = 'gemini-2.0-flash';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 const MAX_OUTPUT_TOKENS = 8192;
 
 export class GeminiProvider implements AiProvider {
