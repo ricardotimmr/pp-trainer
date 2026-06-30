@@ -22,6 +22,12 @@ import { useTrainingZones } from '../hooks/useTrainingZones';
 import { PageShell } from '../layout/PageShell';
 import { formatDate, formatDistance, formatDuration } from '../components/prototypeFormatters';
 import { stepTypeLabels } from '../components/data/workoutStepLabels';
+import {
+  getSessionBarSegments,
+  getSessionBarTotalFlex,
+  hasDistanceOnlySessionStep,
+  hasSessionBarData,
+} from '../components/data/workoutSessionBar';
 import type { PageComponentProps } from '../routes/routeTypes';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -406,12 +412,10 @@ export function AiWorkoutPreviewPage({ params, navigate }: PageComponentProps) {
     sumStepValues(effectiveAiSteps, 'distanceMeters'),
   );
   const steps = effectiveAiSteps.map(mapAiStep);
-  // Use durationSeconds where available, fall back to distanceMeters so distance-
-  // only steps (e.g. intervals with reps) still appear in the session bar.
-  const stepBarFlex = (s: WorkoutStepData) => s.durationSeconds ?? s.distanceMeters ?? 0;
-  const hasBarData = steps.some((s) => stepBarFlex(s) > 0);
-  const hasDistanceOnlyStep = steps.some((s) => !s.durationSeconds && (s.distanceMeters ?? 0) > 0);
-  const totalStepSec = steps.reduce((sum, s) => sum + (s.durationSeconds ?? 0), 0);
+  const barSegments = getSessionBarSegments(steps);
+  const hasBarData = hasSessionBarData(barSegments);
+  const hasDistanceOnlyStep = hasDistanceOnlySessionStep(steps);
+  const totalStepSec = getSessionBarTotalFlex(barSegments);
   const scheduledLabel = workout.scheduledDate ? formatDate(workout.scheduledDate) : undefined;
 
   function startEditingStep(step: AiGeneratedWorkoutStep) {
@@ -550,12 +554,16 @@ export function AiWorkoutPreviewPage({ params, navigate }: PageComponentProps) {
 
           {hasBarData && (
             <div className="session-bar" aria-hidden="true">
-              {steps.map((step) => (
+              {barSegments.map((segment) => (
                 <div
-                  key={step.id}
-                  className={`session-bar__segment session-bar__segment--${step.stepType}`}
-                  style={{ flex: stepBarFlex(step) }}
-                  title={step.durationSeconds ? `${stepTypeLabels[step.stepType as keyof typeof stepTypeLabels] ?? step.stepType}: ${formatDuration(step.durationSeconds)}` : `${stepTypeLabels[step.stepType as keyof typeof stepTypeLabels] ?? step.stepType}`}
+                  key={segment.key}
+                  className={`session-bar__segment session-bar__segment--${segment.stepType}`}
+                  style={{ flex: segment.flex }}
+                  title={segment.kind === 'rest'
+                    ? `Rest: ${formatDuration(segment.flex)}`
+                    : segment.step.durationSeconds
+                      ? `${stepTypeLabels[segment.step.stepType as keyof typeof stepTypeLabels] ?? segment.step.stepType}: ${formatDuration(segment.step.durationSeconds * (segment.step.repetitions ?? 1))}`
+                      : `${stepTypeLabels[segment.step.stepType as keyof typeof stepTypeLabels] ?? segment.step.stepType}`}
                 />
               ))}
               {!hasDistanceOnlyStep && totalStepSec < (effectivePlannedDurationSeconds ?? 0) && (

@@ -123,6 +123,12 @@ function currentMondayIso(): string {
   return toLocalDate(d);
 }
 
+function lastCompletedMondayIso(): string {
+  const d = new Date(`${currentMondayIso()}T12:00:00`);
+  d.setDate(d.getDate() - 7);
+  return toLocalDate(d);
+}
+
 const GENERATION_MODE_INDEX: Record<GenerationMode, number> = {
   week_plan: 0,
   single_workout: 1,
@@ -138,6 +144,9 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
   // Week plan form state
   const [weekStartDate, setWeekStartDate] = useState(nextMondayIso);
   const [weekInstruction, setWeekInstruction] = useState('');
+
+  // Week analysis form state
+  const [analysisWeekStartDate, setAnalysisWeekStartDate] = useState(lastCompletedMondayIso);
 
   // Single workout form state
   const [sport, setSport] = useState<string>('running');
@@ -248,12 +257,13 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
 
   async function handleWeekAnalysisSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!analysisWeekStartDate) return;
     setError(null);
     setInvalidOutput(false);
     setLoading(true);
 
     try {
-      const request: GenerateWeekAnalysisRequest = { weekStartDate: currentMondayIso() };
+      const request: GenerateWeekAnalysisRequest = { weekStartDate: analysisWeekStartDate };
       const output = await generateWeekAnalysis(request);
 
       if (output.validationStatus === 'invalid') {
@@ -674,11 +684,25 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
 
               {mode === 'week_analysis' && (
                 <form className="ai-request-form" onSubmit={handleWeekAnalysisSubmit} noValidate>
-                  <p className="ai-output__label">Analyze current week</p>
+                  <p className="ai-output__label">Analyze week</p>
 
                   <div className="ai-request-form__fields">
+                    <div className="cw-field">
+                      <label className="cw-label cw-label--required" htmlFor="analysisWeekStartDate">
+                        Week start (Monday)
+                      </label>
+                      <input
+                        id="analysisWeekStartDate"
+                        type="date"
+                        className="cw-input"
+                        value={analysisWeekStartDate}
+                        onChange={(e) => setAnalysisWeekStartDate(e.target.value)}
+                        required
+                      />
+                    </div>
+
                     <div className="ai-analysis-trigger">
-                      <p className="ai-analysis-trigger__title">Review this week with current activity data.</p>
+                      <p className="ai-analysis-trigger__title">Review the selected week with activity data.</p>
                       <p className="ai-analysis-trigger__copy">
                         The coach will summarize total volume, sport distribution, key observations and a focus for the next training decision.
                       </p>
@@ -689,8 +713,9 @@ export function AiCoachPage({ navigate }: PageComponentProps) {
                     <button
                       type="submit"
                       className="button button--primary"
+                      disabled={!analysisWeekStartDate}
                     >
-                      Analyze this week
+                      Analyze week
                     </button>
                   </div>
                 </form>

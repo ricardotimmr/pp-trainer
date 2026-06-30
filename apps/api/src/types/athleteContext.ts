@@ -46,8 +46,8 @@ export type AiAthleteInfo = {
   maxHeartRateBpm?: number;
   restingHeartRateBpm?: number;
   runningThresholdHrBpm?: number;
-  runningThresholdPaceSecPerKm?: number;
-  swimmingThresholdPaceSecPer100m?: number;
+  runningThresholdPace?: string;
+  swimmingThresholdPace?: string;
 };
 
 export type AiGoal = {
@@ -58,9 +58,9 @@ export type AiGoal = {
   priority: string;
   targetDistanceMeters?: number;
   targetDurationSeconds?: number;
-  targetPaceSecPerKm?: number;
+  targetPace?: string;
   targetPowerWatts?: number;
-  targetSwimPaceSecPer100m?: number;
+  targetSwimPace?: string;
 };
 
 export type AiAvailabilityDay = {
@@ -90,7 +90,7 @@ export type AiRecentActivity = {
   distanceMeters?: number;
   averageHeartRateBpm?: number;
   averagePowerWatts?: number;
-  averagePaceSecPerKm?: number;
+  averagePace?: string;
   perceivedExertion?: number;
 };
 

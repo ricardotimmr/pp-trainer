@@ -34,6 +34,18 @@ function toDateString(date: Date): string {
   return date.toISOString().split('T')[0];
 }
 
+function formatPacePerKm(secPerKm: number): string {
+  const mins = Math.floor(secPerKm / 60);
+  const secs = secPerKm % 60;
+  return `${mins}:${String(secs).padStart(2, '0')} /km`;
+}
+
+function formatPacePer100m(secPer100m: number): string {
+  const mins = Math.floor(secPer100m / 60);
+  const secs = secPer100m % 60;
+  return `${mins}:${String(secs).padStart(2, '0')} /100m`;
+}
+
 function toMonthKey(date: Date): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 }
@@ -188,8 +200,14 @@ export async function buildContext(athleteProfileId: string): Promise<AthleteCon
       maxHeartRateBpm: profile.maxHeartRateBpm ?? undefined,
       restingHeartRateBpm: profile.restingHeartRateBpm ?? undefined,
       runningThresholdHrBpm: profile.runningThresholdHrBpm ?? undefined,
-      runningThresholdPaceSecPerKm: profile.runningThresholdPaceSecPerKm ?? undefined,
-      swimmingThresholdPaceSecPer100m: profile.swimmingThresholdPaceSecPer100m ?? undefined,
+      runningThresholdPace:
+        profile.runningThresholdPaceSecPerKm != null
+          ? formatPacePerKm(profile.runningThresholdPaceSecPerKm)
+          : undefined,
+      swimmingThresholdPace:
+        profile.swimmingThresholdPaceSecPer100m != null
+          ? formatPacePer100m(profile.swimmingThresholdPaceSecPer100m)
+          : undefined,
     },
 
     goals: goals.map((g) => ({
@@ -200,9 +218,11 @@ export async function buildContext(athleteProfileId: string): Promise<AthleteCon
       priority: g.priority.toLowerCase(),
       targetDistanceMeters: g.targetDistanceMeters ?? undefined,
       targetDurationSeconds: g.targetDurationSeconds ?? undefined,
-      targetPaceSecPerKm: g.targetPaceSecPerKm ?? undefined,
+      targetPace:
+        g.targetPaceSecPerKm != null ? formatPacePerKm(g.targetPaceSecPerKm) : undefined,
       targetPowerWatts: g.targetPowerWatts ?? undefined,
-      targetSwimPaceSecPer100m: g.targetSwimPaceSecPer100m ?? undefined,
+      targetSwimPace:
+        g.targetSwimPaceSecPer100m != null ? formatPacePer100m(g.targetSwimPaceSecPer100m) : undefined,
     })),
 
     availability: [...availability]
@@ -235,7 +255,8 @@ export async function buildContext(athleteProfileId: string): Promise<AthleteCon
       distanceMeters: act.distanceMeters ?? undefined,
       averageHeartRateBpm: act.averageHeartRateBpm ?? undefined,
       averagePowerWatts: act.averagePowerWatts ?? undefined,
-      averagePaceSecPerKm: act.averagePaceSecPerKm ?? undefined,
+      averagePace:
+        act.averagePaceSecPerKm != null ? formatPacePerKm(act.averagePaceSecPerKm) : undefined,
       perceivedExertion: act.perceivedExertion ?? undefined,
     })),
 

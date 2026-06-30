@@ -127,8 +127,8 @@ describe('buildContext', () => {
     expect(ctx.athlete.currentFtpWatts).toBe(280);
     expect(ctx.athlete.maxHeartRateBpm).toBe(192);
     expect(ctx.athlete.restingHeartRateBpm).toBe(48);
-    expect(ctx.athlete.runningThresholdPaceSecPerKm).toBe(255);
-    expect(ctx.athlete.swimmingThresholdPaceSecPer100m).toBe(105);
+    expect(ctx.athlete.runningThresholdPace).toBe('4:15 /km');
+    expect(ctx.athlete.swimmingThresholdPace).toBe('1:45 /100m');
     expect('id' in ctx.athlete).toBe(false);
   });
 
@@ -142,7 +142,7 @@ describe('buildContext', () => {
     expect(g.priority).toBe('maingoal');
     expect(g.targetDate).toBe('2026-10-01');
     expect(g.targetDistanceMeters).toBe(42195);
-    expect(g.targetPaceSecPerKm).toBe(341);
+    expect(g.targetPace).toBe('5:41 /km');
     expect('id' in g).toBe(false);
   });
 
@@ -194,7 +194,7 @@ describe('buildContext', () => {
     expect(act.durationSeconds).toBe(3600);
     expect(act.distanceMeters).toBe(10000);
     expect(act.averageHeartRateBpm).toBe(148);
-    expect(act.averagePaceSecPerKm).toBe(360);
+    expect(act.averagePace).toBe('6:00 /km');
     expect('id' in act).toBe(false);
   });
 
