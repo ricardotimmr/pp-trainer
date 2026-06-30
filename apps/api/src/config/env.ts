@@ -1,4 +1,4 @@
-export type AiProvider = 'anthropic' | 'openai';
+export type AiProvider = 'anthropic' | 'openai' | 'gemini';
 
 export type ApiConfig = {
   host: string;
@@ -12,6 +12,7 @@ export type ApiConfig = {
     mock: boolean;
     anthropicApiKey?: string;
     openaiApiKey?: string;
+    geminiApiKey?: string;
     model?: string;
   };
   garminEmail?: string;
@@ -52,6 +53,7 @@ function parseNodeEnv(rawNodeEnv: string | undefined): ApiConfig['nodeEnv'] {
 
 function parseAiProvider(raw: string | undefined): AiProvider {
   if (raw === 'anthropic') return 'anthropic';
+  if (raw === 'gemini') return 'gemini';
   return 'openai';
 }
 
@@ -68,6 +70,7 @@ export function getApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
       mock: env.AI_MOCK === 'true',
       anthropicApiKey: env.ANTHROPIC_API_KEY,
       openaiApiKey: env.OPENAI_API_KEY,
+      geminiApiKey: env.GEMINI_API_KEY,
       model: env.AI_MODEL,
     },
     garminEmail: env.GARMIN_EMAIL,
