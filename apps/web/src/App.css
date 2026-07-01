@@ -1490,6 +1490,61 @@ button:focus-visible {
     transform 0.22s ease;
 }
 
+.dashboard-health-daily-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboard-health-signal {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: #fbfaf7;
+}
+
+.dashboard-health-signal header {
+  display: grid;
+  gap: 3px;
+}
+
+.dashboard-health-signal header span {
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dashboard-health-signal header strong {
+  color: var(--color-ink);
+  font-size: 0.92rem;
+  line-height: 1.1;
+}
+
+.dashboard-health-signal--battery {
+  border-top: 3px solid var(--color-accent);
+}
+
+.dashboard-health-signal--stress {
+  border-top: 3px solid var(--color-sport-running);
+}
+
+.dashboard-health-signal--steps {
+  border-top: 3px solid var(--color-sport-cycling);
+}
+
+.dashboard-health-signal--resting-hr {
+  border-top: 3px solid var(--color-sport-strength);
+}
+
+.dashboard-health-chart--mini {
+  min-height: 150px;
+}
+
 .dashboard-health-card__metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4721,6 +4776,10 @@ button:focus-visible {
     grid-column: auto;
   }
 
+  .dashboard-health-daily-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .dashboard-health__head {
     align-items: flex-start;
     flex-direction: column;
@@ -4909,6 +4968,10 @@ button:focus-visible {
   }
 
   .dashboard-health-card__metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-health-daily-grid {
     grid-template-columns: 1fr;
   }
 

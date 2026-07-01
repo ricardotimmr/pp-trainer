@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import type { DailyHealthSummaryDto } from '@pp-trainer/shared';
 import {
-  Area,
   Bar,
+  BarChart,
   CartesianGrid,
-  ComposedChart,
   Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -63,6 +63,7 @@ export function HealthSummaryCard() {
   const [range, setRange] = useState<HealthRange>('7d');
   const state = useDailyHealth(range);
   const data = state.data ?? [];
+  const rows = buildRows(data);
   const hasData = hasDailyHealthData(data);
   const isInitialLoading = state.status === 'loading' && data.length === 0;
   const isRefreshing = state.status === 'loading' && data.length > 0;
@@ -96,21 +97,79 @@ export function HealthSummaryCard() {
       )}
       {hasData && (
         <>
-          <div className="dashboard-health-chart dashboard-health-chart--daily">
-            <ResponsiveContainer width="100%" height={260}>
-              <ComposedChart data={buildRows(data)} margin={{ top: 10, right: 8, bottom: 0, left: -16 }}>
-                <CartesianGrid stroke="rgba(34, 38, 46, 0.09)" vertical={false} />
-                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#747986', fontSize: 12 }} />
-                <YAxis yAxisId="score" domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#747986', fontSize: 12 }} />
-                <YAxis yAxisId="steps" orientation="right" axisLine={false} tickLine={false} tick={{ fill: '#747986', fontSize: 12 }} tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
-                <Tooltip cursor={{ fill: 'rgba(215, 31, 133, 0.06)' }} />
-                <Bar yAxisId="score" dataKey="bodyBatteryLow" stackId="battery" fill="transparent" animationDuration={320} />
-                <Bar yAxisId="score" dataKey="bodyBatteryRange" name="Body Battery range" stackId="battery" fill="var(--color-accent)" radius={[4, 4, 0, 0]} animationDuration={320} />
-                <Area yAxisId="steps" type="monotone" dataKey="steps" name="Steps" fill="rgba(26, 116, 232, 0.12)" stroke="#1a74e8" animationDuration={320} />
-                <Line yAxisId="score" type="monotone" dataKey="avgStressLevel" name="Stress" stroke="#f2641a" strokeWidth={2} dot={{ r: 3 }} animationDuration={320} />
-                <Line yAxisId="score" type="monotone" dataKey="restingHeartRate" name="Resting HR" stroke="#7c3aed" strokeWidth={2} dot={{ r: 3 }} animationDuration={320} />
-              </ComposedChart>
-            </ResponsiveContainer>
+          <div className="dashboard-health-daily-grid">
+            <section className="dashboard-health-signal dashboard-health-signal--battery" aria-label="Body Battery range">
+              <header>
+                <span>Body Battery</span>
+                <strong>Low / high range</strong>
+              </header>
+              <div className="dashboard-health-chart dashboard-health-chart--mini">
+                <ResponsiveContainer width="100%" height={150}>
+                  <BarChart data={rows} margin={{ top: 8, right: 4, bottom: 0, left: -28 }}>
+                    <CartesianGrid stroke="rgba(34, 38, 46, 0.08)" vertical={false} />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#747986', fontSize: 11 }} />
+                    <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#747986', fontSize: 11 }} />
+                    <Tooltip cursor={{ fill: 'rgba(235, 15, 122, 0.06)' }} />
+                    <Bar dataKey="bodyBatteryLow" stackId="battery" fill="transparent" animationDuration={320} />
+                    <Bar dataKey="bodyBatteryRange" name="Range" stackId="battery" fill="var(--color-accent)" radius={[4, 4, 0, 0]} animationDuration={320} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            <section className="dashboard-health-signal dashboard-health-signal--stress" aria-label="Average stress">
+              <header>
+                <span>Stress</span>
+                <strong>Daily average</strong>
+              </header>
+              <div className="dashboard-health-chart dashboard-health-chart--mini">
+                <ResponsiveContainer width="100%" height={150}>
+                  <LineChart data={rows} margin={{ top: 8, right: 4, bottom: 0, left: -28 }}>
+                    <CartesianGrid stroke="rgba(34, 38, 46, 0.08)" vertical={false} />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#747986', fontSize: 11 }} />
+                    <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#747986', fontSize: 11 }} />
+                    <Tooltip cursor={{ stroke: 'rgba(242, 100, 26, 0.18)' }} />
+                    <Line type="monotone" dataKey="avgStressLevel" name="Stress" stroke="#f2641a" strokeWidth={2} dot={{ r: 3 }} animationDuration={320} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            <section className="dashboard-health-signal dashboard-health-signal--steps" aria-label="Steps">
+              <header>
+                <span>Steps</span>
+                <strong>Daily count</strong>
+              </header>
+              <div className="dashboard-health-chart dashboard-health-chart--mini">
+                <ResponsiveContainer width="100%" height={150}>
+                  <BarChart data={rows} margin={{ top: 8, right: 4, bottom: 0, left: -28 }}>
+                    <CartesianGrid stroke="rgba(34, 38, 46, 0.08)" vertical={false} />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#747986', fontSize: 11 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#747986', fontSize: 11 }} tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
+                    <Tooltip cursor={{ fill: 'rgba(26, 116, 232, 0.07)' }} />
+                    <Bar dataKey="steps" name="Steps" fill="#1a74e8" radius={[4, 4, 0, 0]} animationDuration={320} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            <section className="dashboard-health-signal dashboard-health-signal--resting-hr" aria-label="Resting heart rate">
+              <header>
+                <span>Resting HR</span>
+                <strong>Morning baseline</strong>
+              </header>
+              <div className="dashboard-health-chart dashboard-health-chart--mini">
+                <ResponsiveContainer width="100%" height={150}>
+                  <LineChart data={rows} margin={{ top: 8, right: 4, bottom: 0, left: -28 }}>
+                    <CartesianGrid stroke="rgba(34, 38, 46, 0.08)" vertical={false} />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#747986', fontSize: 11 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#747986', fontSize: 11 }} />
+                    <Tooltip cursor={{ stroke: 'rgba(124, 58, 237, 0.18)' }} />
+                    <Line type="monotone" dataKey="restingHeartRate" name="Resting HR" stroke="#7c3aed" strokeWidth={2} dot={{ r: 3 }} animationDuration={320} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
           </div>
           <HealthMetricRow
             items={[

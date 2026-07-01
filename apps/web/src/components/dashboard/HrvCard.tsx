@@ -74,7 +74,7 @@ export function HrvCard() {
           <p>HRV</p>
           <h3>Nightly peak and status</h3>
         </div>
-        <HealthRangeToggle value={range} options={['14d', '30d']} onChange={setRange} />
+        <HealthRangeToggle value={range} onChange={setRange} />
       </header>
 
       {isRefreshing && <span className="dashboard-health-card__sync">Updating</span>}

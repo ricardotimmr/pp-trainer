@@ -464,6 +464,7 @@ export function DashboardPage({ navigate }: PageComponentProps) {
             </div>
           </div>
         </div>
+        <DashboardChartsSection state={analyticsState} />
         <section className="dashboard-health" aria-label="Health and recovery">
           <div className="dashboard-health__head">
             <div>
@@ -478,7 +479,6 @@ export function DashboardPage({ navigate }: PageComponentProps) {
             <HrvCard />
           </div>
         </section>
-        <DashboardChartsSection state={analyticsState} />
       </div>
     </PageShell>
   );
