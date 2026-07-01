@@ -431,6 +431,86 @@ button:focus-visible {
   color: #fbfbf8;
 }
 
+.app-shell__top-action {
+  position: fixed;
+  right: 0;
+  bottom: max(90px, calc(env(safe-area-inset-bottom) + 90px));
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 34px;
+  min-height: 78px;
+  border: 0;
+  border-radius: var(--radius) 0 0 var(--radius);
+  padding: 9px 7px 10px;
+  background: var(--color-accent);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(100%);
+  transition:
+    opacity 0.2s ease,
+    transform 0.22s ease,
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.app-shell__top-action.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.app-shell__top-action:hover {
+  background: var(--color-accent-dark);
+  transform: translateX(-3px);
+}
+
+.app-shell__top-action-mark {
+  position: relative;
+  width: 11px;
+  height: 14px;
+}
+
+.app-shell__top-action-mark::before,
+.app-shell__top-action-mark::after {
+  content: '';
+  position: absolute;
+  background: currentColor;
+}
+
+.app-shell__top-action-mark::before {
+  left: 5px;
+  top: 3px;
+  width: 1.5px;
+  height: 10px;
+}
+
+.app-shell__top-action-mark::after {
+  left: 2px;
+  top: 2px;
+  width: 7px;
+  height: 7px;
+  border-top: 1.5px solid currentColor;
+  border-left: 1.5px solid currentColor;
+  background: transparent;
+  transform: rotate(45deg);
+}
+
+.app-shell__top-action-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
 .app-shell__menu-button {
   position: absolute;
   right: 52px;
@@ -4499,6 +4579,14 @@ button:focus-visible {
 
   .app-shell__header.is-scrolled .app-shell__menu-button {
     right: 20px;
+  }
+
+  .app-shell__top-action {
+    right: 0;
+    bottom: max(72px, calc(env(safe-area-inset-bottom) + 72px));
+    min-width: 32px;
+    min-height: 68px;
+    padding: 8px 6px 9px;
   }
 
   .app-shell__nav {

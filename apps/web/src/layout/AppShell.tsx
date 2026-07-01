@@ -5,6 +5,7 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
+import { useLenis } from 'lenis/react';
 
 import { AppFooter } from './AppFooter';
 import { navigationRoutes } from '../routes/routeConfig';
@@ -20,11 +21,13 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isHeaderHidden, setIsHeaderHidden] = useState(false);
+  const [showTopAction, setShowTopAction] = useState(false);
   const [activeIndicator, setActiveIndicator] = useState({
     isVisible: false,
     width: 0,
     x: 0,
   });
+  const lenis = useLenis();
   const navRef = useRef<HTMLElement | null>(null);
   const navButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const lastScrollPosition = useRef(0);
@@ -37,7 +40,15 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
       const currentScrollPosition = window.scrollY;
       const scrollDifference =
         currentScrollPosition - lastScrollPosition.current;
+      const maxScrollPosition =
+        document.documentElement.scrollHeight - window.innerHeight;
       const isPastCompactThreshold = currentScrollPosition > 64;
+      const topActionThreshold = Math.min(
+        360,
+        Math.max(120, maxScrollPosition * 0.45),
+      );
+      const isPastTopActionThreshold =
+        maxScrollPosition > 160 && currentScrollPosition > topActionThreshold;
       const isPastInitialHideDistance =
         currentScrollPosition - compactStartPosition.current > 500;
 
@@ -47,6 +58,7 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
       }
 
       setIsScrolled(isPastCompactThreshold);
+      setShowTopAction(isPastTopActionThreshold);
 
       if (!isPastCompactThreshold || isMenuOpen) {
         setIsHeaderHidden(false);
@@ -86,6 +98,18 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
     setIsMenuOpen(false);
     setIsHeaderHidden(false);
     navigate(path);
+  };
+
+  const scrollToTop = () => {
+    setIsMenuOpen(false);
+    setIsHeaderHidden(false);
+
+    if (lenis) {
+      lenis.scrollTo(0);
+      return;
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const getIsActive = (path: string) =>
@@ -262,6 +286,17 @@ export function AppShell({ pathname, navigate, children }: AppShellProps) {
       </header>
 
       <main className="app-shell__main">{children}</main>
+      <button
+        type="button"
+        className={`app-shell__top-action${showTopAction ? ' is-visible' : ''}`}
+        aria-label="Back to top"
+        aria-hidden={showTopAction ? undefined : true}
+        tabIndex={showTopAction ? undefined : -1}
+        onClick={scrollToTop}
+      >
+        <span className="app-shell__top-action-mark" aria-hidden="true" />
+        <span className="app-shell__top-action-label">Top</span>
+      </button>
       <AppFooter navigate={openRoute} />
     </div>
   );
